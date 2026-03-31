@@ -1,0 +1,15 @@
+build/
+build_*/
+data/*.pbf
+tests/data/*.pbf
+tests/data/*.osm
+data/*.osm
+data/*.gravel.*
+*.o
+*.so
+*.dylib
+.DS_Store
+compile_commands.json
+.cache/
+__pycache__/
+*.egg-info/

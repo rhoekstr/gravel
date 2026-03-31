@@ -1,0 +1,37 @@
+[build-system]
+requires = ["scikit-build-core>=0.5", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "gravel"
+version = "1.0.0"
+description = "Graph Routing and Vulnerability Analysis Library"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.9"
+authors = [
+    {name = "Gravel Contributors"},
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: C++",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Information Analysis",
+]
+keywords = ["routing", "fragility", "network-analysis", "contraction-hierarchy", "graph"]
+
+[project.urls]
+Homepage = "https://github.com/gravel-routing/gravel"
+
+[tool.scikit-build]
+cmake.args = ["-DGRAVEL_BUILD_PYTHON=ON", "-DGRAVEL_BUILD_CLI=OFF", "-DGRAVEL_BUILD_TESTS=OFF"]
+wheel.packages = ["python/gravel"]
+
+[tool.scikit-build.cmake.define]
+GRAVEL_BUILD_PYTHON = "ON"
+GRAVEL_BUILD_CLI = "OFF"
+GRAVEL_BUILD_TESTS = "OFF"
+GRAVEL_BUILD_BENCH = "OFF"
