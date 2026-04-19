@@ -2,5 +2,6 @@ sphinx>=7.2
 sphinx-rtd-theme>=2.0
 sphinx-autodoc-typehints>=2.0
 myst-parser>=2.0
-breathe>=4.35  # For Doxygen C++ bridging
+linkify-it-py>=2.0           # Required by myst-parser's "linkify" extension
+breathe>=4.35                # For Doxygen C++ bridging
 sphinx-copybutton>=0.5
