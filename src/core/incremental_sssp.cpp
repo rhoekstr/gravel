@@ -1,6 +1,8 @@
 #include "gravel/core/incremental_sssp.h"
 #include "gravel/core/array_graph.h"
 #include <queue>
+#include <utility>
+#include <functional>
 
 namespace gravel {
 

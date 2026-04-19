@@ -6,6 +6,8 @@
 #include <limits>
 #include <stdexcept>
 #include <unordered_set>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

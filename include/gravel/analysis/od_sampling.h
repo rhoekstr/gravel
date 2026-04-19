@@ -2,6 +2,7 @@
 #include "gravel/core/array_graph.h"
 #include "gravel/ch/contraction.h"
 #include <vector>
+#include <utility>
 
 namespace gravel {
 

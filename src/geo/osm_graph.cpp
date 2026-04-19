@@ -2,6 +2,8 @@
 #include "gravel/core/geo_math.h"
 #include <stdexcept>
 
+#include <memory>
+#include <utility>
 #ifdef GRAVEL_HAS_OSMIUM
 
 #include <osmium/io/any_input.hpp>

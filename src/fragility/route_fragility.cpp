@@ -3,6 +3,7 @@
 #include "gravel/ch/ch_query.h"
 #include <cmath>
 #include <limits>
+#include <utility>
 
 namespace gravel {
 

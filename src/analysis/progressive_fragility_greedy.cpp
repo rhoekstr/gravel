@@ -1,6 +1,7 @@
 #include "gravel/analysis/progressive_fragility.h"
 #include "progressive_sssp.h"
 #include <algorithm>
+#include <utility>
 
 namespace gravel {
 

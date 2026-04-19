@@ -7,6 +7,7 @@
 #include <queue>
 #include <random>
 #include <unordered_map>
+#include <functional>
 
 namespace gravel {
 

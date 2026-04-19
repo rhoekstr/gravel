@@ -1,6 +1,8 @@
 #include "gravel/geo/graph_coarsening.h"
 #include <algorithm>
 #include <numeric>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

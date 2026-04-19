@@ -1,6 +1,7 @@
 #include "gravel/geo/edge_confidence.h"
 #include "gravel/core/edge_labels.h"
 #include <algorithm>
+#include <utility>
 
 namespace gravel {
 

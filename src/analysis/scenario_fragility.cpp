@@ -2,6 +2,7 @@
 #include "gravel/simplify/bridges.h"
 #include "gravel/core/geo_math.h"
 #include <unordered_set>
+#include <utility>
 
 namespace gravel {
 

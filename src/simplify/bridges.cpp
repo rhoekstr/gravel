@@ -2,6 +2,7 @@
 #include "gravel/ch/blocked_ch_query.h"
 #include <algorithm>
 #include <vector>
+#include <functional>
 
 namespace gravel {
 

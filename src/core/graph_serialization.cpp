@@ -4,6 +4,8 @@
 #include <cstring>
 #include <fstream>
 #include <stdexcept>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

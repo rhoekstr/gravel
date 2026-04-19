@@ -3,6 +3,7 @@
 #include "gravel/core/four_heap.h"
 #include <algorithm>
 #include <unordered_set>
+#include <utility>
 
 namespace gravel {
 

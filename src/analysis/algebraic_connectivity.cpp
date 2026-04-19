@@ -6,6 +6,7 @@
 #include <queue>
 #include <vector>
 #include <algorithm>
+#include <cmath>
 
 namespace gravel {
 

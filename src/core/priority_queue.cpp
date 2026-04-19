@@ -1,6 +1,7 @@
 #include "gravel/core/priority_queue.h"
 #include <cassert>
 #include <algorithm>
+#include <utility>
 
 namespace gravel {
 

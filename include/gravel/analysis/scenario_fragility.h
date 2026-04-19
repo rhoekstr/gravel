@@ -39,6 +39,7 @@
 #include "gravel/ch/shortcut_index.h"
 #include "gravel/analysis/county_fragility.h"
 #include <vector>
+#include <utility>
 
 namespace gravel {
 

@@ -1,6 +1,7 @@
 #include "gravel/core/array_graph.h"
 #include <algorithm>
 #include <cassert>
+#include <utility>
 
 namespace gravel {
 

@@ -6,6 +6,8 @@
 #include <fstream>
 #include <queue>
 #include <stdexcept>
+#include <utility>
+#include <functional>
 
 namespace gravel {
 

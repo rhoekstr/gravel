@@ -3,6 +3,7 @@
 #include "gravel/core/types.h"
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 namespace gravel {
 

@@ -3,6 +3,8 @@
 #include <cassert>
 #include <numeric>
 #include <random>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

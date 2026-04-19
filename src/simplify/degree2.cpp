@@ -1,5 +1,7 @@
 #include "gravel/simplify/simplify.h"
 #include <algorithm>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

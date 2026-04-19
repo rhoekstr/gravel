@@ -1,6 +1,8 @@
 #include "gravel/simplify/simplify.h"
 #include "gravel/simplify/bridges.h"
 #include <unordered_set>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

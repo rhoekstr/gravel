@@ -3,6 +3,8 @@
 #include <random>
 #include <algorithm>
 #include <cmath>
+#include <utility>
+#include <functional>
 
 namespace gravel {
 

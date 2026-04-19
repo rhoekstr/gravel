@@ -8,6 +8,8 @@
 #include <cmath>
 #include <limits>
 
+#include <utility>
+#include <functional>
 #ifdef _OPENMP
 #include <omp.h>
 #endif

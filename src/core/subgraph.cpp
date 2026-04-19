@@ -1,5 +1,7 @@
 #include "gravel/core/subgraph.h"
 #include "gravel/core/geo_math.h"
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

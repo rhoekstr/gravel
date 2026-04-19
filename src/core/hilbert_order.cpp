@@ -2,6 +2,8 @@
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

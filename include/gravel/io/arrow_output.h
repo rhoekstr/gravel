@@ -9,6 +9,7 @@
 #include "gravel/analysis/betweenness.h"
 #include <string>
 #include <vector>
+#include <utility>
 
 namespace gravel {
 

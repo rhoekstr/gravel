@@ -3,6 +3,8 @@
 #include <cmath>
 #include <nlohmann/json.hpp>
 
+#include <memory>
+#include <utility>
 #ifdef GRAVEL_HAS_ARROW
 #include <arrow/api.h>
 #include <arrow/io/file.h>

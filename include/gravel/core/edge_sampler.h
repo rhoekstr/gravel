@@ -10,6 +10,7 @@
 #include "gravel/core/edge_labels.h"
 #include <functional>
 #include <vector>
+#include <utility>
 
 namespace gravel {
 

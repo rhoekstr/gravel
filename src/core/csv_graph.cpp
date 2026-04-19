@@ -4,6 +4,8 @@
 #include <sstream>
 #include <stdexcept>
 #include <unordered_map>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

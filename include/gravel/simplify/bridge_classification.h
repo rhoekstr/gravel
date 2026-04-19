@@ -25,6 +25,7 @@
 #include "gravel/simplify/bridges.h"
 #include <functional>
 #include <vector>
+#include <utility>
 
 namespace gravel {
 

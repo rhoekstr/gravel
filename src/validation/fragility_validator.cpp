@@ -5,6 +5,8 @@
 #include "gravel/core/dijkstra.h"
 #include <random>
 #include <cmath>
+#include <memory>
+#include <utility>
 
 namespace gravel {
 

@@ -23,6 +23,7 @@
 #include "gravel/analysis/progressive_fragility.h"  // SelectionStrategy enum
 #include <cstdint>
 #include <vector>
+#include <utility>
 
 namespace gravel {
 
