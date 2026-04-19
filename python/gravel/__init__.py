@@ -32,7 +32,7 @@ Quick start::
     coarsened = gravel.coarsen_graph(g, assignment, border)
 """
 
-from _gravel import (
+from ._gravel import (
     CH,
     AlternateRouteResult,
     AssignmentConfig,
@@ -169,7 +169,7 @@ from _gravel import (
 
 # Conditional OSM imports (only available when built with GRAVEL_USE_OSMIUM=ON)
 try:
-    from _gravel import (
+    from ._gravel import (
         OSMConfig,
         SpeedProfile,
         load_osm_graph,

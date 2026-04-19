@@ -54,3 +54,4 @@ output/
 
 # Generated visualizations (large, regeneratable via scripts/visualize_results.py)
 national_fragility_*.html
+python/gravel/_gravel*.so
