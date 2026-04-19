@@ -3,6 +3,7 @@
 #include "gravel/fragility/route_fragility.h"
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 #include <random>
 #include <utility>
 #include <vector>
