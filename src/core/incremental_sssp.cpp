@@ -3,6 +3,8 @@
 #include <queue>
 #include <utility>
 #include <functional>
+#include <unordered_set>
+#include <vector>
 
 namespace gravel {
 

@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <memory>
 #include <utility>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

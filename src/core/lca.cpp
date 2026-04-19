@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <stack>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

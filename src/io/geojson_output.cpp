@@ -2,6 +2,8 @@
 #include <fstream>
 #include <cmath>
 #include <stdexcept>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

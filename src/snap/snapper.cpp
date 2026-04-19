@@ -2,6 +2,7 @@
 #include "gravel/core/geo_math.h"
 #include <algorithm>
 #include <stdexcept>
+#include <vector>
 
 namespace gravel {
 

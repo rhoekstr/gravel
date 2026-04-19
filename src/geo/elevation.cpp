@@ -7,6 +7,9 @@
 #include <cstring>
 #include <algorithm>
 #include <utility>
+#include <unordered_map>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

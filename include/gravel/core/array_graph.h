@@ -1,6 +1,8 @@
 #pragma once
 #include "gravel/core/graph_interface.h"
 #include <vector>
+#include <optional>
+#include <span>
 
 namespace gravel {
 

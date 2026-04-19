@@ -5,6 +5,7 @@
 #include <cmath>
 #include <random>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

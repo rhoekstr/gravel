@@ -6,6 +6,7 @@
 #include <unordered_set>
 #include <limits>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

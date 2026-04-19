@@ -7,6 +7,7 @@
 #include <cmath>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

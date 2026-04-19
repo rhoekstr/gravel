@@ -1,6 +1,7 @@
 #include "gravel/core/dijkstra.h"
 #include "gravel/core/four_heap.h"
 #include <algorithm>
+#include <vector>
 
 namespace gravel {
 

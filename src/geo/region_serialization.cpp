@@ -2,6 +2,7 @@
 #include <fstream>
 #include <stdexcept>
 #include <cstring>
+#include <string>
 
 namespace gravel {
 

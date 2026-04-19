@@ -2,6 +2,9 @@
 #include "progressive_sssp.h"
 #include <algorithm>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace gravel {
 

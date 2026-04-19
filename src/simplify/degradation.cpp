@@ -8,6 +8,7 @@
 #include <random>
 #include <unordered_map>
 #include <functional>
+#include <vector>
 
 namespace gravel {
 

@@ -4,6 +4,7 @@
 #include <cmath>
 #include <Eigen/Dense>
 #include <algorithm>
+#include <vector>
 
 namespace gravel {
 

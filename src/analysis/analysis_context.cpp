@@ -2,6 +2,7 @@
 #include "gravel/simplify/simplify.h"
 #include <chrono>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

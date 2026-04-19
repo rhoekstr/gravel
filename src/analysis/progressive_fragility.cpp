@@ -6,6 +6,7 @@
 #include <functional>
 #include <stdexcept>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

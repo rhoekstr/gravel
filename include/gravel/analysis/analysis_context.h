@@ -35,6 +35,7 @@
 #include "gravel/analysis/accessibility.h"
 #include <memory>
 #include <chrono>
+#include <vector>
 
 namespace gravel {
 

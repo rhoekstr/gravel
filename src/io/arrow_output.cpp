@@ -10,6 +10,8 @@
 #include <arrow/io/file.h>
 #include <parquet/arrow/writer.h>
 #include <stdexcept>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

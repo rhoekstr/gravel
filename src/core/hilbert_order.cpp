@@ -4,6 +4,7 @@
 #include <numeric>
 #include <memory>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

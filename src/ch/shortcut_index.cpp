@@ -1,5 +1,6 @@
 #include "gravel/ch/shortcut_index.h"
 #include <stack>
+#include <span>
 
 namespace gravel {
 

@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <memory>
 #include <utility>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <utility>
 #include <functional>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

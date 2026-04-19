@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <cassert>
 #include <utility>
+#include <vector>
+#include <optional>
+#include <span>
 
 namespace gravel {
 

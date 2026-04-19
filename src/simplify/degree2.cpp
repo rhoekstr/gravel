@@ -2,6 +2,9 @@
 #include <algorithm>
 #include <memory>
 #include <utility>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace gravel {
 

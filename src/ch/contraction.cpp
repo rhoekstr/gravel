@@ -5,6 +5,8 @@
 #include <queue>
 #include <thread>
 #include <functional>
+#include <unordered_map>
+#include <vector>
 
 namespace gravel {
 

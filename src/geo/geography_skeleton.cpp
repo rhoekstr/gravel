@@ -1,4 +1,5 @@
 #include "gravel/geo/geography_skeleton.h"
+#include <vector>
 
 namespace gravel {
 

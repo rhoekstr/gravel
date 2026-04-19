@@ -1,6 +1,7 @@
 #include "gravel/geo/region_assignment.h"
 #include "gravel/core/geo_math.h"
 #include "gravel/core/subgraph.h"
+#include <vector>
 
 namespace gravel {
 

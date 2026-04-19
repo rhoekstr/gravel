@@ -3,6 +3,7 @@
 #include "gravel/core/geo_math.h"
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

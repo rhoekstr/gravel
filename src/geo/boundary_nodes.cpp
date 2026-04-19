@@ -1,4 +1,5 @@
 #include "gravel/geo/boundary_nodes.h"
+#include <unordered_set>
 
 namespace gravel {
 

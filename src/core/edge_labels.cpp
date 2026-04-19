@@ -1,6 +1,9 @@
 #include "gravel/core/edge_labels.h"
 #include <functional>
 #include <memory>
+#include <unordered_map>
+#include <vector>
+#include <string>
 
 namespace gravel {
 

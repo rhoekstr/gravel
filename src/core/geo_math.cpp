@@ -1,6 +1,7 @@
 #include "gravel/core/geo_math.h"
 #include <cmath>
 #include <algorithm>
+#include <vector>
 
 namespace gravel {
 

@@ -4,6 +4,7 @@
 #include <random>
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

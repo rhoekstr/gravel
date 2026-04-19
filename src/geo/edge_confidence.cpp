@@ -2,6 +2,7 @@
 #include "gravel/core/edge_labels.h"
 #include <algorithm>
 #include <utility>
+#include <vector>
 
 namespace gravel {
 

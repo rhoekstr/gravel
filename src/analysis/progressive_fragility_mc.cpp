@@ -30,6 +30,8 @@
 #include <numeric>
 #include <vector>
 #include <utility>
+#include <unordered_set>
+#include <random>
 
 namespace gravel {
 

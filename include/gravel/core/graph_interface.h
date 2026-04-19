@@ -2,6 +2,7 @@
 #include "gravel/core/types.h"
 #include <optional>
 #include <span>
+#include <string>
 
 namespace gravel {
 

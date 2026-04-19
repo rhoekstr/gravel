@@ -2,6 +2,7 @@
 #include "gravel/core/four_heap.h"
 #include <algorithm>
 #include <cassert>
+#include <vector>
 
 namespace gravel {
 

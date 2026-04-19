@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <stack>
 #include <utility>
+#include <unordered_set>
+#include <vector>
 
 namespace gravel {
 

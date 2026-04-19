@@ -1,6 +1,8 @@
 #include "gravel/analysis/closure_risk.h"
 #include <cmath>
 #include <algorithm>
+#include <vector>
+#include <string>
 
 namespace gravel {
 
