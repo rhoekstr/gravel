@@ -1,15 +1,56 @@
+# Build artifacts
 build/
 build_*/
-data/*.pbf
-tests/data/*.pbf
-tests/data/*.osm
-data/*.osm
-data/*.gravel.*
+dist/
+wheelhouse/
 *.o
 *.so
 *.dylib
-.DS_Store
+*.pyd
 compile_commands.json
 .cache/
+
+# Python
 __pycache__/
 *.egg-info/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+env/
+
+# Sphinx docs
+docs/_build/
+docs/generated/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Data files (don't commit large PBFs)
+data/*.pbf
+data/*.osm
+data/*.gravel.*
+tests/data/*.pbf
+tests/data/*.osm
+
+# User pipeline output (always fresh per run)
+output/
+
+# Allow sample-results for demonstration purposes
+!data/sample-results/
+!tests/data/small_graph.csv
+
+# Pipeline temp files
+/tmp/gravel_*
+
+# Generated visualizations (large, regeneratable via scripts/visualize_results.py)
+national_fragility_*.html

@@ -10,6 +10,7 @@
 
 #include "gravel/core/array_graph.h"
 #include "gravel/geo/region_assignment.h"
+#include "gravel/simplify/reduced_graph.h"  // for RegionPair / RegionPairHash
 #include <cstdint>
 #include <string>
 #include <unordered_map>
@@ -17,22 +18,9 @@
 
 namespace gravel {
 
-/// A pair of region indices (ordered: first < second).
-struct RegionPair {
-    int32_t region_a;
-    int32_t region_b;
-
-    bool operator==(const RegionPair& o) const {
-        return region_a == o.region_a && region_b == o.region_b;
-    }
-};
-
-struct RegionPairHash {
-    size_t operator()(const RegionPair& p) const {
-        return std::hash<int64_t>{}(
-            (static_cast<int64_t>(p.region_a) << 32) | static_cast<uint32_t>(p.region_b));
-    }
-};
+// RegionPair and RegionPairHash are defined in gravel/simplify/reduced_graph.h
+// (moved there during the v2.2 refactor; kept in gravel-simplify since they are
+// generic integer-pair types used by both border edges and reduced graphs).
 
 /// Summary statistics for border edges between a pair of regions.
 struct BorderEdgeSummary {

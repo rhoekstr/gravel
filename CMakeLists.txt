@@ -97,6 +97,7 @@ add_library(gravel-simplify
     src/simplify/degradation.cpp
     src/simplify/bridges.cpp
     src/simplify/bridge_classification.cpp
+    src/simplify/reduced_graph.cpp
 )
 target_link_libraries(gravel-simplify PUBLIC gravel-core gravel-ch)
 
@@ -124,6 +125,7 @@ add_library(gravel-fragility
     src/analysis/progressive_fragility_mc.cpp
     src/analysis/progressive_fragility_greedy.cpp
     src/analysis/analysis_context.cpp
+    src/fragility/inter_region_fragility.cpp
     src/validation/synthetic_graphs.cpp
     src/validation/validator.cpp
     src/validation/fragility_validator.cpp
@@ -151,6 +153,8 @@ add_library(gravel-geo
     src/geo/boundary_nodes.cpp
     src/geo/border_edges.cpp
     src/geo/graph_coarsening.cpp
+    src/geo/region_serialization.cpp
+    src/geo/geography_skeleton.cpp
     src/snap/edge_index.cpp
     src/snap/snapper.cpp
 )

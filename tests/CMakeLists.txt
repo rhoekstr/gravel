@@ -47,6 +47,7 @@ add_executable(gravel_tests
     test_region_assignment.cpp
     test_boundary_contraction.cpp
     test_deferred_features.cpp
+    test_inter_region.cpp
 )
 
 if(GRAVEL_USE_OSMIUM)

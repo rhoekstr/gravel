@@ -2,7 +2,7 @@
 """Compare Google Benchmark JSON output against a baseline.
 
 Usage:
-    python scripts/perf_check.py --baseline perf_baseline.json --current perf_current.json [--threshold 1.10]
+    python scripts/perf_check.py --baseline bench/baselines/perf_baseline.json --current perf_current.json [--threshold 1.10]
 
 Exits with code 1 if any benchmark exceeds the threshold (default 110%).
 """

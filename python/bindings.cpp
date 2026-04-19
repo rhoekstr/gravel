@@ -45,8 +45,13 @@
 #include "gravel/geo/geojson_loader.h"
 #include "gravel/geo/boundary_nodes.h"
 #include "gravel/us/tiger_loader.h"
+#include "gravel/geo/osm_graph.h"
 #include "gravel/geo/border_edges.h"
 #include "gravel/geo/graph_coarsening.h"
+#include "gravel/geo/region_serialization.h"
+#include "gravel/simplify/reduced_graph.h"
+#include "gravel/fragility/inter_region_fragility.h"
+#include "gravel/geo/geography_skeleton.h"
 
 namespace py = pybind11;
 using namespace gravel;
@@ -388,6 +393,7 @@ PYBIND11_MODULE(_gravel, m) {
 
     py::class_<BetweennessResult>(m, "BetweennessResult")
         .def_readonly("edge_scores", &BetweennessResult::edge_scores)
+        .def_readonly("node_scores", &BetweennessResult::node_scores)
         .def_readonly("sources_used", &BetweennessResult::sources_used);
 
     m.def("edge_betweenness", &edge_betweenness,
@@ -1007,5 +1013,124 @@ PYBIND11_MODULE(_gravel, m) {
           py::arg("graph"), py::arg("assignment"), py::arg("border_edges"),
           py::arg("config") = CoarseningConfig{},
           "Coarsen graph by collapsing regions to single nodes");
+
+    // --- BlockedCHQuery ---
+
+    py::class_<BlockedCHQuery>(m, "BlockedCHQuery")
+        .def(py::init<const ContractionResult&, const ShortcutIndex&, const ArrayGraph&>(),
+             py::arg("ch"), py::arg("idx"), py::arg("graph"))
+        .def("distance_blocking", &BlockedCHQuery::distance_blocking,
+             py::arg("source"), py::arg("target"), py::arg("blocked_edges"),
+             "Distance query with blocked edges");
+
+    m.def("edges_in_polygon", &edges_in_polygon,
+          py::arg("graph"), py::arg("polygon"),
+          "Find all graph edges whose both endpoints fall within a polygon");
+
+    // --- Graph edge access ---
+
+    m.def("outgoing_edges", [](const ArrayGraph& g, NodeID node)
+              -> std::vector<std::pair<NodeID, Weight>> {
+        auto targets = g.outgoing_targets(node);
+        auto weights = g.outgoing_weights(node);
+        std::vector<std::pair<NodeID, Weight>> result;
+        for (size_t i = 0; i < targets.size(); ++i)
+            result.push_back({targets[i], weights[i]});
+        return result;
+    }, py::arg("graph"), py::arg("node"),
+       "Get outgoing edges as (target, weight) pairs");
+
+    // --- OSM graph loading ---
+
+#ifdef GRAVEL_HAS_OSMIUM
+    py::class_<SpeedProfile>(m, "SpeedProfile")
+        .def_static("car", &SpeedProfile::car);
+
+    py::class_<OSMConfig>(m, "OSMConfig")
+        .def(py::init<>())
+        .def_readwrite("pbf_path", &OSMConfig::pbf_path)
+        .def_readwrite("speed_profile", &OSMConfig::speed_profile)
+        .def_readwrite("bidirectional", &OSMConfig::bidirectional);
+
+    m.def("load_osm_graph", [](const std::string& pbf_path,
+                                const std::unordered_map<std::string, double>& speed_profile)
+              -> std::shared_ptr<ArrayGraph> {
+        OSMConfig cfg;
+        cfg.pbf_path = pbf_path;
+        cfg.speed_profile = speed_profile;
+        return std::shared_ptr<ArrayGraph>(load_osm_graph(cfg).release());
+    }, py::arg("pbf_path"), py::arg("speed_profile"),
+       "Load a road network from an OSM .pbf file");
+#endif
+
+    // --- Region serialization ---
+
+    m.def("save_region_assignment", &save_region_assignment,
+          py::arg("assignment"), py::arg("path"),
+          "Save a RegionAssignment to a binary file");
+
+    m.def("load_region_assignment", &load_region_assignment,
+          py::arg("path"),
+          "Load a RegionAssignment from a binary file");
+
+    // --- Reduced graph (generic, from gravel-simplify) ---
+
+    py::class_<ReducedGraphConfig> rg_cfg(m, "ReducedGraphConfig");
+    py::enum_<ReducedGraphConfig::Centrality>(rg_cfg, "Centrality")
+        .value("GEOMETRIC_CENTROID", ReducedGraphConfig::Centrality::GEOMETRIC_CENTROID)
+        .value("HIGHEST_DEGREE", ReducedGraphConfig::Centrality::HIGHEST_DEGREE)
+        .value("PROVIDED", ReducedGraphConfig::Centrality::PROVIDED);
+    rg_cfg.def(py::init<>())
+        .def_readwrite("method", &ReducedGraphConfig::method)
+        .def_readwrite("precomputed_centrals", &ReducedGraphConfig::precomputed_centrals)
+        .def_readwrite("seed", &ReducedGraphConfig::seed);
+
+    py::class_<ReducedGraph>(m, "ReducedGraph")
+        .def_property_readonly("graph", [](const ReducedGraph& r) -> const ArrayGraph* {
+            return r.graph.get();
+        }, py::return_value_policy::reference_internal)
+        .def_readonly("node_region", &ReducedGraph::node_region)
+        .def_readonly("is_central", &ReducedGraph::is_central)
+        .def_readonly("central_of", &ReducedGraph::central_of)
+        .def_readonly("reduced_to_original", &ReducedGraph::reduced_to_original)
+        .def_readonly("original_to_reduced", &ReducedGraph::original_to_reduced)
+        .def("valid", &ReducedGraph::valid);
+
+    m.def("build_reduced_geography_graph", &build_reduced_geography_graph,
+          py::arg("graph"), py::arg("ch"), py::arg("assignment"), py::arg("border"),
+          py::arg("config") = ReducedGraphConfig{},
+          "Build a reduced graph from a RegionAssignment (adapter over build_reduced_graph)");
+
+    // --- Inter-region progressive fragility (generic, from gravel-fragility) ---
+
+    py::class_<InterRegionFragilityConfig>(m, "InterRegionFragilityConfig")
+        .def(py::init<>())
+        .def_readwrite("k_max", &InterRegionFragilityConfig::k_max)
+        .def_readwrite("monte_carlo_runs", &InterRegionFragilityConfig::monte_carlo_runs)
+        .def_readwrite("seed", &InterRegionFragilityConfig::seed);
+
+    py::class_<InterRegionLevel>(m, "InterRegionLevel")
+        .def_readonly("k", &InterRegionLevel::k)
+        .def_readonly("mean_seconds", &InterRegionLevel::mean_seconds)
+        .def_readonly("std_seconds", &InterRegionLevel::std_seconds)
+        .def_readonly("disconnected_frac", &InterRegionLevel::disconnected_frac)
+        .def_readonly("run_values", &InterRegionLevel::run_values);
+
+    py::class_<InterRegionPairResult>(m, "InterRegionPairResult")
+        .def_readonly("source_region", &InterRegionPairResult::source_region)
+        .def_readonly("target_region", &InterRegionPairResult::target_region)
+        .def_readonly("baseline_seconds", &InterRegionPairResult::baseline_seconds)
+        .def_readonly("curve", &InterRegionPairResult::curve)
+        .def_readonly("auc_inflation", &InterRegionPairResult::auc_inflation)
+        .def_readonly("auc_disconnection", &InterRegionPairResult::auc_disconnection)
+        .def_readonly("shared_border_edges", &InterRegionPairResult::shared_border_edges)
+        .def_readonly("k_used", &InterRegionPairResult::k_used);
+
+    py::class_<InterRegionFragilityResult>(m, "InterRegionFragilityResult")
+        .def_readonly("pairs", &InterRegionFragilityResult::pairs);
+
+    m.def("inter_region_fragility", &inter_region_fragility,
+          py::arg("reduced"), py::arg("config") = InterRegionFragilityConfig{},
+          "Progressive fragility analysis between adjacent regions on a ReducedGraph");
 
 }

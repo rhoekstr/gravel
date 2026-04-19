@@ -12,36 +12,28 @@ Quick start::
 
     # Build contraction hierarchy
     ch = gravel.build_ch(g)
-    idx = gravel.ShortcutIndex(ch)
-    q = gravel.CHQuery(ch)
 
     # Route
+    q = gravel.CHQuery(ch)
     result = q.route(0, 9999)
     print(f"Distance: {result.distance}, Path length: {len(result.path)}")
 
-    # Route fragility
-    frag = gravel.route_fragility(ch, idx, g, 0, 9999)
-    print(f"Bottleneck ratio: {frag.bottleneck().fragility_ratio}")
-
-    # Location fragility
+    # Location fragility (Dijkstra + IncrementalSSSP, ~2s on real data)
     cfg = gravel.LocationFragilityConfig()
     cfg.center = gravel.Coord(35.398, -83.218)
     cfg.radius_meters = 80467  # 50 miles
-    loc = gravel.location_fragility(g, ch, idx, cfg)
+    loc = gravel.location_fragility(g, ch, cfg)
     print(f"Isolation risk: {loc.isolation_risk}")
 
-Modules:
-    Core: Graph, CH, CHQuery, RouteResult
-    Fragility: route_fragility, batch_fragility, filtered_route_fragility
-    Analysis: algebraic_connectivity, edge_betweenness, kirchhoff_index
-    County: county_fragility_index
-    Location: location_fragility
-    Elevation: load_srtm_elevation, classify_closure_risk
-    Snap: SnapQualityReport, snap_quality
+    # Geographic analysis
+    regions = gravel.load_regions_geojson("counties.geojson")
+    assignment = gravel.assign_nodes_to_regions(g, regions)
+    border = gravel.summarize_border_edges(g, assignment)
+    coarsened = gravel.coarsen_graph(g, assignment, border)
 """
 
 from _gravel import (
-    # Core types
+    # --- Core types ---
     Graph,
     CH,
     CHQuery,
@@ -49,24 +41,24 @@ from _gravel import (
     Coord,
     Polygon,
 
-    # Graph construction
+    # --- Graph construction ---
     make_grid_graph,
     make_random_graph,
     make_tree_with_bridges,
 
-    # CH construction
+    # --- CH construction ---
     build_ch,
     build_ch_with_config,
     CHBuildConfig,
 
-    # Routing
+    # --- Routing ---
     dijkstra_pair,
 
-    # Validation
+    # --- Validation ---
     ValidationReport,
     validate,
 
-    # Fragility
+    # --- Fragility ---
     EdgeFragility,
     FragilityResult,
     AlternateRouteResult,
@@ -82,12 +74,17 @@ from _gravel import (
     FilteredFragilityResult,
     filtered_route_fragility,
 
-    # Fragility validation
+    # --- Blocked CH query ---
+    BlockedCHQuery,
+    edges_in_polygon,
+    outgoing_edges,
+
+    # --- Fragility validation ---
     FragilityValidationReport,
     validate_fragility,
     validate_shortcut_interaction,
 
-    # Network analysis
+    # --- Network analysis ---
     SubgraphResult,
     extract_subgraph,
     algebraic_connectivity,
@@ -99,43 +96,115 @@ from _gravel import (
     natural_connectivity,
     BridgeResult,
 
-    # County fragility
+    # --- County fragility ---
     CountyFragilityConfig,
     CountyFragilityResult,
     county_fragility_index,
 
-    # Location fragility
+    # --- Location fragility ---
+    SelectionStrategy,
     LocationFragilityConfig,
+    LocationKLevel,
     LocationFragilityResult,
     location_fragility,
 
-    # Landmarks
+    # --- Progressive elimination fragility ---
+    ProgressiveFragilityConfig,
+    ProgressiveFragilityResult,
+    progressive_fragility,
+
+    # --- Scenario fragility ---
+    ScenarioConfig,
+    ScenarioResult,
+    scenario_fragility,
+    edges_in_polygon,
+
+    # --- Edge sampling ---
+    SamplingStrategy,
+    SamplerConfig,
+    EdgeSampler,
+
+    # --- Region assignment & GeoJSON ---
+    RegionSpec,
+    RegionAssignment,
+    AssignmentConfig,
+    GeoJSONLoadConfig,
+    assign_nodes_to_regions,
+    load_regions_geojson,
+    boundary_nodes,
+
+    # --- Border edges ---
+    RegionPair,
+    BorderEdgeSummary,
+    BorderEdgeResult,
+    summarize_border_edges,
+
+    # --- Graph coarsening ---
+    CoarseningConfig,
+    CoarseningResult,
+    coarsen_graph,
+
+    # --- Region serialization ---
+    save_region_assignment,
+    load_region_assignment,
+
+    # --- Reduced graph (region-aware graph reduction) ---
+    ReducedGraphConfig,
+    ReducedGraph,
+    build_reduced_geography_graph,  # geo adapter for RegionAssignment
+
+    # --- Inter-region progressive fragility ---
+    InterRegionFragilityConfig,
+    InterRegionLevel,
+    InterRegionPairResult,
+    InterRegionFragilityResult,
+    inter_region_fragility,
+
+    # --- TIGER loaders (US Census boundaries) ---
+    load_tiger_counties,
+    load_tiger_states,
+    load_tiger_cbsas,
+    load_tiger_places,
+    load_tiger_urban_areas,
+
+    # --- Landmarks ---
     LandmarkData,
     precompute_landmarks,
 
-    # O-D sampling
+    # --- O-D sampling ---
     SamplingConfig,
     stratified_sample,
 
-    # Snapping
+    # --- Snapping ---
     SnapQualityReport,
     snap_quality,
 
-    # Elevation
+    # --- Elevation ---
     ElevationData,
     elevation_from_array,
     load_srtm_elevation,
     save_elevation,
     load_elevation,
 
-    # Closure risk
+    # --- Closure risk ---
     ClosureRiskTier,
     ClosureRiskData,
     classify_closure_risk,
     seasonal_weight_multipliers,
 )
 
-__version__ = "1.0.0"
+# Conditional OSM imports (only available when built with GRAVEL_USE_OSMIUM=ON)
+try:
+    from _gravel import (
+        SpeedProfile,
+        OSMConfig,
+        load_osm_graph,
+        load_osm_graph_with_labels,
+    )
+except ImportError:
+    pass  # OSM support not compiled in
+
+__version__ = "2.2.0"
 
 __all__ = [
     # Core
@@ -156,10 +225,33 @@ __all__ = [
     "SubgraphResult", "extract_subgraph",
     "algebraic_connectivity", "BetweennessConfig", "BetweennessResult", "edge_betweenness",
     "KirchhoffConfig", "kirchhoff_index", "natural_connectivity", "BridgeResult",
-    # County
+    # County fragility
     "CountyFragilityConfig", "CountyFragilityResult", "county_fragility_index",
-    # Location
-    "LocationFragilityConfig", "LocationFragilityResult", "location_fragility",
+    # Location fragility
+    "SelectionStrategy", "LocationFragilityConfig", "LocationKLevel",
+    "LocationFragilityResult", "location_fragility",
+    # Progressive fragility
+    "ProgressiveFragilityConfig", "ProgressiveFragilityResult", "progressive_fragility",
+    # Scenario fragility
+    "ScenarioConfig", "ScenarioResult", "scenario_fragility", "edges_in_polygon",
+    # Edge sampling
+    "SamplingStrategy", "SamplerConfig", "EdgeSampler",
+    # Region assignment
+    "RegionSpec", "RegionAssignment", "AssignmentConfig", "GeoJSONLoadConfig",
+    "assign_nodes_to_regions", "load_regions_geojson", "boundary_nodes",
+    # Border edges
+    "RegionPair", "BorderEdgeSummary", "BorderEdgeResult", "summarize_border_edges",
+    # Graph coarsening
+    "CoarseningConfig", "CoarseningResult", "coarsen_graph",
+    # Region serialization
+    "save_region_assignment", "load_region_assignment",
+    # Geography skeleton + inter-geography fragility
+    "ReducedGraphConfig", "ReducedGraph", "build_reduced_geography_graph",
+    "InterRegionFragilityConfig", "InterRegionLevel", "InterRegionPairResult",
+    "InterRegionFragilityResult", "inter_region_fragility",
+    # TIGER loaders
+    "load_tiger_counties", "load_tiger_states", "load_tiger_cbsas",
+    "load_tiger_places", "load_tiger_urban_areas",
     # Landmarks + sampling
     "LandmarkData", "precompute_landmarks", "SamplingConfig", "stratified_sample",
     # Snap

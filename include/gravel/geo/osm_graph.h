@@ -1,5 +1,6 @@
 #pragma once
 #include "gravel/core/array_graph.h"
+#include "gravel/core/edge_metadata.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -41,35 +42,6 @@ struct OSMConfig {
 //   - secondary_weight = distance in meters (via edge_secondary_weight)
 //   - coordinates for each node
 std::unique_ptr<ArrayGraph> load_osm_graph(const OSMConfig& config);
-
-/// Generic per-edge metadata store, indexed by CSR edge position.
-/// Holds arbitrary string key-value pairs for each directed edge.
-/// OSM edges carry tags like "highway", "name", "surface", "bridge", "maxspeed".
-/// Non-OSM graphs can use this for any custom edge categorization.
-struct EdgeMetadata {
-    /// Available tag keys (e.g., {"highway", "name", "surface"}).
-    std::vector<std::string> tag_keys;
-
-    /// Per-edge tag values: tag_values[key_index][edge_index].
-    /// Each inner vector has graph->edge_count() entries.
-    std::vector<std::vector<std::string>> tag_values;
-
-    /// Get all values for a specific tag key.
-    /// Returns empty vector if the key doesn't exist.
-    const std::vector<std::string>& get(const std::string& key) const {
-        for (size_t i = 0; i < tag_keys.size(); ++i) {
-            if (tag_keys[i] == key) return tag_values[i];
-        }
-        static const std::vector<std::string> empty;
-        return empty;
-    }
-
-    /// Check if a tag key exists.
-    bool has(const std::string& key) const {
-        for (const auto& k : tag_keys) if (k == key) return true;
-        return false;
-    }
-};
 
 /// Result of loading an OSM graph with edge metadata preserved.
 struct OSMLoadResult {

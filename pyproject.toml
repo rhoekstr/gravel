@@ -1,37 +1,161 @@
 [build-system]
-requires = ["scikit-build-core>=0.5", "pybind11>=2.12"]
+requires = ["scikit-build-core>=0.8", "pybind11>=2.11"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "gravel"
-version = "1.0.0"
-description = "Graph Routing and Vulnerability Analysis Library"
+name = "gravel-routing"
+version = "2.2.0"
+description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.9"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
 authors = [
-    {name = "Gravel Contributors"},
+    { name = "Robert Hoekstra", email = "rhoekstr@gmail.com" },
+]
+keywords = [
+    "routing",
+    "graph",
+    "contraction-hierarchy",
+    "road-network",
+    "fragility",
+    "isolation-analysis",
+    "transportation",
+    "disaster-resilience",
+    "osm",
+    "openstreetmap",
 ]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
     "Programming Language :: C++",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Topic :: Scientific/Engineering :: GIS",
+    "Topic :: Scientific/Engineering :: Mathematics",
     "Topic :: Scientific/Engineering :: Information Analysis",
 ]
-keywords = ["routing", "fragility", "network-analysis", "contraction-hierarchy", "graph"]
+
+[project.optional-dependencies]
+viz = [
+    "plotly>=5.20",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+]
+pipeline = [
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+]
 
 [project.urls]
-Homepage = "https://github.com/gravel-routing/gravel"
+Homepage = "https://github.com/rhoekstr/gravel"
+Documentation = "https://rhoekstr.github.io/gravel/"
+Repository = "https://github.com/rhoekstr/gravel"
+Issues = "https://github.com/rhoekstr/gravel/issues"
+Changelog = "https://github.com/rhoekstr/gravel/blob/main/CHANGELOG.md"
+"Author Website" = "https://awrylabs.com/"
+
+# ============================================================
+# scikit-build-core configuration
+# ============================================================
 
 [tool.scikit-build]
-cmake.args = ["-DGRAVEL_BUILD_PYTHON=ON", "-DGRAVEL_BUILD_CLI=OFF", "-DGRAVEL_BUILD_TESTS=OFF"]
 wheel.packages = ["python/gravel"]
+build-dir = "build/{wheel_tag}"
+cmake.build-type = "Release"
+cmake.verbose = false
+cmake.minimum-version = "3.20"
 
 [tool.scikit-build.cmake.define]
 GRAVEL_BUILD_PYTHON = "ON"
 GRAVEL_BUILD_CLI = "OFF"
 GRAVEL_BUILD_TESTS = "OFF"
 GRAVEL_BUILD_BENCH = "OFF"
+# OSM disabled by default in PyPI wheels (libosmium not available on PyPI).
+# For OSM support, install via conda-forge or build from source with GRAVEL_USE_OSMIUM=ON.
+GRAVEL_USE_OSMIUM = "OFF"
+
+# Source distribution: include everything needed to build from source
+[tool.scikit-build.sdist]
+include = [
+    "CMakeLists.txt",
+    "cmake/**",
+    "include/**",
+    "src/**",
+    "python/**",
+    "tests/CMakeLists.txt",
+    "LICENSE",
+    "README.md",
+    "CHANGELOG.md",
+    "pyproject.toml",
+]
+exclude = [
+    "build/**",
+    "output/**",
+    "**/__pycache__/**",
+    "**/*.pyc",
+    ".github/**",
+    "tests/data/**",
+]
+
+# ============================================================
+# Ruff linting
+# ============================================================
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "N", "UP", "B",
+]
+ignore = [
+    "E501",  # line too long (formatter enforces)
+    "N803",  # argument name lowercase (we use FIPS, CH, etc.)
+    "N806",  # variable in function lowercase
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+# ============================================================
+# Pytest
+# ============================================================
+
+[tool.pytest.ini_options]
+testpaths = ["python/tests"]
+python_files = "test_*.py"
+
+# ============================================================
+# cibuildwheel — binary wheel generation
+# ============================================================
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-* cp313-*"
+skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*"]
+test-command = "python -c 'import gravel; print(gravel.__version__)'"
+
+[tool.cibuildwheel.linux]
+archs = ["x86_64", "aarch64"]
+
+[tool.cibuildwheel.macos]
+archs = ["x86_64", "arm64"]
+
+[tool.cibuildwheel.windows]
+archs = ["AMD64"]

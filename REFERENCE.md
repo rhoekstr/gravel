@@ -55,14 +55,16 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
     - 18.10 [Methodology Notes](#1810-methodology-notes)
 19. [AnalysisContext (Performance Cache)](#19-analysiscontext-performance-cache)
 20. [Performance Optimizations](#20-performance-optimizations)
-24. [Sub-Library Architecture (v2.1)](#24-sub-library-architecture-v21)
-25. [EdgeSampler](#25-edgesampler)
-26. [IncrementalSSSP](#26-incrementalsssp)
-27. [RegionAssignment](#27-regionassignment)
-28. [Boundary-Aware Degree-2 Contraction](#28-boundary-aware-degree-2-contraction)
-29. [Border Edge Summarization](#29-border-edge-summarization)
-30. [Geographic Graph Coarsening](#30-geographic-graph-coarsening)
-31. [FIPS Crosswalk and Typed Wrappers](#31-fips-crosswalk-and-typed-wrappers)
+21. [Sub-Library Architecture (v2.1)](#21-sub-library-architecture-v21)
+22. [EdgeSampler](#22-edgesampler)
+23. [IncrementalSSSP](#23-incrementalsssp)
+24. [RegionAssignment](#24-regionassignment)
+25. [Boundary-Aware Degree-2 Contraction](#25-boundary-aware-degree-2-contraction)
+26. [Border Edge Summarization](#26-border-edge-summarization)
+27. [Geographic Graph Coarsening](#27-geographic-graph-coarsening)
+28. [FIPS Crosswalk and Typed Wrappers](#28-fips-crosswalk-and-typed-wrappers)
+29. [Reduced Graph](#29-reduced-graph-gravelsimplifyreduced_graphh)
+30. [Inter-Region Fragility](#30-inter-region-fragility-gravelfragilityinter_region_fragilityh)
 
 ---
 
@@ -2849,7 +2851,7 @@ The original progressive elimination computed a full `county_fragility_index` at
 
 ---
 
-## 24. Sub-Library Architecture (v2.1)
+## 21. Sub-Library Architecture (v2.1)
 
 Gravel is organized into six sub-libraries with a strict one-directional dependency graph. The CLI and Python bindings link all libraries; consumers building custom pipelines can link only what they need.
 
@@ -2886,7 +2888,7 @@ Any include that crosses a boundary in the wrong direction is a link error.
 
 ---
 
-## 25. EdgeSampler (`gravel/core/edge_sampler.h`)
+## 22. EdgeSampler (`gravel/core/edge_sampler.h`)
 
 General-purpose edge sampling for graph analysis. Used by progressive fragility, betweenness approximation, and border edge characterization.
 
@@ -2921,7 +2923,7 @@ Set `ProgressiveFragilityConfig::sampler_config` to use EdgeSampler for candidat
 
 ---
 
-## 26. IncrementalSSSP (`gravel/core/incremental_sssp.h`)
+## 23. IncrementalSSSP (`gravel/core/incremental_sssp.h`)
 
 Reusable reverse incremental SSSP engine for progressive edge removal analysis. Manages a multi-source distance matrix with efficient incremental updates.
 
@@ -2954,7 +2956,7 @@ engine.restore_edge(u, v, weight);
 
 ---
 
-## 27. RegionAssignment (`gravel/geo/region_assignment.h`)
+## 24. RegionAssignment (`gravel/geo/region_assignment.h`)
 
 Assigns graph nodes to geographic boundary regions using point-in-polygon containment.
 
@@ -2993,7 +2995,7 @@ GeoJSON coordinates are `[longitude, latitude]` (x, y). Gravel `Coord` is `{lat,
 
 ---
 
-## 28. Boundary-Aware Degree-2 Contraction
+## 25. Boundary-Aware Degree-2 Contraction
 
 The `contract_degree2()` function accepts an optional `boundary_protection` parameter. Nodes in this set are never contracted, preserving inter-regional connectivity.
 
@@ -3010,7 +3012,7 @@ Step 4 must use the filtered graph. Computing boundary_nodes on the full graph m
 
 ---
 
-## 29. Border Edge Summarization (`gravel/geo/border_edges.h`)
+## 26. Border Edge Summarization (`gravel/geo/border_edges.h`)
 
 Summarizes edges crossing region boundaries. For each pair of regions, counts directed edges, sums weights, and records min/max weight.
 
@@ -3040,7 +3042,7 @@ BorderEdgeResult summarize_border_edges(const ArrayGraph& graph, const RegionAss
 
 ---
 
-## 30. Geographic Graph Coarsening (`gravel/geo/graph_coarsening.h`)
+## 27. Geographic Graph Coarsening (`gravel/geo/graph_coarsening.h`)
 
 Collapses each region to a single node, producing a compact meta-graph where edges represent inter-regional connections. Edge weights are the minimum border crossing weight.
 
@@ -3081,7 +3083,7 @@ auto coarsened = coarsen_graph(graph, assignment, border);
 
 ---
 
-## 31. FIPS Crosswalk and Typed Wrappers (`gravel/us/`)
+## 28. FIPS Crosswalk and Typed Wrappers (`gravel/us/`)
 
 ### CountyAssignment (`gravel/us/county_assignment.h`)
 
@@ -3115,3 +3117,139 @@ xwalk.county_to_cbsa("37173");        // "11700" or ""
 xwalk.counties_in_state("37");        // ["37001", "37003", ..., "37199"]
 xwalk.counties_in_cbsa("11700");      // ["37021", "37087", "37089", "37115"]
 ```
+
+---
+
+## 29. Reduced Graph (`gravel/simplify/reduced_graph.h`)
+
+Reduces a partitioned graph into a compact representation preserving inter-regional structure:
+- One **central node** per region (selected by geometric centroid, degree, or caller-provided)
+- All **border nodes** (nodes with edges crossing region boundaries)
+- **Intra-region edges**: central → each border node, weighted by precomputed CH distance on the original graph
+- **Inter-region edges**: original border-crossing edges, preserved unchanged
+
+The reduced graph has 10–1000× fewer nodes than the original, making inter-regional analysis fast even at national scale.
+
+**Region-agnostic.** The core function `build_reduced_graph()` takes a plain `std::vector<int32_t>` region index and works with any partition scheme — US counties, European NUTS codes, or custom clusters. The `build_reduced_geography_graph()` in `gravel/geo/geography_skeleton.h` is a thin adapter for `RegionAssignment`.
+
+### ReducedGraphConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `method` | `Centrality` | `GEOMETRIC_CENTROID` | How to pick central nodes. |
+| `precomputed_centrals` | `vector<NodeID>` | `{}` | For `PROVIDED` method: caller's choice (1 per region). |
+| `seed` | `uint64_t` | `42` | Random seed (reserved for future methods). |
+
+`Centrality` enum:
+- `GEOMETRIC_CENTROID` — node closest to polygon centroid (fast, deterministic; requires `RegionInfo::boundary`)
+- `HIGHEST_DEGREE` — node with most outgoing edges in the region
+- `PROVIDED` — caller-supplied list (e.g., highest-betweenness nodes computed externally)
+
+### ReducedGraph
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `graph` | `unique_ptr<ArrayGraph>` | The reduced graph. |
+| `node_region` | `vector<string>` | Region ID per reduced node (empty if unassigned). |
+| `is_central` | `vector<bool>` | True for central nodes, false for border nodes. |
+| `central_of` | `unordered_map<string, NodeID>` | Region ID → central node ID in reduced graph. |
+| `reduced_to_original` | `vector<NodeID>` | Reduced ID → original node ID. |
+| `original_to_reduced` | `unordered_map<NodeID, NodeID>` | Original ID → reduced ID. |
+| `inter_region_edges` | `unordered_map<RegionPair, vector<pair<NodeID, NodeID>>>` | Per-pair list of inter-region directed edges (in reduced node IDs). |
+
+### Functions
+
+```cpp
+// Generic (gravel-simplify) — works with any region partition
+ReducedGraph build_reduced_graph(
+    const ArrayGraph& graph,
+    const ContractionResult& ch,
+    const std::vector<int32_t>& node_region,    // -1 for unassigned, else region index
+    const std::vector<RegionInfo>& regions,     // {region_id, optional boundary}
+    const ReducedGraphConfig& config = {});
+
+// Geography adapter (gravel-geo) — wraps with RegionAssignment
+ReducedGraph build_reduced_geography_graph(
+    const ArrayGraph& graph,
+    const ContractionResult& ch,
+    const RegionAssignment& assignment,
+    const BorderEdgeResult& border,
+    const ReducedGraphConfig& config = {});
+```
+
+### Pipeline (Python)
+
+```python
+# Pick high-betweenness central per county (PROVIDED method)
+bet = gravel.edge_betweenness(graph, gravel.BetweennessConfig())
+import numpy as np
+node_scores = np.array(bet.node_scores)
+region_index = np.array(assignment.region_index)
+centrals = []
+for ridx in range(len(assignment.regions)):
+    candidates = np.where(region_index == ridx)[0]
+    centrals.append(int(candidates[np.argmax(node_scores[candidates])]))
+
+cfg = gravel.ReducedGraphConfig()
+cfg.method = gravel.ReducedGraphConfig.Centrality.PROVIDED
+cfg.precomputed_centrals = centrals
+reduced = gravel.build_reduced_geography_graph(graph, ch, assignment, border, cfg)
+```
+
+---
+
+## 30. Inter-Region Fragility (`gravel/fragility/inter_region_fragility.h`)
+
+Progressive edge-removal fragility analysis on the reduced geography graph. For each adjacent pair (A, B):
+
+1. Baseline = CH distance from `central_A` to `central_B` on intact reduced graph
+2. For each Monte Carlo trial:
+   - Pick `k_max` random inter-region edges from shared(A, B)
+   - Block all `k_max`, run IncrementalSSSP from `central_A`
+   - Record dist[`central_B`] at k = k_max (worst case)
+   - Restore edges one at a time, record at each k
+3. Aggregate: per-k mean travel time, std, disconnection fraction; AUC of inflation and disconnection
+
+### InterRegionFragilityConfig
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `k_max` | `uint32_t` | `20` | Max inter-region edges to block per pair (capped by shared edges). |
+| `monte_carlo_runs` | `uint32_t` | `10` | MC trials per pair. |
+| `seed` | `uint64_t` | `42` | Random seed. |
+
+### InterRegionPairResult
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `source_region`, `target_region` | `string` | Region IDs (e.g., FIPS codes). |
+| `baseline_seconds` | `Weight` | Intact-network central-to-central travel time. |
+| `curve` | `vector<InterRegionLevel>` | Degradation curve. `curve[0]` = all blocked, `curve[k_max]` = restored. |
+| `auc_inflation` | `double` | Mean travel-time inflation (ratio − 1) over the curve. |
+| `auc_disconnection` | `double` | Mean disconnection fraction over the curve. ∈ [0, 1]. |
+| `shared_border_edges` | `uint32_t` | Total inter-region edges between this pair. |
+| `k_used` | `uint32_t` | `min(k_max, shared_border_edges)`. |
+
+### Function
+
+```cpp
+InterRegionFragilityResult inter_region_fragility(
+    const ReducedGraph& reduced,
+    const InterRegionFragilityConfig& config = {});
+```
+
+### Performance
+
+| Operation | Time |
+|-----------|------|
+| Build reduced graph (Delaware, 709K nodes → 245 reduced) | <0.1s |
+| Inter-region fragility (2 pairs, MC=5, k=10) | <0.1s |
+| Full state pipeline (download + CH + skeleton + fragility) | ~30–40s |
+| National (50+ states, 8,547 adjacent pairs incl. 1,082 cross-state) | ~22 hrs measured |
+
+### Actual national results (April 2026)
+
+- 3,221 counties analyzed for per-county isolation fragility in 3.1 hours
+- 8,547 adjacent county pairs analyzed for inter-county fragility in ~22 hours
+- 1,082 cross-state pairs correctly captured via adjacency-driven pipeline with `osmium merge`
+- Full results in `data/sample-results/`

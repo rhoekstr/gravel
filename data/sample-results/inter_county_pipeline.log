@@ -1,0 +1,2404 @@
+Loading county boundaries...
+  3221 counties loaded
+  3221 counties in supported states/territories
+Computing county adjacency for 3221 counties...
+  Found 9313 adjacent pairs in 0.3s
+  Intra-state: 8069, Cross-state: 1244, 3+ states: 0
+
+Grouped into 160 state-set groups
+
+============================================================
+GROUP [01] — 171 adjacent pairs
+============================================================
+  Counties to process: 67
+    Downloading https://download.geofabrik.de/north-america/us/alabama-latest.osm.pbf...
+  Extracted region in 3.0s
+  Loaded 6,364,826 nodes, 12,888,487 edges in 12.8s
+  CH built in 70.6s
+  Assigned in 3.1s (37,907 unassigned)
+  Border analysis: 8561 edges, 169 pairs in 0.0s
+  Betweenness + central selection in 584.9s
+  Reduced graph: 8663 nodes, 25655 edges in 0.2s
+  Fragility analysis: 169 pair results in 7.1s
+  Wrote 169/171 target pairs to CSV
+
+============================================================
+GROUP [02] — 46 adjacent pairs
+============================================================
+  Counties to process: 28
+    Downloading https://download.geofabrik.de/north-america/us/alaska-latest.osm.pbf...
+  Extracted region in 2.9s
+  Loaded 733,585 nodes, 1,489,589 edges in 2.5s
+  CH built in 6.6s
+  Assigned in 2.2s (29,404 unassigned)
+  Border analysis: 78 edges, 11 pairs in 0.0s
+  Betweenness + central selection in 23.8s
+  Reduced graph: 103 nodes, 196 edges in 0.0s
+  Fragility analysis: 10 pair results in 0.0s
+  Wrote 10/46 target pairs to CSV
+
+============================================================
+GROUP [04] — 32 adjacent pairs
+============================================================
+  Counties to process: 15
+    Downloading https://download.geofabrik.de/north-america/us/arizona-latest.osm.pbf...
+  Extracted region in 5.2s
+  Loaded 4,825,209 nodes, 9,728,392 edges in 13.3s
+  CH built in 90.6s
+  Assigned in 0.8s (33,768 unassigned)
+  Border analysis: 1823 edges, 29 pairs in 0.0s
+  Betweenness + central selection in 508.1s
+  Reduced graph: 1898 nodes, 5525 edges in 0.1s
+  Fragility analysis: 29 pair results in 1.5s
+  Wrote 29/32 target pairs to CSV
+
+============================================================
+GROUP [05] — 194 adjacent pairs
+============================================================
+  Counties to process: 75
+    Downloading https://download.geofabrik.de/north-america/us/arkansas-latest.osm.pbf...
+  Extracted region in 1.9s
+  Loaded 4,188,032 nodes, 8,572,993 edges in 8.2s
+  CH built in 52.5s
+  Assigned in 2.3s (45,088 unassigned)
+  Border analysis: 7818 edges, 186 pairs in 0.0s
+  Betweenness + central selection in 418.7s
+  Reduced graph: 7752 nodes, 23078 edges in 0.1s
+  Fragility analysis: 186 pair results in 5.3s
+  Wrote 186/194 target pairs to CSV
+
+============================================================
+GROUP [06] — 138 adjacent pairs
+============================================================
+  Counties to process: 58
+    Downloading https://download.geofabrik.de/north-america/us/california-latest.osm.pbf...
+  Extracted region in 21.4s
+  Loaded 18,998,286 nodes, 38,158,342 edges in 100.0s
+  CH built in 649.4s
+  Assigned in 15.4s (71,773 unassigned)
+  Border analysis: 11326 edges, 130 pairs in 0.5s
+  Betweenness + central selection in 2108.9s
+  Reduced graph: 11573 nodes, 34132 edges in 3.4s
+  Fragility analysis: 130 pair results in 21.0s
+  Wrote 129/138 target pairs to CSV
+
+============================================================
+GROUP [08] — 165 adjacent pairs
+============================================================
+  Counties to process: 64
+    Downloading https://download.geofabrik.de/north-america/us/colorado-latest.osm.pbf...
+  Extracted region in 5.0s
+  Loaded 6,049,377 nodes, 12,181,725 edges in 13.9s
+  CH built in 97.0s
+  Assigned in 12.7s (35,353 unassigned)
+  Border analysis: 9674 edges, 146 pairs in 0.0s
+  Betweenness + central selection in 638.4s
+  Reduced graph: 9986 nodes, 29426 edges in 0.3s
+  Fragility analysis: 146 pair results in 104.7s
+  Wrote 146/165 target pairs to CSV
+
+============================================================
+GROUP [09] — 13 adjacent pairs
+============================================================
+  Counties to process: 8
+    Downloading https://download.geofabrik.de/north-america/us/connecticut-latest.osm.pbf...
+  Extracted region in 3.0s
+  Loaded 3,310,682 nodes, 6,595,157 edges in 7.7s
+  CH built in 37.4s
+  Assigned in 0.7s (30,893 unassigned)
+  Border analysis: 2148 edges, 13 pairs in 0.0s
+  Betweenness + central selection in 348.0s
+  Reduced graph: 2125 nodes, 6372 edges in 0.1s
+  Fragility analysis: 13 pair results in 2.3s
+  Wrote 13/13 target pairs to CSV
+
+============================================================
+GROUP [10] — 2 adjacent pairs
+============================================================
+  Counties to process: 3
+    Downloading https://download.geofabrik.de/north-america/us/delaware-latest.osm.pbf...
+  Extracted region in 0.6s
+  Loaded 709,421 nodes, 1,410,770 edges in 1.5s
+  CH built in 8.2s
+  Assigned in 0.2s (16,699 unassigned)
+  Border analysis: 232 edges, 2 pairs in 0.0s
+  Betweenness + central selection in 47.5s
+  Reduced graph: 245 nodes, 716 edges in 0.0s
+  Fragility analysis: 2 pair results in 0.0s
+  Wrote 2/2 target pairs to CSV
+
+============================================================
+GROUP [12] — 161 adjacent pairs
+============================================================
+  Counties to process: 67
+    Downloading https://download.geofabrik.de/north-america/us/florida-latest.osm.pbf...
+  Extracted region in 9.8s
+  Loaded 11,567,447 nodes, 23,032,107 edges in 29.9s
+  CH built in 240.0s
+  Assigned in 7.6s (99,031 unassigned)
+  Border analysis: 8718 edges, 140 pairs in 0.1s
+  Betweenness + central selection in 1298.4s
+  Reduced graph: 9278 nodes, 27020 edges in 0.5s
+  Fragility analysis: 140 pair results in 8.9s
+  Wrote 140/161 target pairs to CSV
+
+============================================================
+GROUP [13] — 429 adjacent pairs
+============================================================
+  Counties to process: 159
+    Downloading https://download.geofabrik.de/north-america/us/georgia-latest.osm.pbf...
+  Extracted region in 5.0s
+  Loaded 9,573,233 nodes, 19,243,785 edges in 20.7s
+  CH built in 139.0s
+  Assigned in 8.6s (54,050 unassigned)
+  Border analysis: 19835 edges, 401 pairs in 0.1s
+  Betweenness + central selection in 1065.9s
+  Reduced graph: 20172 nodes, 59665 edges in 0.7s
+  Fragility analysis: 401 pair results in 52.7s
+  Wrote 401/429 target pairs to CSV
+
+============================================================
+GROUP [15] — 1 adjacent pairs
+============================================================
+  Counties to process: 2
+    Downloading https://download.geofabrik.de/north-america/us/hawaii-latest.osm.pbf...
+  Extracted region in 0.3s
+  Loaded 107,727 nodes, 213,672 edges in 0.2s
+  CH built in 0.5s
+  Assigned in 0.0s (16,785 unassigned)
+  Border analysis: 0 edges, 0 pairs in 0.0s
+  No adjacent pairs found in graph, skipping
+
+============================================================
+GROUP [16] — 102 adjacent pairs
+============================================================
+  Counties to process: 44
+    Downloading https://download.geofabrik.de/north-america/us/idaho-latest.osm.pbf...
+  Extracted region in 2.2s
+  Loaded 3,825,423 nodes, 7,793,819 edges in 8.0s
+  CH built in 38.3s
+  Assigned in 1.5s (40,307 unassigned)
+  Border analysis: 4573 edges, 96 pairs in 0.0s
+  Betweenness + central selection in 318.3s
+  Reduced graph: 4556 nodes, 13267 edges in 0.1s
+  Fragility analysis: 96 pair results in 2.3s
+  Wrote 96/102 target pairs to CSV
+
+============================================================
+GROUP [17] — 267 adjacent pairs
+============================================================
+  Counties to process: 102
+    Downloading https://download.geofabrik.de/north-america/us/illinois-latest.osm.pbf...
+  Extracted region in 5.5s
+  Loaded 7,535,418 nodes, 15,518,391 edges in 18.6s
+  CH built in 215.7s
+  Assigned in 5.0s (41,192 unassigned)
+  Border analysis: 17227 edges, 257 pairs in 0.0s
+  Betweenness + central selection in 876.4s
+  Reduced graph: 17320 nodes, 51581 edges in 0.6s
+  Fragility analysis: 257 pair results in 36.1s
+  Wrote 257/267 target pairs to CSV
+
+============================================================
+GROUP [18] — 240 adjacent pairs
+============================================================
+  Counties to process: 92
+    Downloading https://download.geofabrik.de/north-america/us/indiana-latest.osm.pbf...
+  Extracted region in 3.2s
+  Loaded 6,615,290 nodes, 13,670,978 edges in 14.1s
+  CH built in 146.1s
+  Assigned in 3.3s (53,755 unassigned)
+  Border analysis: 16237 edges, 235 pairs in 0.0s
+  Betweenness + central selection in 733.7s
+  Reduced graph: 16259 nodes, 48539 edges in 0.4s
+  Fragility analysis: 235 pair results in 26.5s
+  Wrote 235/240 target pairs to CSV
+
+============================================================
+GROUP [19] — 294 adjacent pairs
+============================================================
+  Counties to process: 99
+    Downloading https://download.geofabrik.de/north-america/us/iowa-latest.osm.pbf...
+  Extracted region in 2.1s
+  Loaded 3,685,017 nodes, 7,671,901 edges in 7.8s
+  CH built in 81.8s
+  Assigned in 1.6s (35,127 unassigned)
+  Border analysis: 14429 edges, 234 pairs in 0.0s
+  Betweenness + central selection in 377.2s
+  Reduced graph: 14157 nodes, 42485 edges in 0.2s
+  Fragility analysis: 234 pair results in 13.9s
+  Wrote 234/294 target pairs to CSV
+
+============================================================
+GROUP [20] — 281 adjacent pairs
+============================================================
+  Counties to process: 105
+    Downloading https://download.geofabrik.de/north-america/us/kansas-latest.osm.pbf...
+  Extracted region in 1.8s
+  Loaded 4,051,184 nodes, 8,476,295 edges in 8.2s
+  CH built in 100.4s
+  Assigned in 2.0s (38,653 unassigned)
+  Border analysis: 14637 edges, 260 pairs in 0.0s
+  Betweenness + central selection in 425.6s
+  Reduced graph: 14175 nodes, 42773 edges in 0.2s
+  Fragility analysis: 260 pair results in 14.7s
+  Wrote 260/281 target pairs to CSV
+
+============================================================
+GROUP [21] — 309 adjacent pairs
+============================================================
+  Counties to process: 120
+    Downloading https://download.geofabrik.de/north-america/us/kentucky-latest.osm.pbf...
+  Extracted region in 2.5s
+  Loaded 7,596,501 nodes, 15,248,123 edges in 14.7s
+  CH built in 67.9s
+  Assigned in 5.1s (89,293 unassigned)
+  Border analysis: 12144 edges, 301 pairs in 0.0s
+  Betweenness + central selection in 729.9s
+  Reduced graph: 12264 nodes, 36310 edges in 0.2s
+  Fragility analysis: 301 pair results in 11.7s
+  Wrote 301/309 target pairs to CSV
+
+============================================================
+GROUP [22] — 160 adjacent pairs
+============================================================
+  Counties to process: 64
+    Downloading https://download.geofabrik.de/north-america/us/louisiana-latest.osm.pbf...
+  Extracted region in 2.4s
+  Loaded 3,304,383 nodes, 6,732,258 edges in 7.3s
+  CH built in 53.3s
+  Assigned in 2.0s (19,224 unassigned)
+  Border analysis: 7039 edges, 147 pairs in 0.0s
+  Betweenness + central selection in 311.3s
+  Reduced graph: 7151 nodes, 21037 edges in 0.1s
+  Fragility analysis: 147 pair results in 4.1s
+  Wrote 147/160 target pairs to CSV
+
+============================================================
+GROUP [23] — 33 adjacent pairs
+============================================================
+  Counties to process: 16
+    Downloading https://download.geofabrik.de/north-america/us/maine-latest.osm.pbf...
+  Extracted region in 1.6s
+  Loaded 2,125,535 nodes, 4,275,461 edges in 4.5s
+  CH built in 17.7s
+  Assigned in 1.3s (72,011 unassigned)
+  Border analysis: 2102 edges, 33 pairs in 0.0s
+  Betweenness + central selection in 171.9s
+  Reduced graph: 2116 nodes, 6266 edges in 0.0s
+  Fragility analysis: 33 pair results in 0.9s
+  Wrote 33/33 target pairs to CSV
+
+============================================================
+GROUP [24] — 37 adjacent pairs
+============================================================
+  Counties to process: 24
+    Downloading https://download.geofabrik.de/north-america/us/maryland-latest.osm.pbf...
+  Extracted region in 3.6s
+  Loaded 4,788,451 nodes, 9,609,287 edges in 10.1s
+  CH built in 59.1s
+  Assigned in 9.3s (63,729 unassigned)
+  Border analysis: 4223 edges, 35 pairs in 0.0s
+  Betweenness + central selection in 494.2s
+  Reduced graph: 4329 nodes, 12817 edges in 0.1s
+  Fragility analysis: 35 pair results in 9.4s
+  Wrote 35/37 target pairs to CSV
+
+============================================================
+GROUP [25] — 20 adjacent pairs
+============================================================
+  Counties to process: 13
+    Downloading https://download.geofabrik.de/north-america/us/massachusetts-latest.osm.pbf...
+  Extracted region in 4.5s
+  Loaded 5,606,788 nodes, 11,110,013 edges in 13.5s
+  CH built in 71.6s
+  Assigned in 2.4s (53,744 unassigned)
+  Border analysis: 3637 edges, 19 pairs in 0.0s
+  Betweenness + central selection in 562.2s
+  Reduced graph: 3846 nodes, 11287 edges in 0.2s
+  Fragility analysis: 19 pair results in 12.6s
+  Wrote 19/20 target pairs to CSV
+
+============================================================
+GROUP [26] — 209 adjacent pairs
+============================================================
+  Counties to process: 83
+    Downloading https://download.geofabrik.de/north-america/us/michigan-latest.osm.pbf...
+  Extracted region in 4.6s
+  Loaded 8,696,865 nodes, 17,874,944 edges in 20.0s
+  CH built in 176.7s
+  Assigned in 12.2s (51,736 unassigned)
+  Border analysis: 18158 edges, 183 pairs in 0.1s
+  Betweenness + central selection in 937.5s
+  Reduced graph: 18257 nodes, 54352 edges in 0.6s
+  Fragility analysis: 183 pair results in 78.2s
+  Wrote 183/209 target pairs to CSV
+
+============================================================
+GROUP [27] — 222 adjacent pairs
+============================================================
+  Counties to process: 87
+    Downloading https://download.geofabrik.de/north-america/us/minnesota-latest.osm.pbf...
+  Extracted region in 3.8s
+  Loaded 5,343,996 nodes, 10,852,855 edges in 11.6s
+  CH built in 107.8s
+  Assigned in 3.1s (44,199 unassigned)
+  Border analysis: 14954 edges, 217 pairs in 0.0s
+  Betweenness + central selection in 536.8s
+  Reduced graph: 14898 nodes, 44552 edges in 0.4s
+  Fragility analysis: 217 pair results in 20.4s
+  Wrote 217/222 target pairs to CSV
+
+============================================================
+GROUP [28] — 216 adjacent pairs
+============================================================
+  Counties to process: 82
+    Downloading https://download.geofabrik.de/north-america/us/mississippi-latest.osm.pbf...
+  Extracted region in 1.5s
+  Loaded 3,318,029 nodes, 6,714,021 edges in 6.7s
+  CH built in 42.6s
+  Assigned in 1.7s (40,144 unassigned)
+  Border analysis: 7916 edges, 199 pairs in 0.0s
+  Betweenness + central selection in 310.8s
+  Reduced graph: 8069 nodes, 23850 edges in 0.1s
+  Fragility analysis: 199 pair results in 4.8s
+  Wrote 199/216 target pairs to CSV
+
+============================================================
+GROUP [29] — 294 adjacent pairs
+============================================================
+  Counties to process: 115
+    Downloading https://download.geofabrik.de/north-america/us/missouri-latest.osm.pbf...
+  Extracted region in 3.0s
+  Loaded 8,656,211 nodes, 17,657,882 edges in 16.4s
+  CH built in 119.0s
+  Assigned in 5.8s (44,504 unassigned)
+  Border analysis: 17271 edges, 289 pairs in 0.1s
+  Betweenness + central selection in 832.8s
+  Reduced graph: 17206 nodes, 51349 edges in 0.5s
+  Fragility analysis: 289 pair results in 20.7s
+  Wrote 289/294 target pairs to CSV
+
+============================================================
+GROUP [30] — 138 adjacent pairs
+============================================================
+  Counties to process: 56
+    Downloading https://download.geofabrik.de/north-america/us/montana-latest.osm.pbf...
+  Extracted region in 1.6s
+  Loaded 2,598,599 nodes, 5,307,631 edges in 5.0s
+  CH built in 27.0s
+  Assigned in 1.6s (26,647 unassigned)
+  Border analysis: 4384 edges, 124 pairs in 0.0s
+  Betweenness + central selection in 218.9s
+  Reduced graph: 4331 nodes, 12814 edges in 0.0s
+  Fragility analysis: 124 pair results in 1.8s
+  Wrote 124/138 target pairs to CSV
+
+============================================================
+GROUP [31] — 245 adjacent pairs
+============================================================
+  Counties to process: 93
+    Downloading https://download.geofabrik.de/north-america/us/nebraska-latest.osm.pbf...
+  Extracted region in 1.7s
+  Loaded 3,237,348 nodes, 6,659,486 edges in 6.4s
+  CH built in 62.0s
+  Assigned in 1.8s (34,431 unassigned)
+  Border analysis: 11089 edges, 223 pairs in 0.0s
+  Betweenness + central selection in 290.6s
+  Reduced graph: 10678 nodes, 32241 edges in 0.2s
+  Fragility analysis: 223 pair results in 10.0s
+  Wrote 223/245 target pairs to CSV
+
+============================================================
+GROUP [32] — 36 adjacent pairs
+============================================================
+  Counties to process: 17
+    Downloading https://download.geofabrik.de/north-america/us/nevada-latest.osm.pbf...
+  Extracted region in 2.5s
+  Loaded 1,935,042 nodes, 3,851,670 edges in 4.9s
+  CH built in 30.2s
+  Assigned in 0.5s (17,840 unassigned)
+  Border analysis: 787 edges, 34 pairs in 0.0s
+  Betweenness + central selection in 160.2s
+  Reduced graph: 839 nodes, 2419 edges in 0.0s
+  Fragility analysis: 34 pair results in 0.1s
+  Wrote 34/36 target pairs to CSV
+
+============================================================
+GROUP [33] — 19 adjacent pairs
+============================================================
+  Counties to process: 10
+    Downloading https://download.geofabrik.de/north-america/us/new-hampshire-latest.osm.pbf...
+  Extracted region in 1.2s
+  Loaded 2,262,488 nodes, 4,545,158 edges in 4.6s
+  CH built in 18.3s
+  Assigned in 0.5s (40,476 unassigned)
+  Border analysis: 1405 edges, 19 pairs in 0.0s
+  Betweenness + central selection in 190.6s
+  Reduced graph: 1411 nodes, 4191 edges in 0.0s
+  Fragility analysis: 19 pair results in 0.8s
+  Wrote 19/19 target pairs to CSV
+
+============================================================
+GROUP [34] — 42 adjacent pairs
+============================================================
+  Counties to process: 21
+    Downloading https://download.geofabrik.de/north-america/us/new-jersey-latest.osm.pbf...
+  Extracted region in 2.8s
+  Loaded 4,362,225 nodes, 8,653,225 edges in 9.3s
+  CH built in 78.5s
+  Assigned in 1.3s (20,585 unassigned)
+  Border analysis: 6583 edges, 41 pairs in 0.0s
+  Betweenness + central selection in 460.3s
+  Reduced graph: 6722 nodes, 19969 edges in 0.2s
+  Fragility analysis: 41 pair results in 22.1s
+  Wrote 41/42 target pairs to CSV
+
+============================================================
+GROUP [35] — 78 adjacent pairs
+============================================================
+  Counties to process: 33
+    Downloading https://download.geofabrik.de/north-america/us/new-mexico-latest.osm.pbf...
+  Extracted region in 2.1s
+  Loaded 4,148,819 nodes, 8,451,725 edges in 8.2s
+  CH built in 53.7s
+  Assigned in 1.0s (28,524 unassigned)
+  Border analysis: 4150 edges, 75 pairs in 0.0s
+  Betweenness + central selection in 381.0s
+  Reduced graph: 4183 nodes, 12310 edges in 0.1s
+  Fragility analysis: 75 pair results in 2.3s
+  Wrote 75/78 target pairs to CSV
+
+============================================================
+GROUP [36] — 142 adjacent pairs
+============================================================
+  Counties to process: 61
+    Downloading https://download.geofabrik.de/north-america/us/new-york-latest.osm.pbf...
+  Extracted region in 8.0s
+  Loaded 8,807,956 nodes, 17,597,852 edges in 21.1s
+  CH built in 153.9s
+  Assigned in 5.4s (85,181 unassigned)
+  Border analysis: 10317 edges, 136 pairs in 0.1s
+  Betweenness + central selection in 933.4s
+  Reduced graph: 10520 nodes, 31187 edges in 0.4s
+  Fragility analysis: 136 pair results in 9.6s
+  Wrote 135/142 target pairs to CSV
+
+============================================================
+GROUP [37] — 248 adjacent pairs
+============================================================
+  Counties to process: 100
+    Downloading https://download.geofabrik.de/north-america/us/north-carolina-latest.osm.pbf...
+  Extracted region in 6.6s
+  Loaded 13,773,827 nodes, 27,722,235 edges in 33.2s
+  CH built in 188.2s
+  Assigned in 10.6s (144,678 unassigned)
+  Border analysis: 15622 edges, 227 pairs in 0.1s
+  Betweenness + central selection in 1494.6s
+  Reduced graph: 15736 nodes, 46790 edges in 0.6s
+  Fragility analysis: 227 pair results in 22.1s
+  Wrote 227/248 target pairs to CSV
+
+============================================================
+GROUP [38] — 132 adjacent pairs
+============================================================
+  Counties to process: 53
+    Downloading https://download.geofabrik.de/north-america/us/north-dakota-latest.osm.pbf...
+  Extracted region in 1.7s
+  Loaded 2,021,064 nodes, 4,169,091 edges in 4.7s
+  CH built in 25.8s
+  Assigned in 0.7s (25,275 unassigned)
+  Border analysis: 6013 edges, 127 pairs in 0.0s
+  Betweenness + central selection in 162.3s
+  Reduced graph: 5810 nodes, 17463 edges in 0.1s
+  Fragility analysis: 127 pair results in 2.9s
+  Wrote 127/132 target pairs to CSV
+
+============================================================
+GROUP [39] — 231 adjacent pairs
+============================================================
+  Counties to process: 88
+    Downloading https://download.geofabrik.de/north-america/us/ohio-latest.osm.pbf...
+  Extracted region in 4.8s
+  Loaded 10,684,584 nodes, 21,856,922 edges in 22.9s
+  CH built in 200.8s
+  Assigned in 6.3s (92,981 unassigned)
+  Border analysis: 20280 edges, 227 pairs in 0.1s
+  Betweenness + central selection in 1157.8s
+  Reduced graph: 20332 nodes, 60716 edges in 0.7s
+  Fragility analysis: 227 pair results in 39.3s
+  Wrote 227/231 target pairs to CSV
+
+============================================================
+GROUP [40] — 197 adjacent pairs
+============================================================
+  Counties to process: 77
+    Downloading https://download.geofabrik.de/north-america/us/oklahoma-latest.osm.pbf...
+  Extracted region in 2.3s
+  Loaded 5,315,332 nodes, 10,947,113 edges in 9.7s
+  CH built in 92.8s
+  Assigned in 2.7s (48,591 unassigned)
+  Border analysis: 13879 edges, 193 pairs in 0.0s
+  Betweenness + central selection in 522.9s
+  Reduced graph: 13675 nodes, 40959 edges in 0.2s
+  Fragility analysis: 193 pair results in 24.2s
+  Wrote 193/197 target pairs to CSV
+
+============================================================
+GROUP [41] — 83 adjacent pairs
+============================================================
+  Counties to process: 36
+    Downloading https://download.geofabrik.de/north-america/us/oregon-latest.osm.pbf...
+  Extracted region in 3.6s
+  Loaded 4,866,021 nodes, 9,851,799 edges in 10.3s
+  CH built in 58.0s
+  Assigned in 1.9s (37,790 unassigned)
+  Border analysis: 4344 edges, 73 pairs in 0.0s
+  Betweenness + central selection in 472.5s
+  Reduced graph: 4355 nodes, 12874 edges in 0.1s
+  Fragility analysis: 73 pair results in 4.9s
+  Wrote 73/83 target pairs to CSV
+
+============================================================
+GROUP [42] — 170 adjacent pairs
+============================================================
+  Counties to process: 67
+    Downloading https://download.geofabrik.de/north-america/us/pennsylvania-latest.osm.pbf...
+  Extracted region in 5.0s
+  Loaded 11,224,661 nodes, 22,749,031 edges in 24.3s
+  CH built in 185.7s
+  Assigned in 6.7s (74,401 unassigned)
+  Border analysis: 15142 edges, 165 pairs in 0.1s
+  Betweenness + central selection in 1223.8s
+  Reduced graph: 15282 nodes, 45512 edges in 0.7s
+  Fragility analysis: 165 pair results in 32.1s
+  Wrote 164/170 target pairs to CSV
+
+============================================================
+GROUP [44] — 4 adjacent pairs
+============================================================
+  Counties to process: 4
+    Downloading https://download.geofabrik.de/north-america/us/rhode-island-latest.osm.pbf...
+  Extracted region in 0.8s
+  Loaded 663,147 nodes, 1,323,999 edges in 1.4s
+  CH built in 7.2s
+  Assigned in 0.1s (41,083 unassigned)
+  Border analysis: 507 edges, 3 pairs in 0.0s
+  Betweenness + central selection in 40.5s
+  Reduced graph: 498 nodes, 1495 edges in 0.0s
+  Fragility analysis: 3 pair results in 0.2s
+  Wrote 3/4 target pairs to CSV
+
+============================================================
+GROUP [45] — 113 adjacent pairs
+============================================================
+  Counties to process: 46
+    Downloading https://download.geofabrik.de/north-america/us/south-carolina-latest.osm.pbf...
+  Extracted region in 2.6s
+  Loaded 5,451,842 nodes, 11,073,140 edges in 10.7s
+  CH built in 69.6s
+  Assigned in 2.4s (40,206 unassigned)
+  Border analysis: 7926 edges, 100 pairs in 0.0s
+  Betweenness + central selection in 543.9s
+  Reduced graph: 7910 nodes, 23578 edges in 0.2s
+  Fragility analysis: 100 pair results in 9.8s
+  Wrote 100/113 target pairs to CSV
+
+============================================================
+GROUP [46] — 168 adjacent pairs
+============================================================
+  Counties to process: 66
+    Downloading https://download.geofabrik.de/north-america/us/south-dakota-latest.osm.pbf...
+  Extracted region in 1.0s
+  Loaded 1,707,456 nodes, 3,533,899 edges in 3.4s
+  CH built in 28.4s
+  Assigned in 0.8s (22,471 unassigned)
+  Border analysis: 6231 edges, 155 pairs in 0.0s
+  Betweenness + central selection in 132.3s
+  Reduced graph: 6123 nodes, 18321 edges in 0.1s
+  Fragility analysis: 155 pair results in 3.4s
+  Wrote 155/168 target pairs to CSV
+
+============================================================
+GROUP [47] — 240 adjacent pairs
+============================================================
+  Counties to process: 95
+    Downloading https://download.geofabrik.de/north-america/us/tennessee-latest.osm.pbf...
+  Extracted region in 2.9s
+  Loaded 7,115,870 nodes, 14,427,018 edges in 15.0s
+  CH built in 96.4s
+  Assigned in 4.8s (75,935 unassigned)
+  Border analysis: 12121 edges, 231 pairs in 0.0s
+  Betweenness + central selection in 735.7s
+  Reduced graph: 12152 nodes, 36203 edges in 0.4s
+  Fragility analysis: 231 pair results in 15.1s
+  Wrote 231/240 target pairs to CSV
+
+============================================================
+GROUP [48] — 724 adjacent pairs
+============================================================
+  Counties to process: 254
+    Downloading https://download.geofabrik.de/north-america/us/texas-latest.osm.pbf...
+  Extracted region in 10.5s
+  Loaded 21,337,714 nodes, 43,722,664 edges in 72.9s
+  CH built in 1498.2s
+  Assigned in 26.5s (172,356 unassigned)
+  Border analysis: 37084 edges, 632 pairs in 0.7s
+  Betweenness + central selection in 2699.0s
+  Reduced graph: 37719 nodes, 111492 edges in 4.5s
+  Fragility analysis: 632 pair results in 134.9s
+  Wrote 632/724 target pairs to CSV
+
+============================================================
+GROUP [49] — 71 adjacent pairs
+============================================================
+  Counties to process: 29
+    Downloading https://download.geofabrik.de/north-america/us/utah-latest.osm.pbf...
+  Extracted region in 2.7s
+  Loaded 2,576,118 nodes, 5,226,619 edges in 6.7s
+  CH built in 39.1s
+  Assigned in 0.5s (21,321 unassigned)
+  Border analysis: 2128 edges, 60 pairs in 0.0s
+  Betweenness + central selection in 249.5s
+  Reduced graph: 2175 nodes, 6360 edges in 0.1s
+  Fragility analysis: 60 pair results in 0.6s
+  Wrote 60/71 target pairs to CSV
+
+============================================================
+GROUP [50] — 27 adjacent pairs
+============================================================
+  Counties to process: 14
+    Downloading https://download.geofabrik.de/north-america/us/vermont-latest.osm.pbf...
+  Extracted region in 0.9s
+  Loaded 1,469,236 nodes, 2,945,957 edges in 2.7s
+  CH built in 9.0s
+  Assigned in 0.2s (39,566 unassigned)
+  Border analysis: 1143 edges, 27 pairs in 0.0s
+  Betweenness + central selection in 102.3s
+  Reduced graph: 1154 nodes, 3415 edges in 0.0s
+  Fragility analysis: 27 pair results in 0.2s
+  Wrote 27/27 target pairs to CSV
+
+============================================================
+GROUP [51] — 293 adjacent pairs
+============================================================
+  Counties to process: 134
+    Downloading https://download.geofabrik.de/north-america/us/virginia-latest.osm.pbf...
+  Extracted region in 6.5s
+  Loaded 13,002,715 nodes, 25,922,970 edges in 28.5s
+  CH built in 138.6s
+  Assigned in 12.0s (86,462 unassigned)
+  Border analysis: 18794 edges, 269 pairs in 0.1s
+  Betweenness + central selection in 1306.3s
+  Reduced graph: 19255 nodes, 56876 edges in 0.5s
+  Fragility analysis: 269 pair results in 25.3s
+  Wrote 269/293 target pairs to CSV
+
+============================================================
+GROUP [53] — 84 adjacent pairs
+============================================================
+  Counties to process: 38
+    Downloading https://download.geofabrik.de/north-america/us/washington-latest.osm.pbf...
+  Extracted region in 5.3s
+  Loaded 7,289,427 nodes, 14,767,887 edges in 17.2s
+  CH built in 100.3s
+  Assigned in 3.9s (97,609 unassigned)
+  Border analysis: 5252 edges, 77 pairs in 0.1s
+  Betweenness + central selection in 766.4s
+  Reduced graph: 5215 nodes, 15496 edges in 0.2s
+  Fragility analysis: 77 pair results in 3.9s
+  Wrote 77/84 target pairs to CSV
+
+============================================================
+GROUP [54] — 127 adjacent pairs
+============================================================
+  Counties to process: 55
+    Downloading https://download.geofabrik.de/north-america/us/west-virginia-latest.osm.pbf...
+  Extracted region in 1.9s
+  Loaded 2,987,299 nodes, 5,999,083 edges in 5.8s
+  CH built in 23.8s
+  Assigned in 1.3s (141,035 unassigned)
+  Border analysis: 4990 edges, 126 pairs in 0.0s
+  Betweenness + central selection in 247.5s
+  Reduced graph: 5008 nodes, 14846 edges in 0.1s
+  Fragility analysis: 126 pair results in 2.2s
+  Wrote 126/127 target pairs to CSV
+
+============================================================
+GROUP [55] — 185 adjacent pairs
+============================================================
+  Counties to process: 72
+    Downloading https://download.geofabrik.de/north-america/us/wisconsin-latest.osm.pbf...
+  Extracted region in 4.1s
+  Loaded 6,543,384 nodes, 13,213,532 edges in 13.4s
+  CH built in 119.1s
+  Assigned in 6.3s (53,692 unassigned)
+  Border analysis: 13559 edges, 175 pairs in 0.0s
+  Betweenness + central selection in 711.1s
+  Reduced graph: 13623 nodes, 40645 edges in 0.4s
+  Fragility analysis: 175 pair results in 20.3s
+  Wrote 175/185 target pairs to CSV
+
+============================================================
+GROUP [56] — 51 adjacent pairs
+============================================================
+  Counties to process: 23
+    Downloading https://download.geofabrik.de/north-america/us/wyoming-latest.osm.pbf...
+  Extracted region in 1.8s
+  Loaded 1,714,245 nodes, 3,490,542 edges in 3.8s
+  CH built in 16.5s
+  Assigned in 0.5s (23,964 unassigned)
+  Border analysis: 1652 edges, 47 pairs in 0.0s
+  Betweenness + central selection in 136.8s
+  Reduced graph: 1669 nodes, 4838 edges in 0.0s
+  Fragility analysis: 47 pair results in 0.4s
+  Wrote 47/51 target pairs to CSV
+
+============================================================
+GROUP [72] — 185 adjacent pairs
+============================================================
+  Counties to process: 76
+    Downloading https://download.geofabrik.de/north-america/us/puerto-rico-latest.osm.pbf...
+  Extracted region in 1.3s
+  Loaded 1,120,936 nodes, 2,233,726 edges in 2.4s
+  CH built in 11.0s
+  Assigned in 0.6s (6,438 unassigned)
+  Border analysis: 6584 edges, 171 pairs in 0.0s
+  Betweenness + central selection in 87.3s
+  Reduced graph: 6588 nodes, 19578 edges in 0.0s
+  Fragility analysis: 171 pair results in 3.9s
+  Wrote 171/185 target pairs to CSV
+
+============================================================
+GROUP [01+12] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 10.4s
+  Extracted region in 3.5s
+  Loaded 1,332,624 nodes, 2,690,349 edges in 3.2s
+  CH built in 15.9s
+  Assigned in 0.2s (103,207 unassigned)
+  Border analysis: 930 edges, 19 pairs in 0.0s
+  Betweenness + central selection in 101.0s
+  Reduced graph: 955 nodes, 2818 edges in 0.0s
+  Fragility analysis: 19 pair results in 0.1s
+  Wrote 10/10 target pairs to CSV
+
+============================================================
+GROUP [01+13] — 27 adjacent pairs
+============================================================
+  Counties to process: 28
+  Merged 2 state PBFs in 5.6s
+  Extracted region in 2.3s
+  Loaded 2,002,656 nodes, 4,038,252 edges in 4.1s
+  CH built in 20.6s
+  Assigned in 0.6s (307,729 unassigned)
+  Border analysis: 2391 edges, 51 pairs in 0.0s
+  Betweenness + central selection in 161.2s
+  Reduced graph: 2435 nodes, 7189 edges in 0.0s
+  Fragility analysis: 51 pair results in 0.7s
+  Wrote 24/27 target pairs to CSV
+
+============================================================
+GROUP [01+28] — 21 adjacent pairs
+============================================================
+  Counties to process: 22
+  Merged 2 state PBFs in 2.6s
+  Extracted region in 1.4s
+  Loaded 1,606,862 nodes, 3,250,981 edges in 3.1s
+  CH built in 17.1s
+  Assigned in 0.3s (189,290 unassigned)
+  Border analysis: 1600 edges, 40 pairs in 0.0s
+  Betweenness + central selection in 118.9s
+  Reduced graph: 1632 nodes, 4808 edges in 0.0s
+  Fragility analysis: 40 pair results in 0.3s
+  Wrote 20/21 target pairs to CSV
+
+============================================================
+GROUP [01+47] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 3.7s
+  Extracted region in 1.5s
+  Loaded 1,020,601 nodes, 2,073,806 edges in 1.9s
+  CH built in 11.8s
+  Assigned in 0.1s (189,551 unassigned)
+  Border analysis: 976 edges, 18 pairs in 0.0s
+  Betweenness + central selection in 74.1s
+  Reduced graph: 1019 nodes, 2992 edges in 0.0s
+  Fragility analysis: 18 pair results in 0.3s
+  Wrote 9/10 target pairs to CSV
+
+============================================================
+GROUP [04+06] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 20.4s
+  Extracted region in 6.6s
+  Loaded 2,305,876 nodes, 4,711,812 edges in 5.4s
+  CH built in 44.6s
+  Assigned in 0.3s (146,123 unassigned)
+  Border analysis: 1307 edges, 9 pairs in 0.0s
+  Betweenness + central selection in 217.0s
+  Reduced graph: 1346 nodes, 3971 edges in 0.0s
+  Fragility analysis: 9 pair results in 2.2s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [04+08] — 1 adjacent pairs
+============================================================
+  Counties to process: 2
+  Merged 2 state PBFs in 8.2s
+  Extracted region in 2.5s
+  Loaded 197,892 nodes, 401,310 edges in 0.6s
+  CH built in 1.0s
+  Assigned in 0.0s (21,387 unassigned)
+  Border analysis: 0 edges, 0 pairs in 0.0s
+  No adjacent pairs found in graph, skipping
+
+============================================================
+GROUP [04+32] — 2 adjacent pairs
+============================================================
+  Counties to process: 3
+  Merged 2 state PBFs in 5.6s
+  Extracted region in 2.4s
+  Loaded 1,014,480 nodes, 2,022,042 edges in 2.8s
+  CH built in 19.9s
+  Assigned in 0.1s (26,038 unassigned)
+  Border analysis: 205 edges, 3 pairs in 0.0s
+  Betweenness + central selection in 77.4s
+  Reduced graph: 206 nodes, 611 edges in 0.0s
+  Fragility analysis: 3 pair results in 0.0s
+  Wrote 2/2 target pairs to CSV
+
+============================================================
+GROUP [04+35] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 5.7s
+  Extracted region in 2.1s
+  Loaded 1,166,722 nodes, 2,367,246 edges in 2.4s
+  CH built in 10.0s
+  Assigned in 0.1s (63,375 unassigned)
+  Border analysis: 648 edges, 14 pairs in 0.0s
+  Betweenness + central selection in 75.1s
+  Reduced graph: 662 nodes, 1934 edges in 0.0s
+  Fragility analysis: 14 pair results in 0.1s
+  Wrote 7/8 target pairs to CSV
+
+============================================================
+GROUP [04+49] — 6 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 5.7s
+  Extracted region in 3.0s
+  Loaded 1,049,247 nodes, 2,125,342 edges in 2.8s
+  CH built in 10.4s
+  Assigned in 0.1s (81,882 unassigned)
+  Border analysis: 438 edges, 11 pairs in 0.0s
+  Betweenness + central selection in 69.0s
+  Reduced graph: 447 nodes, 1310 edges in 0.0s
+  Fragility analysis: 11 pair results in 0.1s
+  Wrote 6/6 target pairs to CSV
+
+============================================================
+GROUP [05+22] — 14 adjacent pairs
+============================================================
+  Counties to process: 14
+  Merged 2 state PBFs in 2.8s
+  Extracted region in 1.0s
+  Loaded 694,094 nodes, 1,411,764 edges in 1.2s
+  CH built in 7.9s
+  Assigned in 0.1s (86,406 unassigned)
+  Border analysis: 1042 edges, 22 pairs in 0.0s
+  Betweenness + central selection in 46.4s
+  Reduced graph: 1055 nodes, 3120 edges in 0.0s
+  Fragility analysis: 22 pair results in 0.2s
+  Wrote 10/14 target pairs to CSV
+
+============================================================
+GROUP [05+28] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 2.2s
+  Extracted region in 0.8s
+  Loaded 494,404 nodes, 1,009,953 edges in 0.9s
+  CH built in 5.1s
+  Assigned in 0.1s (79,741 unassigned)
+  Border analysis: 313 edges, 14 pairs in 0.0s
+  Betweenness + central selection in 28.3s
+  Reduced graph: 334 nodes, 873 edges in 0.0s
+  Fragility analysis: 14 pair results in 0.0s
+  Wrote 5/10 target pairs to CSV
+
+============================================================
+GROUP [05+29] — 22 adjacent pairs
+============================================================
+  Counties to process: 23
+  Merged 2 state PBFs in 3.6s
+  Extracted region in 1.6s
+  Loaded 1,976,845 nodes, 4,049,012 edges in 3.9s
+  CH built in 21.6s
+  Assigned in 0.6s (240,607 unassigned)
+  Border analysis: 2076 edges, 43 pairs in 0.0s
+  Betweenness + central selection in 165.2s
+  Reduced graph: 2039 nodes, 6104 edges in 0.0s
+  Fragility analysis: 43 pair results in 0.4s
+  Wrote 21/22 target pairs to CSV
+
+============================================================
+GROUP [05+40] — 12 adjacent pairs
+============================================================
+  Counties to process: 13
+  Merged 2 state PBFs in 3.0s
+  Extracted region in 1.3s
+  Loaded 1,449,029 nodes, 2,960,440 edges in 2.6s
+  CH built in 14.2s
+  Assigned in 0.2s (134,545 unassigned)
+  Border analysis: 1158 edges, 23 pairs in 0.0s
+  Betweenness + central selection in 110.3s
+  Reduced graph: 1147 nodes, 3426 edges in 0.0s
+  Fragility analysis: 23 pair results in 0.2s
+  Wrote 12/12 target pairs to CSV
+
+============================================================
+GROUP [05+47] — 6 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 3.3s
+  Extracted region in 1.4s
+  Loaded 832,980 nodes, 1,712,598 edges in 1.8s
+  CH built in 14.3s
+  Assigned in 0.1s (47,835 unassigned)
+  Border analysis: 202 edges, 6 pairs in 0.0s
+  Betweenness + central selection in 84.5s
+  Reduced graph: 214 nodes, 614 edges in 0.0s
+  Fragility analysis: 6 pair results in 0.0s
+  Wrote 2/6 target pairs to CSV
+
+============================================================
+GROUP [05+48] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 10.4s
+  Extracted region in 3.2s
+  Loaded 176,312 nodes, 361,670 edges in 0.3s
+  CH built in 2.1s
+  Assigned in 0.0s (30,534 unassigned)
+  Border analysis: 361 edges, 5 pairs in 0.0s
+  Betweenness + central selection in 9.8s
+  Reduced graph: 389 nodes, 1131 edges in 0.0s
+  Fragility analysis: 5 pair results in 0.1s
+  Wrote 3/3 target pairs to CSV
+
+============================================================
+GROUP [06+32] — 17 adjacent pairs
+============================================================
+  Counties to process: 18
+  Merged 2 state PBFs in 20.6s
+  Extracted region in 9.4s
+  Loaded 4,070,060 nodes, 8,171,555 edges in 11.5s
+  CH built in 78.2s
+  Assigned in 1.1s (411,761 unassigned)
+  Border analysis: 1262 edges, 33 pairs in 0.0s
+  Betweenness + central selection in 416.5s
+  Reduced graph: 1284 nodes, 3750 edges in 0.1s
+  Fragility analysis: 33 pair results in 0.5s
+  Wrote 14/17 target pairs to CSV
+
+============================================================
+GROUP [06+41] — 7 adjacent pairs
+============================================================
+  Counties to process: 8
+  Merged 2 state PBFs in 21.2s
+  Extracted region in 5.5s
+  Loaded 1,141,296 nodes, 2,297,289 edges in 2.6s
+  CH built in 9.0s
+  Assigned in 0.1s (74,393 unassigned)
+  Border analysis: 515 edges, 13 pairs in 0.0s
+  Betweenness + central selection in 95.2s
+  Reduced graph: 512 nodes, 1507 edges in 0.0s
+  Fragility analysis: 13 pair results in 0.1s
+  Wrote 7/7 target pairs to CSV
+
+============================================================
+GROUP [08+20] — 12 adjacent pairs
+============================================================
+  Counties to process: 13
+  Merged 2 state PBFs in 6.2s
+  Extracted region in 1.9s
+  Loaded 248,390 nodes, 525,082 edges in 0.6s
+  CH built in 4.1s
+  Assigned in 0.0s (27,858 unassigned)
+  Border analysis: 646 edges, 23 pairs in 0.0s
+  Betweenness + central selection in 16.3s
+  Reduced graph: 635 nodes, 1890 edges in 0.0s
+  Fragility analysis: 23 pair results in 0.1s
+  Wrote 12/12 target pairs to CSV
+
+============================================================
+GROUP [08+31] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 5.9s
+  Extracted region in 1.9s
+  Loaded 832,677 nodes, 1,722,829 edges in 1.7s
+  CH built in 11.6s
+  Assigned in 0.2s (213,387 unassigned)
+  Border analysis: 676 edges, 19 pairs in 0.0s
+  Betweenness + central selection in 61.2s
+  Reduced graph: 666 nodes, 1986 edges in 0.0s
+  Fragility analysis: 19 pair results in 0.1s
+  Wrote 9/10 target pairs to CSV
+
+============================================================
+GROUP [08+35] — 11 adjacent pairs
+============================================================
+  Counties to process: 12
+  Merged 2 state PBFs in 5.5s
+  Extracted region in 2.4s
+  Loaded 1,052,397 nodes, 2,138,312 edges in 2.3s
+  CH built in 9.5s
+  Assigned in 0.1s (61,791 unassigned)
+  Border analysis: 807 edges, 20 pairs in 0.0s
+  Betweenness + central selection in 86.0s
+  Reduced graph: 809 nodes, 2369 edges in 0.0s
+  Fragility analysis: 20 pair results in 0.1s
+  Wrote 10/11 target pairs to CSV
+
+============================================================
+GROUP [08+40] — 1 adjacent pairs
+============================================================
+  Counties to process: 2
+  Merged 2 state PBFs in 6.3s
+  Extracted region in 1.9s
+  Loaded 56,009 nodes, 115,586 edges in 0.1s
+  CH built in 0.4s
+  Assigned in 0.0s (6,701 unassigned)
+  Border analysis: 36 edges, 1 pairs in 0.0s
+  Betweenness + central selection in 1.3s
+  Reduced graph: 37 nodes, 98 edges in 0.0s
+  Fragility analysis: 1 pair results in 0.0s
+  Wrote 1/1 target pairs to CSV
+
+============================================================
+GROUP [08+49] — 12 adjacent pairs
+============================================================
+  Counties to process: 12
+  Merged 2 state PBFs in 6.7s
+  Extracted region in 2.9s
+  Loaded 903,047 nodes, 1,815,518 edges in 2.8s
+  CH built in 7.8s
+  Assigned in 0.1s (71,089 unassigned)
+  Border analysis: 652 edges, 20 pairs in 0.0s
+  Betweenness + central selection in 68.7s
+  Reduced graph: 662 nodes, 1928 edges in 0.0s
+  Fragility analysis: 20 pair results in 0.1s
+  Wrote 10/12 target pairs to CSV
+
+============================================================
+GROUP [08+56] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 5.4s
+  Extracted region in 2.6s
+  Loaded 1,597,325 nodes, 3,254,996 edges in 3.6s
+  CH built in 20.0s
+  Assigned in 0.4s (184,035 unassigned)
+  Border analysis: 810 edges, 15 pairs in 0.0s
+  Betweenness + central selection in 147.3s
+  Reduced graph: 838 nodes, 2448 edges in 0.0s
+  Fragility analysis: 15 pair results in 0.2s
+  Wrote 8/8 target pairs to CSV
+
+============================================================
+GROUP [09+25] — 6 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 6.3s
+  Extracted region in 3.8s
+  Loaded 3,491,737 nodes, 6,959,616 edges in 9.8s
+  CH built in 44.9s
+  Assigned in 0.6s (573,171 unassigned)
+  Border analysis: 1110 edges, 11 pairs in 0.0s
+  Betweenness + central selection in 408.7s
+  Reduced graph: 1117 nodes, 3328 edges in 0.1s
+  Fragility analysis: 11 pair results in 0.6s
+  Wrote 6/6 target pairs to CSV
+
+============================================================
+GROUP [09+36] — 4 adjacent pairs
+============================================================
+  Counties to process: 5
+  Merged 2 state PBFs in 8.9s
+  Extracted region in 4.0s
+  Loaded 2,613,325 nodes, 5,176,873 edges in 5.3s
+  CH built in 27.6s
+  Assigned in 0.3s (410,390 unassigned)
+  Border analysis: 958 edges, 7 pairs in 0.0s
+  Betweenness + central selection in 250.2s
+  Reduced graph: 971 nodes, 2890 edges in 0.0s
+  Fragility analysis: 7 pair results in 1.0s
+  Wrote 4/4 target pairs to CSV
+
+============================================================
+GROUP [09+44] — 4 adjacent pairs
+============================================================
+  Counties to process: 5
+  Merged 2 state PBFs in 2.6s
+  Extracted region in 1.7s
+  Loaded 1,293,514 nodes, 2,570,587 edges in 2.8s
+  CH built in 13.0s
+  Assigned in 0.1s (165,985 unassigned)
+  Border analysis: 751 edges, 7 pairs in 0.0s
+  Betweenness + central selection in 104.0s
+  Reduced graph: 743 nodes, 2223 edges in 0.0s
+  Fragility analysis: 7 pair results in 0.2s
+  Wrote 4/4 target pairs to CSV
+
+============================================================
+GROUP [10+24] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 2.8s
+  Extracted region in 1.5s
+  Loaded 1,366,225 nodes, 2,744,088 edges in 2.6s
+  CH built in 15.0s
+  Assigned in 1.5s (91,761 unassigned)
+  Border analysis: 1250 edges, 17 pairs in 0.0s
+  Betweenness + central selection in 110.7s
+  Reduced graph: 1271 nodes, 3772 edges in 0.0s
+  Fragility analysis: 17 pair results in 0.4s
+  Wrote 9/9 target pairs to CSV
+
+============================================================
+GROUP [10+34] — 2 adjacent pairs
+============================================================
+  Counties to process: 3
+  Merged 2 state PBFs in 2.3s
+  Extracted region in 1.0s
+  Loaded 688,262 nodes, 1,374,148 edges in 1.2s
+  CH built in 8.2s
+  Assigned in 0.1s (138,209 unassigned)
+  Border analysis: 198 edges, 2 pairs in 0.0s
+  Betweenness + central selection in 50.0s
+  Reduced graph: 201 nodes, 594 edges in 0.0s
+  Fragility analysis: 2 pair results in 0.0s
+  Wrote 1/2 target pairs to CSV
+
+============================================================
+GROUP [10+42] — 2 adjacent pairs
+============================================================
+  Counties to process: 3
+  Merged 2 state PBFs in 4.7s
+  Extracted region in 1.9s
+  Loaded 1,332,576 nodes, 2,658,073 edges in 2.8s
+  CH built in 20.4s
+  Assigned in 0.1s (255,873 unassigned)
+  Border analysis: 688 edges, 3 pairs in 0.0s
+  Betweenness + central selection in 119.2s
+  Reduced graph: 686 nodes, 2054 edges in 0.0s
+  Fragility analysis: 3 pair results in 0.5s
+  Wrote 2/2 target pairs to CSV
+
+============================================================
+GROUP [11+24] — 2 adjacent pairs
+============================================================
+  Counties to process: 3
+    Downloading https://download.geofabrik.de/north-america/us/district-of-columbia-latest.osm.pbf...
+  Merged 2 state PBFs in 2.8s
+  Extracted region in 2.0s
+  Loaded 1,341,951 nodes, 2,652,731 edges in 2.9s
+  CH built in 17.6s
+  Assigned in 0.1s (255,049 unassigned)
+  Border analysis: 934 edges, 3 pairs in 0.0s
+  Betweenness + central selection in 118.3s
+  Reduced graph: 1014 nodes, 2948 edges in 0.0s
+  Fragility analysis: 3 pair results in 1.0s
+  Wrote 2/2 target pairs to CSV
+
+============================================================
+GROUP [11+51] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 5.6s
+  Extracted region in 2.5s
+  Loaded 1,046,124 nodes, 2,018,639 edges in 2.7s
+  CH built in 17.1s
+  Assigned in 0.1s (178,367 unassigned)
+  Border analysis: 626 edges, 5 pairs in 0.0s
+  Betweenness + central selection in 96.7s
+  Reduced graph: 733 nodes, 2060 edges in 0.0s
+  Fragility analysis: 5 pair results in 0.4s
+  Wrote 2/3 target pairs to CSV
+
+============================================================
+GROUP [12+13] — 19 adjacent pairs
+============================================================
+  Counties to process: 20
+  Merged 2 state PBFs in 12.2s
+  Extracted region in 4.1s
+  Loaded 1,036,144 nodes, 2,086,729 edges in 2.5s
+  CH built in 12.8s
+  Assigned in 0.2s (138,701 unassigned)
+  Border analysis: 976 edges, 35 pairs in 0.0s
+  Betweenness + central selection in 88.4s
+  Reduced graph: 1019 nodes, 2934 edges in 0.0s
+  Fragility analysis: 35 pair results in 0.1s
+  Wrote 17/19 target pairs to CSV
+
+============================================================
+GROUP [13+37] — 7 adjacent pairs
+============================================================
+  Counties to process: 8
+  Merged 2 state PBFs in 10.0s
+  Extracted region in 2.9s
+  Loaded 993,350 nodes, 1,987,886 edges in 2.1s
+  CH built in 6.6s
+  Assigned in 0.1s (132,967 unassigned)
+  Border analysis: 524 edges, 12 pairs in 0.0s
+  Betweenness + central selection in 77.9s
+  Reduced graph: 528 nodes, 1552 edges in 0.0s
+  Fragility analysis: 12 pair results in 0.1s
+  Wrote 5/7 target pairs to CSV
+
+============================================================
+GROUP [13+45] — 22 adjacent pairs
+============================================================
+  Counties to process: 23
+  Merged 2 state PBFs in 6.6s
+  Extracted region in 2.8s
+  Loaded 2,253,422 nodes, 4,553,964 edges in 5.0s
+  CH built in 29.0s
+  Assigned in 0.6s (345,508 unassigned)
+  Border analysis: 1854 edges, 40 pairs in 0.0s
+  Betweenness + central selection in 229.7s
+  Reduced graph: 1883 nodes, 5562 edges in 0.0s
+  Fragility analysis: 40 pair results in 0.5s
+  Wrote 19/22 target pairs to CSV
+
+============================================================
+GROUP [13+47] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 7.0s
+  Extracted region in 2.4s
+  Loaded 910,028 nodes, 1,842,402 edges in 2.1s
+  CH built in 11.1s
+  Assigned in 0.1s (123,421 unassigned)
+  Border analysis: 1120 edges, 17 pairs in 0.0s
+  Betweenness + central selection in 79.5s
+  Reduced graph: 1118 nodes, 3336 edges in 0.0s
+  Fragility analysis: 17 pair results in 0.5s
+  Wrote 8/9 target pairs to CSV
+
+============================================================
+GROUP [16+30] — 15 adjacent pairs
+============================================================
+  Counties to process: 16
+  Merged 2 state PBFs in 2.4s
+  Extracted region in 1.5s
+  Loaded 2,105,697 nodes, 4,252,424 edges in 4.3s
+  CH built in 15.4s
+  Assigned in 0.6s (175,477 unassigned)
+  Border analysis: 786 edges, 29 pairs in 0.0s
+  Betweenness + central selection in 159.2s
+  Reduced graph: 800 nodes, 2334 edges in 0.0s
+  Fragility analysis: 29 pair results in 0.1s
+  Wrote 14/15 target pairs to CSV
+
+============================================================
+GROUP [16+32] — 4 adjacent pairs
+============================================================
+  Counties to process: 5
+  Merged 2 state PBFs in 3.0s
+  Extracted region in 1.3s
+  Loaded 561,901 nodes, 1,144,355 edges in 1.2s
+  CH built in 4.4s
+  Assigned in 0.0s (111,914 unassigned)
+  Border analysis: 150 edges, 5 pairs in 0.0s
+  Betweenness + central selection in 34.4s
+  Reduced graph: 154 nodes, 432 edges in 0.0s
+  Fragility analysis: 5 pair results in 0.0s
+  Wrote 2/4 target pairs to CSV
+
+============================================================
+GROUP [16+41] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 4.5s
+  Extracted region in 1.8s
+  Loaded 1,188,717 nodes, 2,427,663 edges in 2.6s
+  CH built in 12.2s
+  Assigned in 0.3s (182,973 unassigned)
+  Border analysis: 956 edges, 15 pairs in 0.1s
+  Betweenness + central selection in 102.0s
+  Reduced graph: 934 nodes, 2784 edges in 0.0s
+  Fragility analysis: 15 pair results in 0.3s
+  Wrote 8/9 target pairs to CSV
+
+============================================================
+GROUP [16+49] — 7 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 3.9s
+  Extracted region in 1.5s
+  Loaded 453,292 nodes, 925,017 edges in 0.9s
+  CH built in 3.8s
+  Assigned in 0.0s (81,462 unassigned)
+  Border analysis: 257 edges, 10 pairs in 0.0s
+  Betweenness + central selection in 24.8s
+  Reduced graph: 263 nodes, 757 edges in 0.0s
+  Fragility analysis: 10 pair results in 0.0s
+  Wrote 5/7 target pairs to CSV
+
+============================================================
+GROUP [16+53] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 6.0s
+  Extracted region in 2.1s
+  Loaded 1,453,618 nodes, 2,955,130 edges in 2.8s
+  CH built in 16.0s
+  Assigned in 0.2s (104,849 unassigned)
+  Border analysis: 904 edges, 16 pairs in 0.0s
+  Betweenness + central selection in 114.2s
+  Reduced graph: 899 nodes, 2678 edges in 0.0s
+  Fragility analysis: 16 pair results in 0.2s
+  Wrote 8/9 target pairs to CSV
+
+============================================================
+GROUP [16+56] — 6 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 2.4s
+  Extracted region in 1.2s
+  Loaded 642,533 nodes, 1,309,740 edges in 1.4s
+  CH built in 4.6s
+  Assigned in 0.1s (74,853 unassigned)
+  Border analysis: 484 edges, 10 pairs in 0.0s
+  Betweenness + central selection in 35.2s
+  Reduced graph: 470 nodes, 1398 edges in 0.0s
+  Fragility analysis: 10 pair results in 0.0s
+  Wrote 5/6 target pairs to CSV
+
+============================================================
+GROUP [17+18] — 21 adjacent pairs
+============================================================
+  Counties to process: 22
+  Merged 2 state PBFs in 6.8s
+  Extracted region in 4.6s
+  Loaded 3,206,699 nodes, 6,634,044 edges in 7.5s
+  CH built in 89.4s
+  Assigned in 1.0s (643,459 unassigned)
+  Border analysis: 2997 edges, 41 pairs in 0.0s
+  Betweenness + central selection in 331.4s
+  Reduced graph: 3019 nodes, 8991 edges in 0.1s
+  Fragility analysis: 41 pair results in 2.8s
+  Wrote 21/21 target pairs to CSV
+
+============================================================
+GROUP [17+19] — 14 adjacent pairs
+============================================================
+  Counties to process: 15
+  Merged 2 state PBFs in 6.0s
+  Extracted region in 2.1s
+  Loaded 780,443 nodes, 1,607,344 edges in 1.5s
+  CH built in 11.4s
+  Assigned in 0.1s (80,391 unassigned)
+  Border analysis: 1132 edges, 21 pairs in 0.0s
+  Betweenness + central selection in 54.7s
+  Reduced graph: 1136 nodes, 3374 edges in 0.0s
+  Fragility analysis: 21 pair results in 0.2s
+  Wrote 8/14 target pairs to CSV
+
+============================================================
+GROUP [17+21] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 6.2s
+  Extracted region in 1.7s
+  Loaded 410,387 nodes, 834,506 edges in 0.7s
+  CH built in 3.2s
+  Assigned in 0.1s (102,792 unassigned)
+  Border analysis: 566 edges, 15 pairs in 0.0s
+  Betweenness + central selection in 20.5s
+  Reduced graph: 564 nodes, 1668 edges in 0.0s
+  Fragility analysis: 15 pair results in 0.0s
+  Wrote 6/10 target pairs to CSV
+
+============================================================
+GROUP [17+29] — 27 adjacent pairs
+============================================================
+  Counties to process: 27
+  Merged 2 state PBFs in 6.8s
+  Extracted region in 2.9s
+  Loaded 3,062,852 nodes, 6,214,349 edges in 5.7s
+  CH built in 44.8s
+  Assigned in 0.8s (282,745 unassigned)
+  Border analysis: 2988 edges, 45 pairs in 0.0s
+  Betweenness + central selection in 299.8s
+  Reduced graph: 3060 nodes, 9042 edges in 0.1s
+  Fragility analysis: 45 pair results in 4.3s
+  Wrote 19/27 target pairs to CSV
+
+============================================================
+GROUP [17+55] — 11 adjacent pairs
+============================================================
+  Counties to process: 12
+  Merged 2 state PBFs in 7.5s
+  Extracted region in 2.9s
+  Loaded 1,774,161 nodes, 3,619,904 edges in 3.8s
+  CH built in 28.5s
+  Assigned in 0.3s (268,787 unassigned)
+  Border analysis: 1880 edges, 21 pairs in 0.0s
+  Betweenness + central selection in 162.0s
+  Reduced graph: 1883 nodes, 5614 edges in 0.0s
+  Fragility analysis: 21 pair results in 0.9s
+  Wrote 11/11 target pairs to CSV
+
+============================================================
+GROUP [18+21] — 25 adjacent pairs
+============================================================
+  Counties to process: 26
+  Merged 2 state PBFs in 4.2s
+  Extracted region in 2.2s
+  Loaded 2,461,807 nodes, 4,981,362 edges in 4.7s
+  CH built in 28.5s
+  Assigned in 0.6s (368,507 unassigned)
+  Border analysis: 2259 edges, 43 pairs in 0.0s
+  Betweenness + central selection in 220.0s
+  Reduced graph: 2297 nodes, 6797 edges in 0.0s
+  Fragility analysis: 43 pair results in 0.5s
+  Wrote 18/25 target pairs to CSV
+
+============================================================
+GROUP [18+26] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 6.0s
+  Extracted region in 2.0s
+  Loaded 943,242 nodes, 1,971,746 edges in 1.8s
+  CH built in 15.9s
+  Assigned in 0.1s (102,046 unassigned)
+  Border analysis: 1382 edges, 17 pairs in 0.0s
+  Betweenness + central selection in 75.6s
+  Reduced graph: 1395 nodes, 4152 edges in 0.0s
+  Fragility analysis: 17 pair results in 0.7s
+  Wrote 9/9 target pairs to CSV
+
+============================================================
+GROUP [18+39] — 19 adjacent pairs
+============================================================
+  Counties to process: 19
+  Merged 2 state PBFs in 6.1s
+  Extracted region in 2.6s
+  Loaded 2,049,400 nodes, 4,204,886 edges in 4.2s
+  CH built in 32.8s
+  Assigned in 0.4s (368,547 unassigned)
+  Border analysis: 2868 edges, 34 pairs in 0.0s
+  Betweenness + central selection in 188.5s
+  Reduced graph: 2858 nodes, 8546 edges in 0.1s
+  Fragility analysis: 34 pair results in 1.2s
+  Wrote 17/19 target pairs to CSV
+
+============================================================
+GROUP [19+27] — 19 adjacent pairs
+============================================================
+  Counties to process: 20
+  Merged 2 state PBFs in 5.4s
+  Extracted region in 1.7s
+  Loaded 627,425 nodes, 1,309,356 edges in 1.3s
+  CH built in 9.2s
+  Assigned in 0.1s (96,868 unassigned)
+  Border analysis: 2121 edges, 37 pairs in 0.0s
+  Betweenness + central selection in 40.4s
+  Reduced graph: 2070 nodes, 6221 edges in 0.0s
+  Fragility analysis: 37 pair results in 0.5s
+  Wrote 19/19 target pairs to CSV
+
+============================================================
+GROUP [19+29] — 18 adjacent pairs
+============================================================
+  Counties to process: 19
+  Merged 2 state PBFs in 3.8s
+  Extracted region in 1.2s
+  Loaded 499,604 nodes, 1,035,953 edges in 1.0s
+  CH built in 5.7s
+  Assigned in 0.1s (88,236 unassigned)
+  Border analysis: 1280 edges, 35 pairs in 0.0s
+  Betweenness + central selection in 27.5s
+  Reduced graph: 1249 nodes, 3740 edges in 0.0s
+  Fragility analysis: 35 pair results in 0.2s
+  Wrote 18/18 target pairs to CSV
+
+============================================================
+GROUP [19+31] — 13 adjacent pairs
+============================================================
+  Counties to process: 14
+  Merged 2 state PBFs in 2.6s
+  Extracted region in 1.3s
+  Loaded 1,147,304 nodes, 2,320,820 edges in 2.4s
+  CH built in 18.9s
+  Assigned in 0.2s (101,794 unassigned)
+  Border analysis: 1585 edges, 24 pairs in 0.0s
+  Betweenness + central selection in 95.6s
+  Reduced graph: 1631 nodes, 4789 edges in 0.0s
+  Fragility analysis: 24 pair results in 0.8s
+  Wrote 12/13 target pairs to CSV
+
+============================================================
+GROUP [19+46] — 6 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 2.0s
+  Extracted region in 0.8s
+  Loaded 379,443 nodes, 797,460 edges in 0.6s
+  CH built in 6.5s
+  Assigned in 0.0s (39,254 unassigned)
+  Border analysis: 820 edges, 11 pairs in 0.0s
+  Betweenness + central selection in 21.3s
+  Reduced graph: 837 nodes, 2480 edges in 0.0s
+  Fragility analysis: 11 pair results in 0.2s
+  Wrote 6/6 target pairs to CSV
+
+============================================================
+GROUP [19+55] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 4.7s
+  Extracted region in 1.5s
+  Loaded 481,390 nodes, 981,364 edges in 0.9s
+  CH built in 4.1s
+  Assigned in 0.0s (91,480 unassigned)
+  Border analysis: 272 edges, 9 pairs in 0.0s
+  Betweenness + central selection in 28.0s
+  Reduced graph: 271 nodes, 802 edges in 0.0s
+  Fragility analysis: 9 pair results in 0.0s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [20+29] — 21 adjacent pairs
+============================================================
+  Counties to process: 22
+  Merged 2 state PBFs in 3.5s
+  Extracted region in 2.1s
+  Loaded 2,422,370 nodes, 4,963,494 edges in 4.7s
+  CH built in 44.5s
+  Assigned in 0.4s (175,484 unassigned)
+  Border analysis: 4146 edges, 40 pairs in 0.0s
+  Betweenness + central selection in 231.7s
+  Reduced graph: 4241 nodes, 12568 edges in 0.1s
+  Fragility analysis: 40 pair results in 5.2s
+  Wrote 19/21 target pairs to CSV
+
+============================================================
+GROUP [20+31] — 26 adjacent pairs
+============================================================
+  Counties to process: 26
+  Merged 2 state PBFs in 2.4s
+  Extracted region in 0.9s
+  Loaded 678,571 nodes, 1,423,978 edges in 1.2s
+  CH built in 10.8s
+  Assigned in 0.2s (85,968 unassigned)
+  Border analysis: 2740 edges, 46 pairs in 0.0s
+  Betweenness + central selection in 47.2s
+  Reduced graph: 2622 nodes, 7932 edges in 0.0s
+  Fragility analysis: 46 pair results in 0.7s
+  Wrote 22/26 target pairs to CSV
+
+============================================================
+GROUP [20+40] — 26 adjacent pairs
+============================================================
+  Counties to process: 27
+  Merged 2 state PBFs in 3.2s
+  Extracted region in 1.5s
+  Loaded 1,191,155 nodes, 2,485,553 edges in 2.2s
+  CH built in 19.4s
+  Assigned in 0.4s (221,558 unassigned)
+  Border analysis: 2348 edges, 50 pairs in 0.0s
+  Betweenness + central selection in 85.9s
+  Reduced graph: 2286 nodes, 6770 edges in 0.0s
+  Fragility analysis: 50 pair results in 0.5s
+  Wrote 25/26 target pairs to CSV
+
+============================================================
+GROUP [21+29] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 4.0s
+  Extracted region in 1.1s
+  Loaded 127,467 nodes, 263,837 edges in 0.2s
+  CH built in 1.0s
+  Assigned in 0.0s (39,872 unassigned)
+  Border analysis: 126 edges, 6 pairs in 0.0s
+  Betweenness + central selection in 2.1s
+  Reduced graph: 131 nodes, 356 edges in 0.0s
+  Fragility analysis: 4 pair results in 0.0s
+  Wrote 0/5 target pairs to CSV
+
+============================================================
+GROUP [21+39] — 14 adjacent pairs
+============================================================
+  Counties to process: 15
+  Merged 2 state PBFs in 5.4s
+  Extracted region in 2.4s
+  Loaded 2,075,508 nodes, 4,173,467 edges in 4.2s
+  CH built in 20.1s
+  Assigned in 0.3s (274,374 unassigned)
+  Border analysis: 2178 edges, 25 pairs in 0.0s
+  Betweenness + central selection in 182.2s
+  Reduced graph: 2194 nodes, 6530 edges in 0.0s
+  Fragility analysis: 25 pair results in 1.5s
+  Wrote 11/14 target pairs to CSV
+
+============================================================
+GROUP [21+47] — 30 adjacent pairs
+============================================================
+  Counties to process: 31
+  Merged 2 state PBFs in 3.8s
+  Extracted region in 1.7s
+  Loaded 2,166,272 nodes, 4,385,100 edges in 3.9s
+  CH built in 19.5s
+  Assigned in 0.6s (452,110 unassigned)
+  Border analysis: 2338 edges, 55 pairs in 0.0s
+  Betweenness + central selection in 169.0s
+  Reduced graph: 2331 nodes, 6918 edges in 0.0s
+  Fragility analysis: 55 pair results in 0.6s
+  Wrote 27/30 target pairs to CSV
+
+============================================================
+GROUP [21+51] — 7 adjacent pairs
+============================================================
+  Counties to process: 8
+  Merged 2 state PBFs in 6.6s
+  Extracted region in 1.9s
+  Loaded 909,178 nodes, 1,807,447 edges in 1.6s
+  CH built in 4.7s
+  Assigned in 0.1s (150,652 unassigned)
+  Border analysis: 378 edges, 11 pairs in 0.0s
+  Betweenness + central selection in 55.8s
+  Reduced graph: 391 nodes, 1144 edges in 0.0s
+  Fragility analysis: 11 pair results in 0.0s
+  Wrote 5/7 target pairs to CSV
+
+============================================================
+GROUP [21+54] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 2.8s
+  Extracted region in 1.0s
+  Loaded 406,499 nodes, 802,926 edges in 0.7s
+  CH built in 2.1s
+  Assigned in 0.0s (136,318 unassigned)
+  Border analysis: 458 edges, 9 pairs in 0.0s
+  Betweenness + central selection in 18.4s
+  Reduced graph: 485 nodes, 1416 edges in 0.0s
+  Fragility analysis: 9 pair results in 0.1s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [22+28] — 21 adjacent pairs
+============================================================
+  Counties to process: 22
+  Merged 2 state PBFs in 2.7s
+  Extracted region in 1.4s
+  Loaded 1,037,634 nodes, 2,106,002 edges in 2.0s
+  CH built in 10.0s
+  Assigned in 0.3s (139,913 unassigned)
+  Border analysis: 1268 edges, 38 pairs in 0.0s
+  Betweenness + central selection in 74.6s
+  Reduced graph: 1297 nodes, 3786 edges in 0.0s
+  Fragility analysis: 38 pair results in 0.2s
+  Wrote 18/21 target pairs to CSV
+
+============================================================
+GROUP [22+48] — 15 adjacent pairs
+============================================================
+  Counties to process: 16
+  Merged 2 state PBFs in 9.7s
+  Extracted region in 3.1s
+  Loaded 1,236,286 nodes, 2,523,089 edges in 2.3s
+  CH built in 16.1s
+  Assigned in 0.2s (201,216 unassigned)
+  Border analysis: 1284 edges, 27 pairs in 0.0s
+  Betweenness + central selection in 93.9s
+  Reduced graph: 1296 nodes, 3814 edges in 0.0s
+  Fragility analysis: 27 pair results in 0.3s
+  Wrote 13/15 target pairs to CSV
+
+============================================================
+GROUP [23+33] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 1.8s
+  Extracted region in 1.3s
+  Loaded 1,674,593 nodes, 3,369,894 edges in 3.5s
+  CH built in 13.1s
+  Assigned in 0.2s (277,818 unassigned)
+  Border analysis: 725 edges, 9 pairs in 0.0s
+  Betweenness + central selection in 137.8s
+  Reduced graph: 725 nodes, 2159 edges in 0.0s
+  Fragility analysis: 9 pair results in 0.3s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [24+42] — 16 adjacent pairs
+============================================================
+  Counties to process: 17
+  Merged 2 state PBFs in 6.5s
+  Extracted region in 3.8s
+  Loaded 4,849,637 nodes, 9,792,927 edges in 9.9s
+  CH built in 62.7s
+  Assigned in 2.1s (771,295 unassigned)
+  Border analysis: 2624 edges, 30 pairs in 0.0s
+  Betweenness + central selection in 499.9s
+  Reduced graph: 2620 nodes, 7826 edges in 0.1s
+  Fragility analysis: 30 pair results in 1.7s
+  Wrote 15/16 target pairs to CSV
+
+============================================================
+GROUP [24+51] — 9 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 7.4s
+  Extracted region in 4.1s
+  Loaded 3,363,067 nodes, 6,658,338 edges in 7.8s
+  CH built in 42.2s
+  Assigned in 1.6s (516,170 unassigned)
+  Border analysis: 1498 edges, 15 pairs in 0.0s
+  Betweenness + central selection in 301.0s
+  Reduced graph: 1567 nodes, 4602 edges in 0.1s
+  Fragility analysis: 15 pair results in 1.2s
+  Wrote 8/9 target pairs to CSV
+
+============================================================
+GROUP [24+54] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 3.6s
+  Extracted region in 1.5s
+  Loaded 1,002,729 nodes, 2,018,386 edges in 1.9s
+  CH built in 7.9s
+  Assigned in 0.1s (100,401 unassigned)
+  Border analysis: 1099 edges, 17 pairs in 0.0s
+  Betweenness + central selection in 71.1s
+  Reduced graph: 1078 nodes, 3235 edges in 0.0s
+  Fragility analysis: 17 pair results in 0.2s
+  Wrote 9/9 target pairs to CSV
+
+============================================================
+GROUP [25+33] — 6 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 4.1s
+  Extracted region in 3.7s
+  Loaded 4,256,150 nodes, 8,432,559 edges in 10.4s
+  CH built in 51.4s
+  Assigned in 0.8s (459,171 unassigned)
+  Border analysis: 2075 edges, 10 pairs in 0.0s
+  Betweenness + central selection in 471.9s
+  Reduced graph: 2106 nodes, 6273 edges in 0.1s
+  Fragility analysis: 10 pair results in 5.3s
+  Wrote 5/6 target pairs to CSV
+
+============================================================
+GROUP [25+36] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 10.1s
+  Extracted region in 3.2s
+  Loaded 1,202,085 nodes, 2,399,897 edges in 2.3s
+  CH built in 10.4s
+  Assigned in 0.1s (314,345 unassigned)
+  Border analysis: 316 edges, 4 pairs in 0.0s
+  Betweenness + central selection in 93.5s
+  Reduced graph: 325 nodes, 958 edges in 0.0s
+  Fragility analysis: 4 pair results in 0.0s
+  Wrote 2/3 target pairs to CSV
+
+============================================================
+GROUP [25+44] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 3.8s
+  Extracted region in 2.9s
+  Loaded 2,867,014 nodes, 5,687,006 edges in 6.5s
+  CH built in 36.0s
+  Assigned in 0.6s (664,789 unassigned)
+  Border analysis: 935 edges, 9 pairs in 0.0s
+  Betweenness + central selection in 299.7s
+  Reduced graph: 949 nodes, 2821 edges in 0.0s
+  Fragility analysis: 9 pair results in 0.5s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [25+50] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 3.8s
+  Extracted region in 1.5s
+  Loaded 769,038 nodes, 1,543,392 edges in 1.5s
+  CH built in 5.3s
+  Assigned in 0.0s (116,621 unassigned)
+  Border analysis: 210 edges, 4 pairs in 0.0s
+  Betweenness + central selection in 50.8s
+  Reduced graph: 212 nodes, 626 edges in 0.0s
+  Fragility analysis: 4 pair results in 0.0s
+  Wrote 2/3 target pairs to CSV
+
+============================================================
+GROUP [26+39] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 7.3s
+  Extracted region in 2.3s
+  Loaded 718,447 nodes, 1,477,758 edges in 1.3s
+  CH built in 10.7s
+  Assigned in 0.1s (138,948 unassigned)
+  Border analysis: 668 edges, 9 pairs in 0.0s
+  Betweenness + central selection in 51.9s
+  Reduced graph: 668 nodes, 1992 edges in 0.0s
+  Fragility analysis: 9 pair results in 0.1s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [26+55] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 6.8s
+  Extracted region in 2.1s
+  Loaded 532,713 nodes, 1,089,948 edges in 1.1s
+  CH built in 4.4s
+  Assigned in 0.1s (79,138 unassigned)
+  Border analysis: 930 edges, 16 pairs in 0.0s
+  Betweenness + central selection in 30.8s
+  Reduced graph: 916 nodes, 2720 edges in 0.0s
+  Fragility analysis: 16 pair results in 0.2s
+  Wrote 8/8 target pairs to CSV
+
+============================================================
+GROUP [27+38] — 12 adjacent pairs
+============================================================
+  Counties to process: 13
+  Merged 2 state PBFs in 4.1s
+  Extracted region in 1.7s
+  Loaded 554,956 nodes, 1,160,630 edges in 1.4s
+  CH built in 9.6s
+  Assigned in 0.1s (60,155 unassigned)
+  Border analysis: 1481 edges, 20 pairs in 0.0s
+  Betweenness + central selection in 39.1s
+  Reduced graph: 1466 nodes, 4383 edges in 0.0s
+  Fragility analysis: 20 pair results in 0.4s
+  Wrote 9/12 target pairs to CSV
+
+============================================================
+GROUP [27+46] — 13 adjacent pairs
+============================================================
+  Counties to process: 13
+  Merged 2 state PBFs in 3.5s
+  Extracted region in 1.4s
+  Loaded 401,704 nodes, 848,410 edges in 0.8s
+  CH built in 7.3s
+  Assigned in 0.1s (78,773 unassigned)
+  Border analysis: 1126 edges, 21 pairs in 0.0s
+  Betweenness + central selection in 22.7s
+  Reduced graph: 1103 nodes, 3306 edges in 0.0s
+  Fragility analysis: 21 pair results in 0.2s
+  Wrote 10/13 target pairs to CSV
+
+============================================================
+GROUP [27+55] — 19 adjacent pairs
+============================================================
+  Counties to process: 20
+  Merged 2 state PBFs in 6.0s
+  Extracted region in 3.0s
+  Loaded 2,198,676 nodes, 4,425,587 edges in 5.0s
+  CH built in 30.2s
+  Assigned in 0.5s (403,514 unassigned)
+  Border analysis: 1897 edges, 33 pairs in 0.0s
+  Betweenness + central selection in 207.4s
+  Reduced graph: 1904 nodes, 5661 edges in 0.0s
+  Fragility analysis: 33 pair results in 0.6s
+  Wrote 15/19 target pairs to CSV
+
+============================================================
+GROUP [28+47] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 3.3s
+  Extracted region in 1.7s
+  Loaded 1,265,857 nodes, 2,584,917 edges in 2.4s
+  CH built in 16.4s
+  Assigned in 0.1s (98,073 unassigned)
+  Border analysis: 1016 edges, 19 pairs in 0.0s
+  Betweenness + central selection in 110.0s
+  Reduced graph: 1071 nodes, 3128 edges in 0.0s
+  Fragility analysis: 19 pair results in 0.2s
+  Wrote 10/10 target pairs to CSV
+
+============================================================
+GROUP [29+31] — 4 adjacent pairs
+============================================================
+  Counties to process: 5
+  Merged 2 state PBFs in 3.4s
+  Extracted region in 1.0s
+  Loaded 166,232 nodes, 343,498 edges in 0.3s
+  CH built in 1.4s
+  Assigned in 0.0s (37,787 unassigned)
+  Border analysis: 253 edges, 5 pairs in 0.0s
+  Betweenness + central selection in 5.7s
+  Reduced graph: 259 nodes, 743 edges in 0.0s
+  Fragility analysis: 5 pair results in 0.0s
+  Wrote 2/4 target pairs to CSV
+
+============================================================
+GROUP [29+40] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 4.1s
+  Extracted region in 1.2s
+  Loaded 350,517 nodes, 725,135 edges in 0.5s
+  CH built in 3.3s
+  Assigned in 0.0s (78,042 unassigned)
+  Border analysis: 414 edges, 5 pairs in 0.0s
+  Betweenness + central selection in 17.2s
+  Reduced graph: 400 nodes, 1206 edges in 0.0s
+  Fragility analysis: 5 pair results in 0.1s
+  Wrote 3/3 target pairs to CSV
+
+============================================================
+GROUP [29+47] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 4.3s
+  Extracted region in 1.2s
+  Loaded 121,084 nodes, 251,046 edges in 0.2s
+  CH built in 1.1s
+  Assigned in 0.0s (36,736 unassigned)
+  Border analysis: 66 edges, 4 pairs in 0.0s
+  Betweenness + central selection in 4.4s
+  Reduced graph: 70 nodes, 198 edges in 0.0s
+  Fragility analysis: 4 pair results in 0.0s
+  Wrote 2/3 target pairs to CSV
+
+============================================================
+GROUP [30+38] — 11 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 2.2s
+  Extracted region in 0.9s
+  Loaded 427,812 nodes, 878,193 edges in 0.9s
+  CH built in 3.4s
+  Assigned in 0.1s (55,335 unassigned)
+  Border analysis: 674 edges, 18 pairs in 0.0s
+  Betweenness + central selection in 22.2s
+  Reduced graph: 665 nodes, 1982 edges in 0.0s
+  Fragility analysis: 18 pair results in 0.1s
+  Wrote 9/11 target pairs to CSV
+
+============================================================
+GROUP [30+46] — 3 adjacent pairs
+============================================================
+  Counties to process: 4
+  Merged 2 state PBFs in 1.6s
+  Extracted region in 0.6s
+  Loaded 122,418 nodes, 248,869 edges in 0.2s
+  CH built in 0.5s
+  Assigned in 0.0s (17,559 unassigned)
+  Border analysis: 96 edges, 4 pairs in 0.0s
+  Betweenness + central selection in 3.8s
+  Reduced graph: 96 nodes, 280 edges in 0.0s
+  Fragility analysis: 4 pair results in 0.0s
+  Wrote 2/3 target pairs to CSV
+
+============================================================
+GROUP [30+56] — 11 adjacent pairs
+============================================================
+  Counties to process: 12
+  Merged 2 state PBFs in 2.0s
+  Extracted region in 1.3s
+  Loaded 861,069 nodes, 1,754,558 edges in 1.9s
+  CH built in 7.2s
+  Assigned in 0.1s (87,133 unassigned)
+  Border analysis: 480 edges, 19 pairs in 0.0s
+  Betweenness + central selection in 51.9s
+  Reduced graph: 492 nodes, 1432 edges in 0.0s
+  Fragility analysis: 19 pair results in 0.0s
+  Wrote 10/11 target pairs to CSV
+
+============================================================
+GROUP [31+46] — 20 adjacent pairs
+============================================================
+  Counties to process: 21
+  Merged 2 state PBFs in 1.7s
+  Extracted region in 0.8s
+  Loaded 674,015 nodes, 1,389,061 edges in 1.2s
+  CH built in 6.7s
+  Assigned in 0.1s (99,402 unassigned)
+  Border analysis: 1120 edges, 36 pairs in 0.0s
+  Betweenness + central selection in 39.7s
+  Reduced graph: 1114 nodes, 3298 edges in 0.0s
+  Fragility analysis: 36 pair results in 0.1s
+  Wrote 17/20 target pairs to CSV
+
+============================================================
+GROUP [31+56] — 6 adjacent pairs
+============================================================
+  Counties to process: 7
+  Merged 2 state PBFs in 2.1s
+  Extracted region in 0.9s
+  Loaded 380,915 nodes, 780,989 edges in 0.7s
+  CH built in 3.6s
+  Assigned in 0.0s (38,520 unassigned)
+  Border analysis: 408 edges, 11 pairs in 0.0s
+  Betweenness + central selection in 19.6s
+  Reduced graph: 396 nodes, 1178 edges in 0.0s
+  Fragility analysis: 11 pair results in 0.0s
+  Wrote 6/6 target pairs to CSV
+
+============================================================
+GROUP [32+41] — 4 adjacent pairs
+============================================================
+  Counties to process: 5
+  Merged 2 state PBFs in 4.4s
+  Extracted region in 2.0s
+  Loaded 767,534 nodes, 1,533,717 edges in 1.7s
+  CH built in 7.1s
+  Assigned in 0.1s (74,115 unassigned)
+  Border analysis: 80 edges, 6 pairs in 0.0s
+  Betweenness + central selection in 46.2s
+  Reduced graph: 82 nodes, 234 edges in 0.0s
+  Fragility analysis: 6 pair results in 0.0s
+  Wrote 3/4 target pairs to CSV
+
+============================================================
+GROUP [32+49] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 3.5s
+  Extracted region in 1.6s
+  Loaded 770,243 nodes, 1,556,221 edges in 1.6s
+  CH built in 6.6s
+  Assigned in 0.1s (89,142 unassigned)
+  Border analysis: 381 edges, 17 pairs in 0.0s
+  Betweenness + central selection in 43.7s
+  Reduced graph: 405 nodes, 1163 edges in 0.0s
+  Fragility analysis: 17 pair results in 0.0s
+  Wrote 9/9 target pairs to CSV
+
+============================================================
+GROUP [33+50] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 1.3s
+  Extracted region in 1.1s
+  Loaded 1,355,164 nodes, 2,718,082 edges in 2.7s
+  CH built in 8.3s
+  Assigned in 0.2s (175,086 unassigned)
+  Border analysis: 1089 edges, 14 pairs in 0.0s
+  Betweenness + central selection in 91.7s
+  Reduced graph: 1097 nodes, 3257 edges in 0.0s
+  Fragility analysis: 14 pair results in 0.3s
+  Wrote 7/8 target pairs to CSV
+
+============================================================
+GROUP [34+36] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 8.6s
+  Extracted region in 4.1s
+  Loaded 2,382,808 nodes, 4,553,522 edges in 5.4s
+  CH built in 38.2s
+  Assigned in 0.3s (531,863 unassigned)
+  Border analysis: 1555 edges, 14 pairs in 0.0s
+  Betweenness + central selection in 235.8s
+  Reduced graph: 1647 nodes, 4827 edges in 0.1s
+  Fragility analysis: 14 pair results in 1.3s
+  Wrote 6/8 target pairs to CSV
+
+============================================================
+GROUP [34+42] — 12 adjacent pairs
+============================================================
+  Counties to process: 13
+  Merged 2 state PBFs in 5.9s
+  Extracted region in 3.4s
+  Loaded 3,724,341 nodes, 7,488,453 edges in 8.1s
+  CH built in 63.1s
+  Assigned in 0.7s (733,435 unassigned)
+  Border analysis: 2731 edges, 22 pairs in 0.0s
+  Betweenness + central selection in 397.6s
+  Reduced graph: 2848 nodes, 8397 edges in 0.1s
+  Fragility analysis: 22 pair results in 3.0s
+  Wrote 11/12 target pairs to CSV
+
+============================================================
+GROUP [35+40] — 1 adjacent pairs
+============================================================
+  Counties to process: 2
+  Merged 2 state PBFs in 3.3s
+  Extracted region in 0.9s
+  Loaded 124,834 nodes, 254,749 edges in 0.2s
+  CH built in 0.7s
+  Assigned in 0.0s (10,379 unassigned)
+  Border analysis: 36 edges, 1 pairs in 0.0s
+  Betweenness + central selection in 3.5s
+  Reduced graph: 35 nodes, 94 edges in 0.0s
+  Fragility analysis: 1 pair results in 0.0s
+  Wrote 1/1 target pairs to CSV
+
+============================================================
+GROUP [35+48] — 23 adjacent pairs
+============================================================
+  Counties to process: 24
+  Merged 2 state PBFs in 9.6s
+  Extracted region in 3.4s
+  Loaded 2,359,518 nodes, 4,874,993 edges in 4.1s
+  CH built in 39.7s
+  Assigned in 0.4s (136,127 unassigned)
+  Border analysis: 2375 edges, 44 pairs in 0.0s
+  Betweenness + central selection in 208.7s
+  Reduced graph: 2348 nodes, 7011 edges in 0.0s
+  Fragility analysis: 44 pair results in 0.8s
+  Wrote 21/23 target pairs to CSV
+
+============================================================
+GROUP [35+49] — 1 adjacent pairs
+============================================================
+  Counties to process: 2
+  Merged 2 state PBFs in 3.4s
+  Extracted region in 1.4s
+  Loaded 389,302 nodes, 789,627 edges in 0.9s
+  CH built in 2.4s
+  Assigned in 0.0s (29,297 unassigned)
+  Border analysis: 0 edges, 0 pairs in 0.0s
+  No adjacent pairs found in graph, skipping
+
+============================================================
+GROUP [36+42] — 18 adjacent pairs
+============================================================
+  Counties to process: 19
+  Merged 2 state PBFs in 10.6s
+  Extracted region in 3.8s
+  Loaded 2,861,118 nodes, 5,766,008 edges in 5.5s
+  CH built in 30.5s
+  Assigned in 0.5s (352,738 unassigned)
+  Border analysis: 2266 edges, 35 pairs in 0.0s
+  Betweenness + central selection in 267.9s
+  Reduced graph: 2282 nodes, 6784 edges in 0.1s
+  Fragility analysis: 35 pair results in 0.7s
+  Wrote 18/18 target pairs to CSV
+
+============================================================
+GROUP [36+50] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 7.4s
+  Extracted region in 2.4s
+  Loaded 1,175,268 nodes, 2,360,867 edges in 2.4s
+  CH built in 9.5s
+  Assigned in 0.1s (283,282 unassigned)
+  Border analysis: 456 edges, 14 pairs in 0.0s
+  Betweenness + central selection in 81.4s
+  Reduced graph: 463 nodes, 1360 edges in 0.0s
+  Fragility analysis: 14 pair results in 0.0s
+  Wrote 7/8 target pairs to CSV
+
+============================================================
+GROUP [37+45] — 27 adjacent pairs
+============================================================
+  Counties to process: 26
+  Merged 2 state PBFs in 7.0s
+  Extracted region in 4.1s
+  Loaded 5,594,685 nodes, 11,279,014 edges in 11.3s
+  CH built in 65.9s
+  Assigned in 1.5s (640,232 unassigned)
+  Border analysis: 3931 edges, 46 pairs in 0.0s
+  Betweenness + central selection in 567.2s
+  Reduced graph: 3948 nodes, 11747 edges in 0.1s
+  Fragility analysis: 46 pair results in 2.8s
+  Wrote 22/27 target pairs to CSV
+
+============================================================
+GROUP [37+47] — 18 adjacent pairs
+============================================================
+  Counties to process: 19
+  Merged 2 state PBFs in 7.2s
+  Extracted region in 2.8s
+  Loaded 2,385,633 nodes, 4,769,230 edges in 4.5s
+  CH built in 17.1s
+  Assigned in 0.5s (439,618 unassigned)
+  Border analysis: 1099 edges, 32 pairs in 0.0s
+  Betweenness + central selection in 191.3s
+  Reduced graph: 1117 nodes, 3249 edges in 0.0s
+  Fragility analysis: 32 pair results in 0.1s
+  Wrote 16/18 target pairs to CSV
+
+============================================================
+GROUP [37+51] — 28 adjacent pairs
+============================================================
+  Counties to process: 29
+  Merged 2 state PBFs in 10.2s
+  Extracted region in 4.5s
+  Loaded 3,852,082 nodes, 7,733,605 edges in 7.9s
+  CH built in 35.5s
+  Assigned in 1.2s (727,061 unassigned)
+  Border analysis: 2963 edges, 52 pairs in 0.0s
+  Betweenness + central selection in 369.7s
+  Reduced graph: 3027 nodes, 8919 edges in 0.1s
+  Fragility analysis: 52 pair results in 0.9s
+  Wrote 26/28 target pairs to CSV
+
+============================================================
+GROUP [38+46] — 15 adjacent pairs
+============================================================
+  Counties to process: 16
+  Merged 2 state PBFs in 1.7s
+  Extracted region in 0.9s
+  Loaded 515,700 nodes, 1,062,152 edges in 1.1s
+  CH built in 5.0s
+  Assigned in 0.1s (74,571 unassigned)
+  Border analysis: 844 edges, 26 pairs in 0.0s
+  Betweenness + central selection in 27.9s
+  Reduced graph: 840 nodes, 2492 edges in 0.0s
+  Fragility analysis: 26 pair results in 0.1s
+  Wrote 12/15 target pairs to CSV
+
+============================================================
+GROUP [39+42] — 8 adjacent pairs
+============================================================
+  Counties to process: 9
+  Merged 2 state PBFs in 7.7s
+  Extracted region in 2.6s
+  Loaded 1,500,957 nodes, 3,060,115 edges in 2.9s
+  CH built in 21.6s
+  Assigned in 0.2s (214,643 unassigned)
+  Border analysis: 1921 edges, 15 pairs in 0.0s
+  Betweenness + central selection in 142.1s
+  Reduced graph: 1971 nodes, 5845 edges in 0.0s
+  Fragility analysis: 15 pair results in 3.0s
+  Wrote 8/8 target pairs to CSV
+
+============================================================
+GROUP [39+54] — 20 adjacent pairs
+============================================================
+  Counties to process: 21
+  Merged 2 state PBFs in 4.9s
+  Extracted region in 2.1s
+  Loaded 1,727,331 nodes, 3,490,132 edges in 3.6s
+  CH built in 15.7s
+  Assigned in 0.3s (273,178 unassigned)
+  Border analysis: 2666 edges, 37 pairs in 0.0s
+  Betweenness + central selection in 150.9s
+  Reduced graph: 2674 nodes, 7930 edges in 0.0s
+  Fragility analysis: 37 pair results in 0.8s
+  Wrote 18/20 target pairs to CSV
+
+============================================================
+GROUP [40+48] — 35 adjacent pairs
+============================================================
+  Counties to process: 36
+  Merged 2 state PBFs in 10.5s
+  Extracted region in 4.0s
+  Loaded 1,666,343 nodes, 3,441,136 edges in 3.3s
+  CH built in 27.0s
+  Assigned in 0.6s (224,493 unassigned)
+  Border analysis: 2065 edges, 67 pairs in 0.0s
+  Betweenness + central selection in 134.5s
+  Reduced graph: 2078 nodes, 6093 edges in 0.0s
+  Fragility analysis: 67 pair results in 0.4s
+  Wrote 33/35 target pairs to CSV
+
+============================================================
+GROUP [41+53] — 19 adjacent pairs
+============================================================
+  Counties to process: 20
+  Merged 2 state PBFs in 7.0s
+  Extracted region in 3.5s
+  Loaded 2,127,819 nodes, 4,296,865 edges in 4.8s
+  CH built in 29.9s
+  Assigned in 0.6s (355,304 unassigned)
+  Border analysis: 1172 edges, 29 pairs in 0.0s
+  Betweenness + central selection in 193.8s
+  Reduced graph: 1193 nodes, 3514 edges in 0.0s
+  Fragility analysis: 29 pair results in 0.2s
+  Wrote 11/19 target pairs to CSV
+
+============================================================
+GROUP [42+54] — 10 adjacent pairs
+============================================================
+  Counties to process: 11
+  Merged 2 state PBFs in 5.4s
+  Extracted region in 2.1s
+  Loaded 1,196,258 nodes, 2,412,250 edges in 2.5s
+  CH built in 12.8s
+  Assigned in 0.1s (249,080 unassigned)
+  Border analysis: 1196 edges, 20 pairs in 0.0s
+  Betweenness + central selection in 108.5s
+  Reduced graph: 1215 nodes, 3600 edges in 0.0s
+  Fragility analysis: 20 pair results in 0.4s
+  Wrote 10/10 target pairs to CSV
+
+============================================================
+GROUP [46+56] — 7 adjacent pairs
+============================================================
+  Counties to process: 8
+  Merged 2 state PBFs in 1.9s
+  Extracted region in 0.9s
+  Loaded 519,112 nodes, 1,050,194 edges in 1.1s
+  CH built in 4.8s
+  Assigned in 0.0s (49,017 unassigned)
+  Border analysis: 450 edges, 13 pairs in 0.0s
+  Betweenness + central selection in 38.7s
+  Reduced graph: 455 nodes, 1326 edges in 0.0s
+  Fragility analysis: 13 pair results in 0.0s
+  Wrote 7/7 target pairs to CSV
+
+============================================================
+GROUP [47+51] — 9 adjacent pairs
+============================================================
+  Counties to process: 10
+  Merged 2 state PBFs in 7.9s
+  Extracted region in 2.5s
+  Loaded 1,191,287 nodes, 2,383,975 edges in 2.4s
+  CH built in 9.6s
+  Assigned in 0.1s (244,070 unassigned)
+  Border analysis: 1120 edges, 16 pairs in 0.0s
+  Betweenness + central selection in 97.2s
+  Reduced graph: 1156 nodes, 3408 edges in 0.0s
+  Fragility analysis: 16 pair results in 0.4s
+  Wrote 8/9 target pairs to CSV
+
+============================================================
+GROUP [49+56] — 5 adjacent pairs
+============================================================
+  Counties to process: 6
+  Merged 2 state PBFs in 3.0s
+  Extracted region in 1.2s
+  Loaded 443,112 nodes, 891,403 edges in 0.9s
+  CH built in 2.8s
+  Assigned in 0.0s (72,001 unassigned)
+  Border analysis: 333 edges, 10 pairs in 0.0s
+  Betweenness + central selection in 21.0s
+  Reduced graph: 342 nodes, 945 edges in 0.0s
+  Fragility analysis: 10 pair results in 0.0s
+  Wrote 5/5 target pairs to CSV
+
+============================================================
+GROUP [51+54] — 26 adjacent pairs
+============================================================
+  Counties to process: 27
+  Merged 2 state PBFs in 5.9s
+  Extracted region in 3.1s
+  Loaded 3,256,077 nodes, 6,498,135 edges in 6.2s
+  CH built in 25.5s
+  Assigned in 1.1s (530,875 unassigned)
+  Border analysis: 2305 edges, 49 pairs in 0.0s
+  Betweenness + central selection in 276.4s
+  Reduced graph: 2312 nodes, 6797 edges in 0.0s
+  Fragility analysis: 49 pair results in 0.5s
+  Wrote 22/26 target pairs to CSV
+
+============================================================
+COMPLETE: 8547 pair rows written to /tmp/gravel_inter/inter_county_fragility.csv
+============================================================

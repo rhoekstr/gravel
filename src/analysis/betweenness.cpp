@@ -18,6 +18,7 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
     EdgeID m = graph.edge_count();
     BetweennessResult result;
     result.edge_scores.resize(m, 0.0);
+    result.node_scores.resize(n, 0.0);
 
     if (n == 0) return result;
 
@@ -46,6 +47,7 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
         std::vector<double> delta(n);
         std::vector<std::vector<NodeID>> pred(n);
         std::vector<double> local_scores(m, 0.0);
+        std::vector<double> local_node_scores(n, 0.0);
 
         #pragma omp for schedule(dynamic)
         for (int si = 0; si < num_sources; ++si) {
@@ -107,6 +109,8 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
                         }
                     }
                 }
+                // Accumulate node betweenness (excluding the source itself)
+                if (w != s) local_node_scores[w] += delta[w];
             }
         }
 
@@ -116,6 +120,9 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
             for (EdgeID e = 0; e < m; ++e) {
                 result.edge_scores[e] += local_scores[e];
             }
+            for (NodeID v = 0; v < n; ++v) {
+                result.node_scores[v] += local_node_scores[v];
+            }
         }
     }
 
@@ -123,6 +130,7 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
     if (config.sample_sources > 0 && config.sample_sources < n) {
         double scale = static_cast<double>(n) / config.sample_sources;
         for (auto& s : result.edge_scores) s *= scale;
+        for (auto& s : result.node_scores) s *= scale;
     }
 
     return result;
