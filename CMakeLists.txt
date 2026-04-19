@@ -5,6 +5,12 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Build all static libraries as position-independent code so they can be
+# linked into the Python extension shared library (_gravel.so). Without this,
+# GCC on Linux rejects the link with "can not be used when making a shared
+# object; recompile with -fPIC".
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 option(GRAVEL_BUILD_CLI      "Build CLI executable"        ON)
 option(GRAVEL_BUILD_PYTHON   "Build Python bindings"       OFF)
 option(GRAVEL_BUILD_TESTS    "Build tests"                 ON)
