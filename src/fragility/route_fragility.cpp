@@ -2,6 +2,7 @@
 #include "gravel/ch/blocked_ch_query.h"
 #include "gravel/ch/ch_query.h"
 #include <cmath>
+#include <cstdint>
 #include <limits>
 #include <utility>
 #include <vector>
@@ -57,6 +58,9 @@ std::vector<FragilityResult> batch_fragility(
     FragilityConfig config) {
     std::vector<FragilityResult> results(od_pairs.size());
 
+    // Signed loop index for MSVC OpenMP 2.0 compatibility.
+    const int64_t num_pairs = static_cast<int64_t>(od_pairs.size());
+
     #pragma omp parallel
     {
         // Thread-local instances for parallel safety.
@@ -64,7 +68,7 @@ std::vector<FragilityResult> batch_fragility(
         BlockedCHQuery local_blocked(ch, shortcut_idx, graph);
 
         #pragma omp for schedule(dynamic)
-        for (size_t idx = 0; idx < od_pairs.size(); ++idx) {
+        for (int64_t idx = 0; idx < num_pairs; ++idx) {
             auto [s, t] = od_pairs[idx];
             FragilityResult& result = results[idx];
 

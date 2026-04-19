@@ -2,6 +2,7 @@
 #include "gravel/core/four_heap.h"
 #include <algorithm>
 #include <cassert>
+#include <cstdint>
 #include <vector>
 
 namespace gravel {
@@ -53,14 +54,20 @@ std::vector<Weight> CHQuery::distance_matrix(
     size_t n_dest = destinations.size();
     std::vector<Weight> result(n_orig * n_dest, INF_WEIGHT);
 
+    // int64_t loop index (not size_t) — MSVC's OpenMP 2.0 implementation
+    // requires signed integral loop variables. GCC/Clang OpenMP 4.5+
+    // accept unsigned, but we compile with all three.
+    const int64_t n_orig_s = static_cast<int64_t>(n_orig);
+    const int64_t n_dest_s = static_cast<int64_t>(n_dest);
+
     #pragma omp parallel
     {
         CHQuery local_query(ch_);
 
         #pragma omp for schedule(dynamic)
-        for (size_t i = 0; i < n_orig; ++i) {
-            for (size_t j = 0; j < n_dest; ++j) {
-                result[i * n_dest + j] = local_query.distance(origins[i], destinations[j]);
+        for (int64_t i = 0; i < n_orig_s; ++i) {
+            for (int64_t j = 0; j < n_dest_s; ++j) {
+                result[i * n_dest_s + j] = local_query.distance(origins[i], destinations[j]);
             }
         }
     }
