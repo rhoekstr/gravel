@@ -4,6 +4,8 @@
 #include "gravel/core/dijkstra.h"
 #include <cstdio>
 #include <fstream>
+#include <algorithm>
+#include <string>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;

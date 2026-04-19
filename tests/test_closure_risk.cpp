@@ -2,6 +2,9 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/analysis/closure_risk.h"
 #include <cmath>
+#include <utility>
+#include <vector>
+#include <string>
 
 using namespace gravel;
 

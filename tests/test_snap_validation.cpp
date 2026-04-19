@@ -4,6 +4,9 @@
 #include "gravel/snap/edge_index.h"
 #include <random>
 #include <cmath>
+#include <utility>
+#include <vector>
+#include <string>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;

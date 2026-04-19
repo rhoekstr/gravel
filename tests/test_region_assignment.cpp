@@ -2,6 +2,9 @@
 #include "gravel/geo/region_assignment.h"
 #include "gravel/geo/geojson_loader.h"
 #include "gravel/core/array_graph.h"
+#include <utility>
+#include <vector>
+#include <string>
 
 using namespace gravel;
 

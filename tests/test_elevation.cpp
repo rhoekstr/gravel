@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/geo/elevation.h"
 #include <cmath>
+#include <string>
 
 using namespace gravel;
 

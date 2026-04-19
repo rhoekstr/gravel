@@ -2,6 +2,8 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/core/hilbert_order.h"
 #include "gravel/core/dijkstra.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

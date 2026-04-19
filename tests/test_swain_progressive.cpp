@@ -8,6 +8,8 @@
 #include <iomanip>
 #include <cmath>
 #include <chrono>
+#include <algorithm>
+#include <string>
 
 using namespace gravel;
 

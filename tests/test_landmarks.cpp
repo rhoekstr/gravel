@@ -3,6 +3,8 @@
 #include "gravel/ch/landmarks.h"
 #include "gravel/validation/synthetic_graphs.h"
 #include "gravel/core/dijkstra.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

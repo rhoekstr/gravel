@@ -1,6 +1,9 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gravel/core/incremental_sssp.h"
 #include "gravel/core/array_graph.h"
+#include <utility>
+#include <unordered_set>
+#include <vector>
 
 using namespace gravel;
 

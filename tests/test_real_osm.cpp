@@ -15,6 +15,11 @@
 #include <filesystem>
 #include <iostream>
 #include <random>
+#include <memory>
+#include <utility>
+#include <algorithm>
+#include <cmath>
+#include <vector>
 
 using namespace gravel;
 

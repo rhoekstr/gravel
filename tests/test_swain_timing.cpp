@@ -16,6 +16,7 @@
 #include <iostream>
 #include <filesystem>
 #include <random>
+#include <string>
 
 TEST_CASE("Swain county timing with AnalysisContext + simplification", "[.timing]") {
     using namespace gravel;

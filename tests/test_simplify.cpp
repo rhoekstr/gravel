@@ -7,6 +7,10 @@
 #include "gravel/core/dijkstra.h"
 #include "gravel/validation/synthetic_graphs.h"
 #include "gravel/simplify/bridges.h"
+#include <utility>
+#include <algorithm>
+#include <unordered_set>
+#include <vector>
 
 using namespace gravel;
 

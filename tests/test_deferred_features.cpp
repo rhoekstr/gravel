@@ -9,6 +9,8 @@
 #include "gravel/us/fips_crosswalk.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/shortcut_index.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

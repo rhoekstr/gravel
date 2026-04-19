@@ -8,6 +8,10 @@
 #include "gravel/validation/synthetic_graphs.h"
 #include <cstdio>
 #include <fstream>
+#include <utility>
+#include <algorithm>
+#include <vector>
+#include <string>
 
 using namespace gravel;
 

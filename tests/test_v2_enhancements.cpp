@@ -13,6 +13,9 @@
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/ch_query.h"
 #include "gravel/validation/synthetic_graphs.h"
+#include <utility>
+#include <cmath>
+#include <vector>
 
 using namespace gravel;
 

@@ -20,6 +20,9 @@
 #include <iomanip>
 #include <filesystem>
 #include <random>
+#include <utility>
+#include <vector>
+#include <string>
 
 using namespace gravel;
 using Clock = std::chrono::steady_clock;

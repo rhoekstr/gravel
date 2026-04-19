@@ -4,6 +4,10 @@
 #include "gravel/core/dijkstra.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/validation/synthetic_graphs.h"
+#include <memory>
+#include <utility>
+#include <cmath>
+#include <vector>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;

@@ -3,6 +3,8 @@
 #include "gravel/analysis/betweenness.h"
 #include <algorithm>
 #include <numeric>
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

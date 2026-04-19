@@ -6,6 +6,8 @@
 #include "gravel/core/dijkstra.h"
 #include "gravel/validation/validator.h"
 #include "gravel/validation/synthetic_graphs.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

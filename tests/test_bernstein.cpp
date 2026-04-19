@@ -4,6 +4,9 @@
 #include "gravel/fragility/hershberger_suri.h"
 #include "gravel/core/dijkstra.h"
 #include "gravel/validation/synthetic_graphs.h"
+#include <memory>
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;

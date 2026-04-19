@@ -7,6 +7,9 @@
 #include "gravel/fragility/route_fragility.h"
 #include <fstream>
 #include <filesystem>
+#include <utility>
+#include <vector>
+#include <string>
 
 using namespace gravel;
 

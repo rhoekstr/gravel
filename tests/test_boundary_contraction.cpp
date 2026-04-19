@@ -2,6 +2,8 @@
 #include "gravel/simplify/simplify.h"
 #include "gravel/geo/boundary_nodes.h"
 #include "gravel/geo/region_assignment.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

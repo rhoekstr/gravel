@@ -2,6 +2,9 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/core/dijkstra.h"
 #include "gravel/core/array_graph.h"
+#include <memory>
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;

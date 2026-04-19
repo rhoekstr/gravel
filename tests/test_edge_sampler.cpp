@@ -2,6 +2,8 @@
 #include "gravel/core/edge_sampler.h"
 #include "gravel/core/array_graph.h"
 #include <unordered_set>
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

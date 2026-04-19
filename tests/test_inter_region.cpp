@@ -5,6 +5,8 @@
 #include "gravel/geo/region_assignment.h"
 #include "gravel/geo/border_edges.h"
 #include "gravel/ch/contraction.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

@@ -5,6 +5,9 @@
 #include "gravel/ch/ch_query.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/core/dijkstra.h"
+#include <utility>
+#include <stdexcept>
+#include <vector>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;

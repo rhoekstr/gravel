@@ -2,6 +2,8 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/analysis/location_fragility.h"
 #include "gravel/ch/contraction.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

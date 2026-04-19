@@ -3,6 +3,8 @@
 #include "gravel/analysis/progressive_fragility.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/validation/synthetic_graphs.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

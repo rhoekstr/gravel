@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gravel/core/types.h"
+#include <limits>
 
 using namespace gravel;
 

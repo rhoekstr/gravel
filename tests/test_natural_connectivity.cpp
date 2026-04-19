@@ -4,6 +4,8 @@
 #include "gravel/analysis/laplacian.h"
 #include <Eigen/Dense>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 

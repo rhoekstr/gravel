@@ -1,6 +1,8 @@
 #include <catch2/catch_test_macros.hpp>
 #include "gravel/core/subgraph.h"
 #include "gravel/core/geo_math.h"
+#include <utility>
+#include <vector>
 
 using namespace gravel;
 
