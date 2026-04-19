@@ -4,6 +4,20 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.1] — 2026-04-19
+
+### Added
+- **Windows support** — `src/io/mapped_file.cpp` now has a Windows backend using `CreateFileMappingW`/`MapViewOfFile`/`UnmapViewOfFile`, with UTF-8 paths transparently converted to wide for the WinAPI. `FILE_FLAG_SEQUENTIAL_SCAN` hints the cache manager to read-ahead, matching the POSIX `madvise(MADV_SEQUENTIAL)` hint. Binary wheels now ship for `win_amd64` alongside Linux and macOS.
+- **`gravel/core/constants.h`** — centralized `PI`, `TWO_PI`, `DEG_TO_RAD`, `RAD_TO_DEG` via `std::numbers` (C++20). Replaces all uses of the POSIX `M_PI` macro across source and tests. `M_PI` was a GNU extension not exposed by MSVC's `<cmath>`, which blocked Windows builds.
+
+### Changed
+- **CI now runs on Windows** — C++ tests execute on `windows-latest` in the matrix with `GRAVEL_USE_OSMIUM=OFF` (libosmium is unavailable on Windows). OSM tests continue to run only on Linux and macOS.
+- Wheel-build matrix re-includes `windows-latest`; `pyproject.toml` re-adds the Windows classifier.
+
+### Notes
+- OSM loaders (`load_osm_graph`, `OSMConfig`, `SpeedProfile`) are still unavailable on Windows PyPI wheels — libosmium has no official Windows distribution on PyPI. conda-forge support (shipping with OSM loaders enabled via the conda-forge libosmium package) is being prepared separately.
+
+
 ## [2.2.0] — 2026-04-19
 
 ### Added

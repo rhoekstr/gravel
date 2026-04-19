@@ -1,4 +1,5 @@
 #include "gravel/analysis/tiled_fragility.h"
+#include "gravel/core/constants.h"
 #include <cmath>
 
 namespace gravel {
@@ -14,7 +15,7 @@ TiledFragilityResult tiled_fragility_analysis(
     // Approximate degrees per tile (at the center latitude)
     double center_lat = (config.min_lat + config.max_lat) / 2.0;
     double meters_per_deg_lat = 111320.0;
-    double meters_per_deg_lon = 111320.0 * std::cos(center_lat * M_PI / 180.0);
+    double meters_per_deg_lon = 111320.0 * std::cos(center_lat * PI / 180.0);
 
     double lat_step = config.tile_size_meters / meters_per_deg_lat;
     double lon_step = config.tile_size_meters / meters_per_deg_lon;

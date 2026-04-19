@@ -3,6 +3,7 @@
 #include "gravel/core/incremental_sssp.h"
 #include "gravel/core/subgraph.h"
 #include "gravel/core/geo_math.h"
+#include "gravel/core/constants.h"
 #include "gravel/simplify/simplify.h"
 #include "gravel/analysis/betweenness.h"
 #include <algorithm>
@@ -31,23 +32,23 @@ NodeID find_nearest_node(const ArrayGraph& graph, Coord center) {
 }
 
 double bearing(Coord from, Coord to) {
-    double dlon = (to.lon - from.lon) * M_PI / 180.0;
-    double lat1 = from.lat * M_PI / 180.0;
-    double lat2 = to.lat * M_PI / 180.0;
+    double dlon = (to.lon - from.lon) * PI / 180.0;
+    double lat1 = from.lat * PI / 180.0;
+    double lat2 = to.lat * PI / 180.0;
     double y = std::sin(dlon) * std::cos(lat2);
     double x = std::cos(lat1) * std::sin(lat2) -
                std::sin(lat1) * std::cos(lat2) * std::cos(dlon);
     double b = std::atan2(y, x);
-    if (b < 0) b += 2.0 * M_PI;
+    if (b < 0) b += 2.0 * PI;
     return b;
 }
 
 Polygon circle_polygon(Coord center, double radius_meters) {
     Polygon p;
     for (int i = 0; i < 8; ++i) {
-        double angle = 2.0 * M_PI * i / 8.0;
+        double angle = 2.0 * PI * i / 8.0;
         double dlat = (radius_meters / 111320.0) * std::cos(angle);
-        double dlon = (radius_meters / (111320.0 * std::cos(center.lat * M_PI / 180.0))) * std::sin(angle);
+        double dlon = (radius_meters / (111320.0 * std::cos(center.lat * PI / 180.0))) * std::sin(angle);
         p.vertices.push_back({center.lat + dlat, center.lon + dlon});
     }
     p.vertices.push_back(p.vertices.front());
@@ -306,7 +307,7 @@ LocationFragilityResult location_fragility(
                                         reachable_nodes.begin() + sample_count);
 
     // Assign angular bins to sampled nodes
-    double bin_width = 2.0 * M_PI / config.angular_bins;
+    double bin_width = 2.0 * PI / config.angular_bins;
     std::vector<uint32_t> sample_bins(sample_count, 0);
     for (uint32_t i = 0; i < sample_count; ++i) {
         auto coord = graph.node_coordinate(local.local_to_original[sample_nodes[i]]);

@@ -9,7 +9,8 @@
 namespace gravel {
 
 // Memory-mapped file for zero-copy loading of binary artifacts.
-// POSIX mmap on macOS/Linux. Non-copyable, movable.
+// POSIX mmap on macOS/Linux; CreateFileMapping/MapViewOfFile on Windows.
+// Paths are UTF-8 on all platforms. Non-copyable, movable.
 class MappedFile {
 public:
     MappedFile() = default;

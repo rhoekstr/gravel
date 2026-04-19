@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/analysis/kirchhoff.h"
+#include "gravel/core/constants.h"
 #include <utility>
 #include <cmath>
 #include <vector>
@@ -51,7 +52,7 @@ TEST_CASE("Kirchhoff stochastic within 10% of exact on cycle", "[kirchhoff]") {
     // Exact: R_G = n * Σ_{k=1}^{n-1} 1/(2(1-cos(2πk/n)))
     double exact_trace = 0.0;
     for (uint32_t k = 1; k < n; ++k) {
-        double lambda = 2.0 * (1.0 - std::cos(2.0 * M_PI * k / n));
+        double lambda = 2.0 * (1.0 - std::cos(2.0 * gravel::PI * k / n));
         exact_trace += 1.0 / lambda;
     }
     double exact_ki = n * exact_trace;

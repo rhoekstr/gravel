@@ -1,4 +1,5 @@
 #include "gravel/core/geo_math.h"
+#include "gravel/core/constants.h"
 #include <cmath>
 #include <algorithm>
 #include <vector>
@@ -6,7 +7,6 @@
 namespace gravel {
 
 static constexpr double EARTH_RADIUS = 6371000.0;  // meters
-static constexpr double DEG_TO_RAD = M_PI / 180.0;
 
 bool point_in_polygon(Coord point, const std::vector<Coord>& polygon) {
     if (polygon.size() < 3) return false;

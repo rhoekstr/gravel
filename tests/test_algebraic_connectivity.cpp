@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/analysis/algebraic_connectivity.h"
+#include "gravel/core/constants.h"
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -54,7 +55,7 @@ TEST_CASE("Algebraic connectivity of path graph", "[algebraic_connectivity]") {
     // For path of length n: λ₂ = 2(1 - cos(π/n))
     uint32_t n = 10;
     auto path = make_path(n);
-    double expected = 2.0 * (1.0 - std::cos(M_PI / n));
+    double expected = 2.0 * (1.0 - std::cos(gravel::PI / n));
     double ac = algebraic_connectivity(path);
     REQUIRE_THAT(ac, Catch::Matchers::WithinRel(expected, 0.01));
 }
