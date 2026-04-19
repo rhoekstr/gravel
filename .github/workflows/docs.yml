@@ -26,13 +26,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libosmium2-dev libeigen3-dev nlohmann-json3-dev doxygen
-
-      - name: Install the package
-        run: pip install -e .
+        run: sudo apt-get update && sudo apt-get install -y doxygen
 
       - name: Install Sphinx dependencies
         run: pip install -r docs/requirements.txt
+
+      # The C++ extension (_gravel) is not compiled here. Sphinx uses
+      # autodoc_mock_imports = ["_gravel"] in docs/conf.py to document the
+      # Python API surface without needing the compiled module.
 
       - name: Build docs
         run: cd docs && make html
