@@ -15,7 +15,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        # Windows not yet supported — mapped_file.cpp uses POSIX mmap.
+        # See skip list in [tool.cibuildwheel] in pyproject.toml.
+        os: [ubuntu-latest, macos-latest]
 
     steps:
       - uses: actions/checkout@v4

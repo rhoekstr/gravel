@@ -31,7 +31,6 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: POSIX :: Linux",
     "Operating System :: MacOS",
-    "Operating System :: Microsoft :: Windows",
     "Programming Language :: C++",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
@@ -158,7 +157,11 @@ python_files = "test_*.py"
 
 [tool.cibuildwheel]
 build = "cp310-* cp311-* cp312-* cp313-*"
-skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*"]
+# Windows is not yet supported: src/io/mapped_file.cpp uses POSIX mmap
+# (sys/mman.h) and has no Windows backend. Users on Windows can build from
+# the sdist under WSL, or wait for a future release that ports mapped_file
+# to CreateFileMapping/MapViewOfFile.
+skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*", "*-win_*"]
 test-command = "python -c 'import gravel; print(gravel.__version__)'"
 
 [tool.cibuildwheel.linux]
@@ -166,6 +169,6 @@ archs = ["x86_64", "aarch64"]
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
-
-[tool.cibuildwheel.windows]
-archs = ["AMD64"]
+# std::filesystem requires macOS 10.15+. cibuildwheel's default of 10.9
+# triggers "'exists' is unavailable" errors on the x86_64 wheels.
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
