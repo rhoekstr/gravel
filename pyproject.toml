@@ -78,7 +78,11 @@ wheel.packages = ["python/gravel"]
 build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.verbose = false
-cmake.minimum-version = "3.20"
+cmake.version = ">=3.20"
+
+# Editable install settings: redirect imports to a persistent editable location
+# so `pip install -e .` properly places _gravel.so alongside the gravel package.
+editable.rebuild = true
 
 [tool.scikit-build.cmake.define]
 GRAVEL_BUILD_PYTHON = "ON"
