@@ -94,7 +94,7 @@ def bench_graph(pbf_path: Path):
     sources = list({p[0] for p in pairs[:100]})
     targets = list({p[1] for p in pairs[:100]})
     t0 = time.perf_counter()
-    matrix = q.distance_matrix(sources, targets)
+    q.distance_matrix(sources, targets)
     t_matrix = time.perf_counter() - t0
     n_mat = len(sources) * len(targets)
     us_per_mat = (t_matrix / n_mat) * 1e6

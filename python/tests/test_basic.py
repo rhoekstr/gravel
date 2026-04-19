@@ -1,7 +1,7 @@
 """Basic smoke tests for the gravel Python package."""
 
-import pytest
 import gravel
+import pytest
 
 
 def test_version():

@@ -16,14 +16,14 @@ import json
 import os
 import subprocess
 import sys
-import time
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
 import geopandas as gpd
 import pyproj
-from shapely.geometry import shape, mapping
+from shapely.geometry import mapping
 from shapely.ops import transform
 
 # Add gravel to path
@@ -33,8 +33,7 @@ sys.path.insert(0, str(PROJECT_DIR / "build" / "python"))
 sys.path.insert(0, str(PROJECT_DIR / "python"))
 
 import gravel
-
-from geofabrik_urls import get_pbf_url, STATE_FIPS_TO_SLUG, TERRITORY_URLS
+from geofabrik_urls import STATE_FIPS_TO_SLUG, TERRITORY_URLS, get_pbf_url
 from state_names import STATE_FIPS_TO_NAME
 
 # Adaptive radius by state FIPS
@@ -245,7 +244,7 @@ def main():
                 print(f"  FAILED to download {state_name}, skipping")
                 continue
         elif not os.path.exists(state_pbf):
-            print(f"  PBF not found and --skip-download set, skipping")
+            print("  PBF not found and --skip-download set, skipping")
             continue
 
         radius = RADIUS_OVERRIDE.get(state_fips, DEFAULT_RADIUS)

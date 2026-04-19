@@ -33,171 +33,145 @@ Quick start::
 """
 
 from _gravel import (
+    CH,
+    AlternateRouteResult,
+    AssignmentConfig,
+    BernsteinConfig,
+    BetweennessConfig,
+    BetweennessResult,
+    # --- Blocked CH query ---
+    BlockedCHQuery,
+    BorderEdgeResult,
+    BorderEdgeSummary,
+    BridgeResult,
+    CHBuildConfig,
+    CHQuery,
+    ClosureRiskData,
+    # --- Closure risk ---
+    ClosureRiskTier,
+    # --- Graph coarsening ---
+    CoarseningConfig,
+    CoarseningResult,
+    Coord,
+    # --- County fragility ---
+    CountyFragilityConfig,
+    CountyFragilityResult,
+    # --- Fragility ---
+    EdgeFragility,
+    EdgeSampler,
+    # --- Elevation ---
+    ElevationData,
+    FilterConfig,
+    FilteredFragilityResult,
+    FragilityResult,
+    # --- Fragility validation ---
+    FragilityValidationReport,
+    GeoJSONLoadConfig,
     # --- Core types ---
     Graph,
-    CH,
-    CHQuery,
-    RouteResult,
-    Coord,
+    # --- Inter-region progressive fragility ---
+    InterRegionFragilityConfig,
+    InterRegionFragilityResult,
+    InterRegionLevel,
+    InterRegionPairResult,
+    KirchhoffConfig,
+    # --- Landmarks ---
+    LandmarkData,
+    LocationFragilityConfig,
+    LocationFragilityResult,
+    LocationKLevel,
     Polygon,
-
+    # --- Progressive elimination fragility ---
+    ProgressiveFragilityConfig,
+    ProgressiveFragilityResult,
+    ReducedGraph,
+    # --- Reduced graph (region-aware graph reduction) ---
+    ReducedGraphConfig,
+    RegionAssignment,
+    # --- Border edges ---
+    RegionPair,
+    # --- Region assignment & GeoJSON ---
+    RegionSpec,
+    RouteResult,
+    SamplerConfig,
+    # --- O-D sampling ---
+    SamplingConfig,
+    # --- Edge sampling ---
+    SamplingStrategy,
+    # --- Scenario fragility ---
+    ScenarioConfig,
+    ScenarioResult,
+    # --- Location fragility ---
+    SelectionStrategy,
+    ShortcutIndex,
+    # --- Snapping ---
+    SnapQualityReport,
+    # --- Network analysis ---
+    SubgraphResult,
+    # --- Validation ---
+    ValidationReport,
+    ViaPathConfig,
+    algebraic_connectivity,
+    assign_nodes_to_regions,
+    batch_fragility,
+    bernstein_approx,
+    boundary_nodes,
+    # --- CH construction ---
+    build_ch,
+    build_ch_with_config,
+    build_reduced_geography_graph,  # geo adapter for RegionAssignment
+    classify_closure_risk,
+    coarsen_graph,
+    county_fragility_index,
+    # --- Routing ---
+    dijkstra_pair,
+    edge_betweenness,
+    edges_in_polygon,
+    elevation_from_array,
+    extract_subgraph,
+    filtered_route_fragility,
+    find_alternative_routes,
+    hershberger_suri,
+    inter_region_fragility,
+    kirchhoff_index,
+    load_elevation,
+    load_region_assignment,
+    load_regions_geojson,
+    load_srtm_elevation,
+    load_tiger_cbsas,
+    # --- TIGER loaders (US Census boundaries) ---
+    load_tiger_counties,
+    load_tiger_places,
+    load_tiger_states,
+    load_tiger_urban_areas,
+    location_fragility,
     # --- Graph construction ---
     make_grid_graph,
     make_random_graph,
     make_tree_with_bridges,
-
-    # --- CH construction ---
-    build_ch,
-    build_ch_with_config,
-    CHBuildConfig,
-
-    # --- Routing ---
-    dijkstra_pair,
-
-    # --- Validation ---
-    ValidationReport,
-    validate,
-
-    # --- Fragility ---
-    EdgeFragility,
-    FragilityResult,
-    AlternateRouteResult,
-    ShortcutIndex,
-    route_fragility,
-    batch_fragility,
-    find_alternative_routes,
-    hershberger_suri,
-    bernstein_approx,
-    ViaPathConfig,
-    BernsteinConfig,
-    FilterConfig,
-    FilteredFragilityResult,
-    filtered_route_fragility,
-
-    # --- Blocked CH query ---
-    BlockedCHQuery,
-    edges_in_polygon,
-    outgoing_edges,
-
-    # --- Fragility validation ---
-    FragilityValidationReport,
-    validate_fragility,
-    validate_shortcut_interaction,
-
-    # --- Network analysis ---
-    SubgraphResult,
-    extract_subgraph,
-    algebraic_connectivity,
-    BetweennessConfig,
-    BetweennessResult,
-    edge_betweenness,
-    KirchhoffConfig,
-    kirchhoff_index,
     natural_connectivity,
-    BridgeResult,
-
-    # --- County fragility ---
-    CountyFragilityConfig,
-    CountyFragilityResult,
-    county_fragility_index,
-
-    # --- Location fragility ---
-    SelectionStrategy,
-    LocationFragilityConfig,
-    LocationKLevel,
-    LocationFragilityResult,
-    location_fragility,
-
-    # --- Progressive elimination fragility ---
-    ProgressiveFragilityConfig,
-    ProgressiveFragilityResult,
+    outgoing_edges,
+    precompute_landmarks,
     progressive_fragility,
-
-    # --- Scenario fragility ---
-    ScenarioConfig,
-    ScenarioResult,
-    scenario_fragility,
-    edges_in_polygon,
-
-    # --- Edge sampling ---
-    SamplingStrategy,
-    SamplerConfig,
-    EdgeSampler,
-
-    # --- Region assignment & GeoJSON ---
-    RegionSpec,
-    RegionAssignment,
-    AssignmentConfig,
-    GeoJSONLoadConfig,
-    assign_nodes_to_regions,
-    load_regions_geojson,
-    boundary_nodes,
-
-    # --- Border edges ---
-    RegionPair,
-    BorderEdgeSummary,
-    BorderEdgeResult,
-    summarize_border_edges,
-
-    # --- Graph coarsening ---
-    CoarseningConfig,
-    CoarseningResult,
-    coarsen_graph,
-
+    route_fragility,
+    save_elevation,
     # --- Region serialization ---
     save_region_assignment,
-    load_region_assignment,
-
-    # --- Reduced graph (region-aware graph reduction) ---
-    ReducedGraphConfig,
-    ReducedGraph,
-    build_reduced_geography_graph,  # geo adapter for RegionAssignment
-
-    # --- Inter-region progressive fragility ---
-    InterRegionFragilityConfig,
-    InterRegionLevel,
-    InterRegionPairResult,
-    InterRegionFragilityResult,
-    inter_region_fragility,
-
-    # --- TIGER loaders (US Census boundaries) ---
-    load_tiger_counties,
-    load_tiger_states,
-    load_tiger_cbsas,
-    load_tiger_places,
-    load_tiger_urban_areas,
-
-    # --- Landmarks ---
-    LandmarkData,
-    precompute_landmarks,
-
-    # --- O-D sampling ---
-    SamplingConfig,
-    stratified_sample,
-
-    # --- Snapping ---
-    SnapQualityReport,
-    snap_quality,
-
-    # --- Elevation ---
-    ElevationData,
-    elevation_from_array,
-    load_srtm_elevation,
-    save_elevation,
-    load_elevation,
-
-    # --- Closure risk ---
-    ClosureRiskTier,
-    ClosureRiskData,
-    classify_closure_risk,
+    scenario_fragility,
     seasonal_weight_multipliers,
+    snap_quality,
+    stratified_sample,
+    summarize_border_edges,
+    validate,
+    validate_fragility,
+    validate_shortcut_interaction,
 )
 
 # Conditional OSM imports (only available when built with GRAVEL_USE_OSMIUM=ON)
 try:
     from _gravel import (
-        SpeedProfile,
         OSMConfig,
+        SpeedProfile,
         load_osm_graph,
         load_osm_graph_with_labels,
     )

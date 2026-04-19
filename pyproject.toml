@@ -130,6 +130,12 @@ ignore = [
     "N806",  # variable in function lowercase
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# __init__.py re-exports are intentional
+"python/gravel/__init__.py" = ["F401"]
+# Scripts need to mutate sys.path before importing gravel
+"scripts/*.py" = ["E402"]
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"

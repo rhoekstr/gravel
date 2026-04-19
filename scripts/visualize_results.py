@@ -151,8 +151,8 @@ print(f"  Saved {output_html}")
 print("Building distribution + rankings figure...")
 
 # State aggregations
-from collections import defaultdict
 import statistics
+from collections import defaultdict
 
 by_state = defaultdict(list)
 for r in results.values():

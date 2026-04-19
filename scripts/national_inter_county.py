@@ -26,10 +26,8 @@ Usage:
 import argparse
 import csv
 import json
-import os
 import subprocess
 import sys
-import tempfile
 import time
 import urllib.request
 from collections import defaultdict
@@ -47,10 +45,7 @@ sys.path.insert(0, str(PROJECT_DIR / "build" / "python"))
 sys.path.insert(0, str(PROJECT_DIR / "python"))
 
 import gravel
-
-from geofabrik_urls import get_pbf_url, STATE_FIPS_TO_SLUG, TERRITORY_URLS
-from state_names import STATE_FIPS_TO_NAME
-
+from geofabrik_urls import STATE_FIPS_TO_SLUG, TERRITORY_URLS, get_pbf_url
 
 # ============================================================
 # I/O utilities
