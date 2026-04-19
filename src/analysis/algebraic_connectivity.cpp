@@ -5,6 +5,7 @@
 #include <Spectra/MatOp/SparseSymMatProd.h>
 #include <queue>
 #include <vector>
+#include <algorithm>
 
 namespace gravel {
 

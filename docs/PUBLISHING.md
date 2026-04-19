@@ -51,7 +51,7 @@ Step-by-step guide for releasing Gravel publicly on GitHub, PyPI, and conda-forg
 2. **Set up Trusted Publisher** (OIDC, no API token needed):
    - Go to https://pypi.org/manage/account/publishing/
    - Add a "pending publisher" for:
-     - PyPI Project Name: `gravel-routing`
+     - PyPI Project Name: `gravel-fragility`
      - Owner: `rhoekstr`
      - Repository: `gravel`
      - Workflow: `wheels.yml`
@@ -68,7 +68,7 @@ The `wheels.yml` workflow handles everything automatically on tag push:
 - Builds source distribution
 - Publishes to PyPI via Trusted Publisher
 
-Verify at https://pypi.org/project/gravel-routing/
+Verify at https://pypi.org/project/gravel-fragility/
 
 ## conda-forge release
 
@@ -78,7 +78,7 @@ Verify at https://pypi.org/project/gravel-routing/
 
 2. **Add the recipe**:
    ```bash
-   cp conda-recipe/meta.yaml ~/staged-recipes/recipes/gravel-routing/meta.yaml
+   cp conda-recipe/meta.yaml ~/staged-recipes/recipes/gravel-fragility/meta.yaml
    # Edit to use a real sha256 (see step 3)
    ```
 
@@ -90,12 +90,12 @@ Verify at https://pypi.org/project/gravel-routing/
    Paste into `meta.yaml` replacing `PLACEHOLDER_SHA256_OF_RELEASE_TARBALL`.
 
 4. **Submit PR** to staged-recipes with:
-   - Title: "Add gravel-routing"
+   - Title: "Add gravel-fragility"
    - Description: brief overview
 
 5. **Await review**: conda-forge maintainers will review; they typically request minor changes within a week.
 
-Once merged, a `conda-forge/gravel-routing-feedstock` repo is auto-created and you get commit access.
+Once merged, a `conda-forge/gravel-fragility-feedstock` repo is auto-created and you get commit access.
 
 ### Subsequent releases
 

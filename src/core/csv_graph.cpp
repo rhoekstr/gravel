@@ -1,4 +1,5 @@
 #include "gravel/core/csv_graph.h"
+#include <algorithm>
 #include <fstream>
 #include <sstream>
 #include <stdexcept>

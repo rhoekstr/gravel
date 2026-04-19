@@ -19,13 +19,13 @@ The library is built around contraction hierarchies for fast shortest-path queri
 ### conda (recommended for C++ dependencies)
 
 ```bash
-conda install -c conda-forge gravel-routing
+conda install -c conda-forge gravel-fragility
 ```
 
 ### pip (source build — requires C++ compiler)
 
 ```bash
-pip install gravel-routing
+pip install gravel-fragility
 ```
 
 For OSM data loading, install libosmium separately (`brew install libosmium` on macOS, `apt install libosmium2-dev` on Debian/Ubuntu).
@@ -195,7 +195,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.1.0}
+  version = {2.2.0}
 }
 ```
 

@@ -1,6 +1,7 @@
 #include "gravel/snap/snapper.h"
 #include "gravel/core/geo_math.h"
 #include <algorithm>
+#include <stdexcept>
 
 namespace gravel {
 

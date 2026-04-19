@@ -4,6 +4,7 @@
 #include <numeric>
 #include <queue>
 #include <thread>
+#include <functional>
 
 namespace gravel {
 

@@ -2,6 +2,7 @@
 #include "gravel/core/dijkstra.h"
 #include <cmath>
 #include <random>
+#include <algorithm>
 
 namespace gravel {
 

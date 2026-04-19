@@ -1,4 +1,5 @@
 #include "gravel/core/edge_labels.h"
+#include <functional>
 
 namespace gravel {
 

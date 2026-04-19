@@ -1,6 +1,7 @@
 #include "gravel/simplify/simplify.h"
 #include <algorithm>
 #include <unordered_set>
+#include <functional>
 
 namespace gravel {
 

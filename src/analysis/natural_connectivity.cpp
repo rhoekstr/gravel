@@ -3,6 +3,7 @@
 #include <random>
 #include <cmath>
 #include <Eigen/Dense>
+#include <algorithm>
 
 namespace gravel {
 

@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <numeric>
 #include <cmath>
+#include <functional>
 
 namespace gravel {
 

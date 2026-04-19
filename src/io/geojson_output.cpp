@@ -1,6 +1,7 @@
 #include "gravel/io/geojson_output.h"
 #include <fstream>
 #include <cmath>
+#include <stdexcept>
 
 namespace gravel {
 

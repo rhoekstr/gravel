@@ -5,7 +5,7 @@ Gravel is available via conda-forge (recommended for C++ dependencies) and PyPI 
 ## conda (recommended)
 
 ```bash
-conda install -c conda-forge gravel-routing
+conda install -c conda-forge gravel-fragility
 ```
 
 This installs the full library including OSM support (via libosmium from conda-forge).
@@ -13,7 +13,7 @@ This installs the full library including OSM support (via libosmium from conda-f
 ## pip
 
 ```bash
-pip install gravel-routing
+pip install gravel-fragility
 ```
 
 **Note:** The PyPI wheels do not include OSM loading support (libosmium is not available on PyPI). For OSM support via pip, install libosmium on your system first and build from source:
@@ -22,21 +22,21 @@ pip install gravel-routing
 
 ```bash
 brew install libosmium
-pip install gravel-routing --no-binary gravel-routing
+pip install gravel-fragility --no-binary gravel-fragility
 ```
 
 ### Debian / Ubuntu
 
 ```bash
 sudo apt-get install libosmium2-dev libeigen3-dev nlohmann-json3-dev
-pip install gravel-routing --no-binary gravel-routing
+pip install gravel-fragility --no-binary gravel-fragility
 ```
 
 ### RHEL / Fedora
 
 ```bash
 sudo dnf install libosmium-devel eigen3-devel nlohmann-json-devel
-pip install gravel-routing --no-binary gravel-routing
+pip install gravel-fragility --no-binary gravel-fragility
 ```
 
 ## From source
@@ -82,7 +82,7 @@ print(f"Built CH for {g.node_count}-node graph")
 For visualization and the national pipeline script:
 
 ```bash
-pip install gravel-routing[viz,pipeline]
+pip install gravel-fragility[viz,pipeline]
 ```
 
 This pulls in `plotly`, `geopandas`, `shapely`, and `pyproj`.

@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <stdexcept>
 #include <cstring>
+#include <algorithm>
 
 namespace gravel {
 

@@ -5,6 +5,7 @@
 #include <cmath>
 #include <fstream>
 #include <queue>
+#include <stdexcept>
 
 namespace gravel {
 

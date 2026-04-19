@@ -7,7 +7,7 @@ Runnable examples for common use cases, in both Python and C++.
 All Python examples assume the `gravel` package is installed:
 
 ```bash
-pip install gravel-routing
+pip install gravel-fragility
 # Or from source: pip install -e .
 ```
 

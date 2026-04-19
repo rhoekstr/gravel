@@ -1,6 +1,7 @@
 #include "gravel/simplify/bridge_classification.h"
 #include <algorithm>
 #include <unordered_set>
+#include <functional>
 
 namespace gravel {
 

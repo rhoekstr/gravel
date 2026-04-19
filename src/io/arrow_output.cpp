@@ -7,6 +7,7 @@
 #include <arrow/api.h>
 #include <arrow/io/file.h>
 #include <parquet/arrow/writer.h>
+#include <stdexcept>
 
 namespace gravel {
 

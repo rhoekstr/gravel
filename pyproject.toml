@@ -3,7 +3,7 @@ requires = ["scikit-build-core>=0.8", "pybind11>=2.11"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "gravel-routing"
+name = "gravel-fragility"
 version = "2.2.0"
 description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"

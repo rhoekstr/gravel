@@ -1,4 +1,4 @@
-{% set name = "gravel-routing" %}
+{% set name = "gravel-fragility" %}
 {% set version = "2.2.0" %}
 
 package:

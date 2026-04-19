@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <unordered_set>
+#include <limits>
 
 namespace gravel {
 

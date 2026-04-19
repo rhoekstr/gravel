@@ -5,6 +5,7 @@
 #include <numeric>
 #include <random>
 #include <unordered_set>
+#include <limits>
 
 namespace gravel {
 

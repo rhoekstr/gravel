@@ -66,7 +66,7 @@ jobs:
     # Use Trusted Publishers (no API token needed)
     environment:
       name: pypi
-      url: https://pypi.org/p/gravel-routing
+      url: https://pypi.org/p/gravel-fragility
     permissions:
       id-token: write  # Required for OIDC
 
