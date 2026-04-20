@@ -214,14 +214,16 @@ archs = ["AMD64"]
 # multi-minute hangs for Eigen in particular. libosmium + protozero +
 # runtime libs (zlib/expat/bz2/lz4) are all vcpkg ports.
 before-all = "vcpkg install libosmium protozero zlib expat bzip2 lz4"
+# cibuildwheel auto-installs delvewheel when using the default
+# repair-wheel-command, but skips that install when we override the
+# command. Explicitly pip-install delvewheel into the per-wheel build
+# venv so `python -m delvewheel` resolves at repair time.
+before-build = "pip install delvewheel"
 environment = { CMAKE_ARGS = "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DGRAVEL_USE_OSMIUM=ON" }
-# delvewheel (cibuildwheel's default Windows wheel-repair tool) scans
-# PATH for DLLs to bundle but doesn't know about vcpkg's install tree.
-# --add-path makes delvewheel find and vendor zlib1.dll / libexpat.dll /
-# bz2.dll / liblz4.dll so the resulting wheel doesn't raise
+# delvewheel scans PATH for DLLs to vendor into the wheel but doesn't
+# know about vcpkg's install tree. --add-path points it at
+# C:/vcpkg/installed/x64-windows/bin so zlib1.dll / libexpat.dll /
+# bz2.dll / liblz4.dll get bundled. Without this the wheel's _gravel
+# fails at import time on clean machines with
 #   ImportError: DLL load failed while importing _gravel
-# at install time on user machines that don't have vcpkg.
-# `python -m delvewheel` (not bare `delvewheel`): cibuildwheel installs
-# delvewheel into its managed venv but doesn't always put the bin dir
-# on cmd.exe's PATH. Invoking via `python -m` works in both cases.
 repair-wheel-command = "python -m delvewheel repair -w {dest_dir} --add-path C:/vcpkg/installed/x64-windows/bin {wheel}"
