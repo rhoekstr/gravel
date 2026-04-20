@@ -142,9 +142,21 @@ target_link_libraries(gravel-fragility PUBLIC
     gravel-core gravel-ch gravel-simplify
     Eigen3::Eigen nlohmann_json::nlohmann_json
 )
-target_include_directories(gravel-fragility PUBLIC
-    $<BUILD_INTERFACE:${spectra_SOURCE_DIR}/include>
-)
+
+# Spectra: dual-path so it works with either find_package (vcpkg /
+# conda-forge / brew) or FetchContent. When find_package succeeds,
+# Spectra ships a Spectra::Spectra imported target. When FetchContent
+# ran (no system package available), spectra_SOURCE_DIR is populated
+# with the git-cloned source and we add its include dir directly.
+if(TARGET Spectra::Spectra)
+    target_link_libraries(gravel-fragility PUBLIC Spectra::Spectra)
+elseif(DEFINED spectra_SOURCE_DIR AND NOT "${spectra_SOURCE_DIR}" STREQUAL "")
+    target_include_directories(gravel-fragility PUBLIC
+        $<BUILD_INTERFACE:${spectra_SOURCE_DIR}/include>
+    )
+else()
+    message(FATAL_ERROR "Spectra not found via find_package and FetchContent did not populate it either")
+endif()
 if(GRAVEL_USE_ARROW)
     target_compile_definitions(gravel-fragility PUBLIC GRAVEL_HAS_ARROW)
     target_link_libraries(gravel-fragility PUBLIC Arrow::arrow_shared Parquet::parquet_shared)

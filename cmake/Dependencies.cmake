@@ -77,23 +77,18 @@ FetchContent_MakeAvailable(Eigen3)
 
 # Spectra 1.0 — header-only Lanczos eigenvalue solver (depends on Eigen).
 #
-# No FIND_PACKAGE_ARGS here. Every other dep uses CMake targets
-# (Eigen3::Eigen, nlohmann_json::nlohmann_json, etc.) which work under
-# both find_package and FetchContent code paths. Spectra does NOT ship
-# a proper imported target from its find_package config; we consume it
-# via a raw include path at ${spectra_SOURCE_DIR}/include in the main
-# CMakeLists. FIND_PACKAGE_ARGS causes find_package to take over and
-# leave spectra_SOURCE_DIR unset, producing -I/include in the compile
-# command and a 'Spectra/SymEigsSolver.h not found' error.
-#
-# The git clone is cheap (small repo) and reliable. If conda-forge
-# needs find_package(Spectra) to succeed (to avoid network at build
-# time), we'll add a recipe patch to convert this target to use
-# find_package + the conda-forge-provided target.
+# The top-level CMakeLists has a dual-path consumer for Spectra:
+# prefers the Spectra::Spectra imported target when find_package
+# succeeds (vcpkg on Windows, conda-forge, brew spectra), otherwise
+# falls back to ${spectra_SOURCE_DIR}/include from the FetchContent
+# git clone. That means FIND_PACKAGE_ARGS is safe here — the earlier
+# "-I/include" bug only happened because CMakeLists assumed the
+# FetchContent path unconditionally.
 FetchContent_Declare(spectra
     GIT_REPOSITORY https://github.com/yixuan/spectra.git
     GIT_TAG        v1.0.1
     GIT_SHALLOW    TRUE
+    FIND_PACKAGE_ARGS NAMES Spectra
 )
 FetchContent_MakeAvailable(spectra)
 

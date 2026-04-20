@@ -1,0 +1,51 @@
+# conda-forge patch: use find_package for pybind11 and Spectra.
+#
+# v2.2.1 upstream deliberately keeps FetchContent-only git clones for
+# these two deps (see cmake/Dependencies.cmake for rationale — pybind11
+# LTO flag mangling on PyPI wheel builds, Spectra not exposing headers
+# via a clean imported target). On conda-forge, network is blocked at
+# build time and both packages are available as conda-forge packages
+# (pybind11, spectra-cpp), so substitute find_package for FetchContent.
+#
+# When upstream gains a clean fix (e.g., exposing a Spectra::Spectra
+# target in the FetchContent path, and a no-LTO-injection path for
+# pybind11), this patch can be dropped.
+
+--- a/cmake/Dependencies.cmake
++++ b/cmake/Dependencies.cmake
+@@ -71,13 +71,10 @@ set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
+ FetchContent_MakeAvailable(Eigen3)
+
+ # Spectra 1.0 - header-only Lanczos eigenvalue solver (depends on Eigen).
+-FetchContent_Declare(spectra
+-    GIT_REPOSITORY https://github.com/yixuan/spectra.git
+-    GIT_TAG        v1.0.1
+-    GIT_SHALLOW    TRUE
+-)
+-FetchContent_MakeAvailable(spectra)
++# conda-forge provides spectra-cpp which installs SpectraConfig.cmake.
++find_package(Spectra REQUIRED)
++# Bridge conda-forge's Spectra::Spectra target to the spectra_SOURCE_DIR
++# variable expected by the top-level CMakeLists target_include_directories.
++get_target_property(_spectra_inc Spectra::Spectra INTERFACE_INCLUDE_DIRECTORIES)
++set(spectra_SOURCE_DIR "${_spectra_inc}/..")
+
+ # Apache Arrow / Parquet (optional)
+ if(GRAVEL_USE_ARROW)
+@@ -85,13 +82,8 @@ if(GRAVEL_USE_ARROW)
+     find_package(Parquet REQUIRED)
+ endif()
+
+-# pybind11
+-if(GRAVEL_BUILD_PYTHON)
+-    FetchContent_Declare(pybind11
+-        GIT_REPOSITORY https://github.com/pybind/pybind11.git
+-        GIT_TAG        v2.12.0
+-        GIT_SHALLOW    TRUE
+-    )
+-    FetchContent_MakeAvailable(pybind11)
+-endif()
++# pybind11 - conda-forge provides it, find_package is fine here.
++if(GRAVEL_BUILD_PYTHON)
++    find_package(pybind11 2.10 CONFIG REQUIRED)
++endif()
