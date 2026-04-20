@@ -174,13 +174,15 @@ test-command = 'python -c "import gravel; assert gravel.HAS_OSM, \"OSM missing\"
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64"]
-# manylinux_2_17 (Rocky Linux 8) has zlib/bz2/expat headers pre-installed.
-# libosmium + protozero are header-only C++ — clone a pinned release and
-# drop headers under /usr/local/include where CMake's find_path picks
-# them up. lz4-devel comes from the extras repo; its absence downgrades
-# libosmium support (still functional, just no lz4-compressed PBF input).
+# manylinux_2_17 (Rocky Linux 8) ships with zlib-devel and expat-devel,
+# but NOT bzip2-devel — libosmium's bzip2_compression.hpp fails without
+# it. lz4-devel is optional; its absence means we lose lz4-compressed
+# PBF input (a rare OSM codec).
+# libosmium + protozero are header-only — extract pinned releases into
+# /usr/local/include where cmake/OsmiumDetect.cmake's find_path picks
+# them up.
 before-all = """
-yum install -y lz4-devel || true
+yum install -y bzip2-devel lz4-devel || true
 cd /tmp
 curl -sL https://github.com/osmcode/libosmium/archive/refs/tags/v2.20.0.tar.gz | tar xz
 cp -r libosmium-2.20.0/include/osmium /usr/local/include/
@@ -193,7 +195,16 @@ environment = { CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
 archs = ["x86_64", "arm64"]
 # std::filesystem requires macOS 10.15+. cibuildwheel's default of 10.9
 # triggers "'exists' is unavailable" errors on the x86_64 wheels.
-before-all = "brew install libosmium protozero lz4"
+# Intentionally skip lz4: brew's lz4 is built targeting the current
+# runner macOS (14+), which trips delocate with
+#   "Library dependencies do not satisfy target MacOS version 11.0"
+# when we try to bundle into a macos_11_0_arm64 wheel. libosmium + protozero
+# are header-only so the macOS target only matters for the .dylibs we
+# link against — zlib/bz2/expat are system libs and match the target
+# automatically. We lose lz4-compressed PBF support on macOS wheels
+# (rare codec); users who need it can pip-build from sdist after
+# `brew install lz4`.
+before-all = "brew install libosmium protozero"
 environment = { MACOSX_DEPLOYMENT_TARGET = "10.15", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
 
 [tool.cibuildwheel.windows]
@@ -205,3 +216,10 @@ archs = ["AMD64"]
 # runtime libs (zlib/expat/bz2/lz4) are all vcpkg ports.
 before-all = "vcpkg install libosmium protozero zlib expat bzip2 lz4"
 environment = { CMAKE_ARGS = "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DGRAVEL_USE_OSMIUM=ON" }
+# delvewheel (cibuildwheel's default Windows wheel-repair tool) scans
+# PATH for DLLs to bundle but doesn't know about vcpkg's install tree.
+# --add-path makes delvewheel find and vendor zlib1.dll / libexpat.dll /
+# bz2.dll / liblz4.dll so the resulting wheel doesn't raise
+#   ImportError: DLL load failed while importing _gravel
+# at install time on user machines that don't have vcpkg.
+repair-wheel-command = "delvewheel repair -w {dest_dir} --add-path C:/vcpkg/installed/x64-windows/bin {wheel}"
