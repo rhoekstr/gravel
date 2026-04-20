@@ -75,14 +75,25 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(Eigen3)
 
-# Spectra 1.0 — header-only Lanczos eigenvalue solver (depends on Eigen)
-# Note: the conda-forge package is named "spectra-cpp" but the CMake
-# config module it installs is still "Spectra".
+# Spectra 1.0 — header-only Lanczos eigenvalue solver (depends on Eigen).
+#
+# No FIND_PACKAGE_ARGS here. Every other dep uses CMake targets
+# (Eigen3::Eigen, nlohmann_json::nlohmann_json, etc.) which work under
+# both find_package and FetchContent code paths. Spectra does NOT ship
+# a proper imported target from its find_package config; we consume it
+# via a raw include path at ${spectra_SOURCE_DIR}/include in the main
+# CMakeLists. FIND_PACKAGE_ARGS causes find_package to take over and
+# leave spectra_SOURCE_DIR unset, producing -I/include in the compile
+# command and a 'Spectra/SymEigsSolver.h not found' error.
+#
+# The git clone is cheap (small repo) and reliable. If conda-forge
+# needs find_package(Spectra) to succeed (to avoid network at build
+# time), we'll add a recipe patch to convert this target to use
+# find_package + the conda-forge-provided target.
 FetchContent_Declare(spectra
     GIT_REPOSITORY https://github.com/yixuan/spectra.git
     GIT_TAG        v1.0.1
     GIT_SHALLOW    TRUE
-    FIND_PACKAGE_ARGS NAMES Spectra
 )
 FetchContent_MakeAvailable(spectra)
 
