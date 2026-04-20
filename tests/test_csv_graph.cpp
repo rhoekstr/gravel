@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/core/csv_graph.h"
 #include "gravel/core/dijkstra.h"
+#include "test_temp_path.h"
 #include <cstdio>
 #include <fstream>
 #include <algorithm>
@@ -25,7 +26,7 @@ TEST_CASE("CSV graph loads correctly", "[csv]") {
 
 TEST_CASE("CSV graph with bidirectional flag", "[csv]") {
     // Write a temp CSV with one-directional edges
-    std::string tmp = "/tmp/gravel_test_bidir.csv";
+    std::string tmp = gravel::test::test_temp_path("gravel_test_bidir.csv");
     {
         std::ofstream out(tmp);
         out << "src,dst,w\n";

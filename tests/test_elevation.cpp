@@ -1,6 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/geo/elevation.h"
+#include "test_temp_path.h"
 #include <cmath>
 #include <string>
 
@@ -41,7 +42,7 @@ TEST_CASE("Edge max elevation with NaN", "[elevation]") {
 
 TEST_CASE("Elevation serialization round-trip", "[elevation]") {
     auto original = elevation_from_array({100.0, 200.0, 300.0, NAN, 500.0});
-    std::string path = "/tmp/test_elevation.gravel.elev";
+    std::string path = gravel::test::test_temp_path("test_elevation.gravel.elev");
     save_elevation(original, path);
 
     auto loaded = load_elevation(path);

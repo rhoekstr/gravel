@@ -2,6 +2,7 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 #include "gravel/snap/snapper.h"
 #include "gravel/snap/edge_index.h"
+#include "test_temp_path.h"
 #include <random>
 #include <cmath>
 #include <utility>
@@ -55,7 +56,7 @@ TEST_CASE("R-tree serialization round-trip", "[snap]") {
     auto grid = make_coord_grid_10();
     auto idx = EdgeIndex::build(grid.raw_coords(), grid.raw_offsets(), grid.raw_targets());
 
-    std::string path = "/tmp/test_edge_index.gravel.rtree";
+    std::string path = gravel::test::test_temp_path("test_edge_index.gravel.rtree");
     idx.save(path);
 
     auto loaded = EdgeIndex::load(path);

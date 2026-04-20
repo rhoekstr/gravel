@@ -104,12 +104,20 @@ if(GRAVEL_USE_ARROW)
 endif()
 
 # pybind11
+#
+# No FIND_PACKAGE_ARGS here either. scikit-build-core pip-installs
+# pybind11 into an isolated build env when we build a wheel, and
+# exposes its CMake dir. If find_package(pybind11) takes over via
+# FIND_PACKAGE_ARGS, pybind11's CMake config injects LTO flags that
+# get mangled by the outer build toolchain on macOS Python 3.10-3.13
+# wheel builds (observed: "unsupported argument '' to option '-flto='").
+# FetchContent git-clone of pybind11's small repo is fast and reliable
+# on every platform we ship to.
 if(GRAVEL_BUILD_PYTHON)
     FetchContent_Declare(pybind11
         GIT_REPOSITORY https://github.com/pybind/pybind11.git
         GIT_TAG        v2.12.0
         GIT_SHALLOW    TRUE
-        FIND_PACKAGE_ARGS 2.10 NAMES pybind11
     )
     FetchContent_MakeAvailable(pybind11)
 endif()

@@ -5,6 +5,7 @@
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/shortcut_index.h"
 #include "gravel/fragility/route_fragility.h"
+#include "test_temp_path.h"
 #include <fstream>
 #include <filesystem>
 #include <utility>
@@ -63,7 +64,7 @@ TEST_CASE("JSONL fragility output", "[output]") {
         results.push_back(route_fragility(ch, idx, *grid, s, t));
     }
 
-    std::string path = "/tmp/test_fragility.jsonl";
+    std::string path = gravel::test::test_temp_path("test_fragility.jsonl");
     write_fragility_jsonl(results, pairs, path);
 
     // Verify file exists and has 2 lines
@@ -117,7 +118,7 @@ TEST_CASE("GeoJSON location fragility output", "[output]") {
     REQUIRE(first["geometry"]["type"] == "Point");
 
     // Write to file and verify
-    std::string path = "/tmp/test_location.geojson";
+    std::string path = gravel::test::test_temp_path("test_location.geojson");
     write_geojson(geojson, path);
     REQUIRE(std::filesystem::exists(path));
     REQUIRE(std::filesystem::file_size(path) > 0);

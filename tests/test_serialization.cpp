@@ -6,6 +6,7 @@
 #include "gravel/ch/ch_query.h"
 #include "gravel/validation/validator.h"
 #include "gravel/validation/synthetic_graphs.h"
+#include "test_temp_path.h"
 #include <cstdio>
 #include <fstream>
 #include <utility>
@@ -18,7 +19,8 @@ using namespace gravel;
 namespace {
 struct TempFile {
     std::string path;
-    TempFile(const char* name) : path(std::string("/tmp/gravel_test_") + name) {}
+    TempFile(const char* name)
+        : path(gravel::test::test_temp_path(std::string("gravel_test_") + name)) {}
     ~TempFile() { std::remove(path.c_str()); }
 };
 }
