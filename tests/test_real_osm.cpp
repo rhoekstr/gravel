@@ -23,7 +23,7 @@
 
 using namespace gravel;
 
-// Path to the Swain County extract — skip tests if not present
+// Path to the Swain County extract - skip tests if not present
 static const char* SWAIN_PBF = TEST_DATA_DIR "/swain_county.osm.pbf";
 
 static bool data_available() {
@@ -223,7 +223,7 @@ TEST_CASE("Real OSM: CH query produces valid distances", "[real_osm]") {
         auto dijk = dijkstra(*f.graph, s);
         Weight ref_dist = dijk.distances[t];
 
-        // Both INF = no path in either (disconnected component) — valid match
+        // Both INF = no path in either (disconnected component) - valid match
         if (ch_dist >= INF_WEIGHT && ref_dist >= INF_WEIGHT) {
             both_inf++;
             continue;
@@ -310,7 +310,7 @@ TEST_CASE("Real OSM: snapping works on real coordinates", "[real_osm]") {
     Snapper snapper(*f.graph);
     std::cerr << "  Snapper built.\n";
 
-    // Bryson City, NC — center of Swain County
+    // Bryson City, NC - center of Swain County
     auto result = snapper.snap({35.4312, -83.4496}, 2000.0);
     REQUIRE(result.valid());
     REQUIRE(result.snap_distance_m < 500.0);

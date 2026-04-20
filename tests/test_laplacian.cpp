@@ -30,7 +30,7 @@ static ArrayGraph make_complete(uint32_t n) {
     return ArrayGraph(n, std::move(edges));
 }
 
-TEST_CASE("Laplacian of cycle graph — row sums zero", "[laplacian]") {
+TEST_CASE("Laplacian of cycle graph - row sums zero", "[laplacian]") {
     auto cycle = make_cycle(6);
     auto L = build_laplacian(cycle);
 
@@ -53,7 +53,7 @@ TEST_CASE("Laplacian of cycle graph — row sums zero", "[laplacian]") {
     }
 }
 
-TEST_CASE("Laplacian of cycle — diagonal equals degree", "[laplacian]") {
+TEST_CASE("Laplacian of cycle - diagonal equals degree", "[laplacian]") {
     auto cycle = make_cycle(6);
     auto L = build_laplacian(cycle);
 
@@ -63,7 +63,7 @@ TEST_CASE("Laplacian of cycle — diagonal equals degree", "[laplacian]") {
     }
 }
 
-TEST_CASE("Laplacian of cycle — off-diagonal is -1 for neighbors", "[laplacian]") {
+TEST_CASE("Laplacian of cycle - off-diagonal is -1 for neighbors", "[laplacian]") {
     auto cycle = make_cycle(6);
     auto L = build_laplacian(cycle);
 
@@ -93,7 +93,7 @@ TEST_CASE("Adjacency of complete graph K_5", "[laplacian]") {
     }
 }
 
-TEST_CASE("Laplacian of K_n — row sums zero, diagonal = n-1", "[laplacian]") {
+TEST_CASE("Laplacian of K_n - row sums zero, diagonal = n-1", "[laplacian]") {
     auto k4 = make_complete(4);
     auto L = build_laplacian(k4);
 

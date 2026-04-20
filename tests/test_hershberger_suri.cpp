@@ -45,7 +45,7 @@ TEST_CASE("Hershberger-Suri on grid matches leave-one-out Dijkstra", "[hs]") {
     }
 }
 
-TEST_CASE("Hershberger-Suri on tree — all INF", "[hs]") {
+TEST_CASE("Hershberger-Suri on tree - all INF", "[hs]") {
     std::vector<Edge> edges;
     for (int i = 0; i < 5; ++i) {
         edges.push_back({(NodeID)i, (NodeID)(i + 1), 1.0});

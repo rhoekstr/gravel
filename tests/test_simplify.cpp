@@ -43,7 +43,7 @@ TEST_CASE("Degree-2 contraction on path graph", "[simplify]") {
     REQUIRE_THAT(weights[0], Catch::Matchers::WithinAbs(10.0, 1e-6));
 }
 
-TEST_CASE("Degree-2 contraction on grid — no change", "[simplify]") {
+TEST_CASE("Degree-2 contraction on grid - no change", "[simplify]") {
     auto grid = make_grid_graph(4, 4);
     // All interior nodes have degree 4, corner nodes degree 2 but they ARE endpoints
 
@@ -209,7 +209,7 @@ TEST_CASE("Full pipeline: degree2 only (no CH needed)", "[simplify]") {
 
     SimplificationConfig config;
     config.contract_degree2 = true;
-    config.preserve_bridges = false;  // path has all bridges — must disable to allow contraction
+    config.preserve_bridges = false;  // path has all bridges - must disable to allow contraction
     config.ch_level_keep_fraction = 1.0;  // disabled
     config.estimate_degradation = false;
 

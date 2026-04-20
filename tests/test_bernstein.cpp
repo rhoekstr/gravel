@@ -79,7 +79,7 @@ TEST_CASE("Bernstein approx with varying epsilon", "[bernstein]") {
     }
 }
 
-TEST_CASE("Bernstein approx on tree — all INF", "[bernstein]") {
+TEST_CASE("Bernstein approx on tree - all INF", "[bernstein]") {
     std::vector<Edge> edges;
     for (int i = 0; i < 5; ++i) {
         edges.push_back({(NodeID)i, (NodeID)(i + 1), 1.0});

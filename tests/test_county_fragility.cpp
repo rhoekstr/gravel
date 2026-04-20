@@ -77,7 +77,7 @@ TEST_CASE("County fragility index produces populated results", "[county_fragilit
     REQUIRE(result.composite_index <= 1.0);
 }
 
-TEST_CASE("County fragility — grid has no bridges", "[county_fragility]") {
+TEST_CASE("County fragility - grid has no bridges", "[county_fragility]") {
     auto grid = make_coord_grid(5, 5);
 
     CHBuildConfig ch_config;

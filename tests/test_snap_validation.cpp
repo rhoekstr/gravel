@@ -74,7 +74,7 @@ TEST_CASE("R-tree serialization round-trip", "[snap]") {
     }
 }
 
-TEST_CASE("Grid graph snap — midpoint of cell", "[snap][validation]") {
+TEST_CASE("Grid graph snap - midpoint of cell", "[snap][validation]") {
     auto grid = make_coord_grid_10();
     Snapper snapper(grid);
 
@@ -87,7 +87,7 @@ TEST_CASE("Grid graph snap — midpoint of cell", "[snap][validation]") {
     REQUIRE(r.snap_distance_m < 500.0);
 }
 
-TEST_CASE("Diagonal edge snap — perpendicular projection", "[snap][validation]") {
+TEST_CASE("Diagonal edge snap - perpendicular projection", "[snap][validation]") {
     // Single diagonal edge from (35.0, -83.0) to (35.01, -82.99)
     std::vector<uint32_t> offsets = {0, 1, 2};
     std::vector<NodeID> targets = {1, 0};
@@ -117,7 +117,7 @@ TEST_CASE("Snap quality report", "[snap]") {
         {35.0, -83.0},       // exact node
         {35.002, -82.998},   // near grid
         {35.025, -82.975},   // inside grid
-        {36.0, -80.0},       // far away — will fail with small radius
+        {36.0, -80.0},       // far away - will fail with small radius
     };
 
     auto results = snapper.snap_batch(points, 100.0);  // tight radius

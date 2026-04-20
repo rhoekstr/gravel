@@ -28,7 +28,7 @@ static ArrayGraph make_path(uint32_t n) {
     return ArrayGraph(n, std::move(edges));
 }
 
-TEST_CASE("Star graph — center edges have highest betweenness", "[betweenness]") {
+TEST_CASE("Star graph - center edges have highest betweenness", "[betweenness]") {
     auto star = make_star(6);  // 0 is center, 1-5 are leaves
     auto result = edge_betweenness(star);
 
@@ -52,7 +52,7 @@ TEST_CASE("Star graph — center edges have highest betweenness", "[betweenness]
     }
 }
 
-TEST_CASE("Path graph — middle edge has highest betweenness", "[betweenness]") {
+TEST_CASE("Path graph - middle edge has highest betweenness", "[betweenness]") {
     auto path = make_path(5);  // 0-1-2-3-4
     auto result = edge_betweenness(path);
 

@@ -69,7 +69,7 @@ TEST_CASE("Entry point identification on subgraph", "[accessibility]") {
     // All 9 interior nodes border external nodes (they're all on the
     // boundary of the 3x3 subgraph within the 5x5 grid)
     // Actually: the 3x3 interior has 8 boundary nodes and 1 center node.
-    // The center node (2,2) only connects to interior nodes — no entry point.
+    // The center node (2,2) only connects to interior nodes - no entry point.
     // The 8 boundary nodes of the 3x3 each have at least one external neighbor.
     REQUIRE(result.entry_points.size() == 8);
 

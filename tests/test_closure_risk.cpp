@@ -18,7 +18,7 @@ static ArrayGraph make_path4() {
     return ArrayGraph(4, std::move(edges));
 }
 
-TEST_CASE("Closure risk classification — low elevation", "[closure_risk]") {
+TEST_CASE("Closure risk classification - low elevation", "[closure_risk]") {
     auto graph = make_path4();
     auto elev = elevation_from_array({200.0, 300.0, 250.0, 100.0});
 
@@ -31,7 +31,7 @@ TEST_CASE("Closure risk classification — low elevation", "[closure_risk]") {
     REQUIRE_THAT(risk.tier_fraction(ClosureRiskTier::LOW), Catch::Matchers::WithinAbs(1.0, 1e-6));
 }
 
-TEST_CASE("Closure risk classification — high elevation + minor road", "[closure_risk]") {
+TEST_CASE("Closure risk classification - high elevation + minor road", "[closure_risk]") {
     auto graph = make_path4();
     // Nodes at increasing elevation, last two above severe threshold
     auto elev = elevation_from_array({200.0, 800.0, 1300.0, 1600.0});
@@ -50,11 +50,11 @@ TEST_CASE("Closure risk classification — high elevation + minor road", "[closu
     REQUIRE(risk.tier_fraction(ClosureRiskTier::HIGH) > 0.0);
 }
 
-TEST_CASE("Closure risk — major road reduces tier", "[closure_risk]") {
+TEST_CASE("Closure risk - major road reduces tier", "[closure_risk]") {
     auto graph = make_path4();
     auto elev = elevation_from_array({1600.0, 1600.0, 1600.0, 1600.0});
 
-    // All motorway (rank 0) — even at extreme elevation, rank < 3 prevents HIGH/SEVERE
+    // All motorway (rank 0) - even at extreme elevation, rank < 3 prevents HIGH/SEVERE
     std::vector<std::string> labels(graph.edge_count(), "motorway");
     auto risk = classify_closure_risk(graph, elev, labels);
 

@@ -6,7 +6,7 @@
 
 using namespace gravel;
 
-TEST_CASE("ArrayGraph from edge list — triangle", "[array_graph]") {
+TEST_CASE("ArrayGraph from edge list - triangle", "[array_graph]") {
     // Triangle: 0->1 (w=1), 0->2 (w=4), 1->2 (w=2)
     std::vector<Edge> edges = {
         {0, 1, 1.0},

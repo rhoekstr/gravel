@@ -54,7 +54,7 @@ TEST_CASE("route_fragility on grid matches leave-one-out Dijkstra", "[fragility]
     }
 }
 
-TEST_CASE("route_fragility on tree — all edges critical", "[fragility]") {
+TEST_CASE("route_fragility on tree - all edges critical", "[fragility]") {
     // Chain: 0-1-2-3-4-5
     std::vector<Edge> edges;
     for (int i = 0; i < 5; ++i) {
@@ -69,7 +69,7 @@ TEST_CASE("route_fragility on tree — all edges critical", "[fragility]") {
     REQUIRE(result.valid());
     REQUIRE_THAT(result.primary_distance, WithinAbs(5.0, 1e-9));
 
-    // Every edge is a bridge — all replacement distances should be INF
+    // Every edge is a bridge - all replacement distances should be INF
     for (const auto& ef : result.edge_fragilities) {
         REQUIRE(ef.replacement_distance >= INF_WEIGHT);
         REQUIRE(std::isinf(ef.fragility_ratio));

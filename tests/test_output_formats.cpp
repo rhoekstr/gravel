@@ -67,16 +67,21 @@ TEST_CASE("JSONL fragility output", "[output]") {
     std::string path = gravel::test::test_temp_path("test_fragility.jsonl");
     write_fragility_jsonl(results, pairs, path);
 
-    // Verify file exists and has 2 lines
-    std::ifstream in(path);
-    REQUIRE(in.good());
-    int lines = 0;
-    std::string line;
-    while (std::getline(in, line)) {
-        REQUIRE(!line.empty());
-        lines++;
+    // Verify file exists and has 2 lines. Scope the ifstream so its
+    // destructor (and the underlying HANDLE) is released before the
+    // filesystem::remove below — on Windows, remove() will fail with
+    // "file in use" if the stream is still alive.
+    {
+        std::ifstream in(path);
+        REQUIRE(in.good());
+        int lines = 0;
+        std::string line;
+        while (std::getline(in, line)) {
+            REQUIRE(!line.empty());
+            lines++;
+        }
+        REQUIRE(lines == 2);
     }
-    REQUIRE(lines == 2);
 
     std::filesystem::remove(path);
 }

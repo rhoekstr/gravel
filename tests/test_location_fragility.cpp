@@ -73,7 +73,7 @@ static ArrayGraph make_coord_chain(uint32_t n) {
                       std::move(weights), std::move(coords));
 }
 
-TEST_CASE("Location fragility — grid has low isolation risk", "[location_fragility]") {
+TEST_CASE("Location fragility - grid has low isolation risk", "[location_fragility]") {
     auto grid = make_coord_grid(7, 7);
     auto ch = build_ch(grid);
 
@@ -90,7 +90,7 @@ TEST_CASE("Location fragility — grid has low isolation risk", "[location_fragi
     REQUIRE(!result.curve.empty());
 }
 
-TEST_CASE("Location fragility — chain has high isolation risk", "[location_fragility]") {
+TEST_CASE("Location fragility - chain has high isolation risk", "[location_fragility]") {
     auto chain = make_coord_chain(20);
     auto ch = build_ch(chain);
 
@@ -102,11 +102,11 @@ TEST_CASE("Location fragility — chain has high isolation risk", "[location_fra
     auto result = location_fragility(chain, ch, config);
 
     REQUIRE(result.reachable_nodes > 0);
-    // Chain is maximally fragile — every edge is on a shortest path
+    // Chain is maximally fragile - every edge is on a shortest path
     REQUIRE(result.isolation_risk > 0.1);
 }
 
-TEST_CASE("Location fragility — isolation_risk in [0, 1]", "[location_fragility]") {
+TEST_CASE("Location fragility - isolation_risk in [0, 1]", "[location_fragility]") {
     auto grid = make_coord_grid(5, 5);
     auto ch = build_ch(grid);
 
@@ -122,7 +122,7 @@ TEST_CASE("Location fragility — isolation_risk in [0, 1]", "[location_fragilit
     REQUIRE(result.directional_coverage <= 1.0);
 }
 
-TEST_CASE("Location fragility — chain vs grid comparison", "[location_fragility]") {
+TEST_CASE("Location fragility - chain vs grid comparison", "[location_fragility]") {
     auto grid = make_coord_grid(7, 7);
     auto chain = make_coord_chain(20);
 
@@ -143,7 +143,7 @@ TEST_CASE("Location fragility — chain vs grid comparison", "[location_fragilit
     REQUIRE(chain_result.isolation_risk > grid_result.isolation_risk);
 }
 
-TEST_CASE("Location fragility — greedy betweenness produces removal sequence", "[location_fragility]") {
+TEST_CASE("Location fragility - greedy betweenness produces removal sequence", "[location_fragility]") {
     auto grid = make_coord_grid(5, 5);
     auto ch = build_ch(grid);
 
@@ -161,7 +161,7 @@ TEST_CASE("Location fragility — greedy betweenness produces removal sequence",
     }
 }
 
-TEST_CASE("Location fragility — curve length matches k_edges", "[location_fragility]") {
+TEST_CASE("Location fragility - curve length matches k_edges", "[location_fragility]") {
     auto grid = make_coord_grid(5, 5);
     auto ch = build_ch(grid);
 

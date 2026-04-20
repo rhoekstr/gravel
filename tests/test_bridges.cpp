@@ -7,7 +7,7 @@
 
 using namespace gravel;
 
-TEST_CASE("Tree graph — all edges are bridges", "[bridges]") {
+TEST_CASE("Tree graph - all edges are bridges", "[bridges]") {
     // Chain: 0-1-2-3 (bidirectional)
     std::vector<Edge> edges;
     for (int i = 0; i < 3; ++i) {
@@ -20,7 +20,7 @@ TEST_CASE("Tree graph — all edges are bridges", "[bridges]") {
     REQUIRE(result.bridges.size() == 3);
 }
 
-TEST_CASE("Cycle graph — no bridges", "[bridges]") {
+TEST_CASE("Cycle graph - no bridges", "[bridges]") {
     // Triangle: 0-1, 1-2, 2-0 (bidirectional)
     std::vector<Edge> edges = {
         {0, 1, 1.0}, {1, 0, 1.0},

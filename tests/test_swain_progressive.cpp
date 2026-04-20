@@ -26,7 +26,7 @@ static Polygon swain_county_polygon() {
     return p;
 }
 
-TEST_CASE("Swain County progressive fragility — Monte Carlo k=20", "[real_progressive][.]") {
+TEST_CASE("Swain County progressive fragility - Monte Carlo k=20", "[real_progressive][.]") {
     // Load Swain County OSM data
     std::string pbf_path = std::string(TEST_DATA_DIR) + "/swain_county.osm.pbf";
     OSMConfig osm_cfg;
@@ -134,7 +134,7 @@ TEST_CASE("Swain County progressive fragility — Monte Carlo k=20", "[real_prog
     std::cerr << "\n=== PASS ===\n";
 }
 
-TEST_CASE("Swain County progressive fragility — Greedy Betweenness k=50", "[real_progressive][.]") {
+TEST_CASE("Swain County progressive fragility - Greedy Betweenness k=50", "[real_progressive][.]") {
     std::string pbf_path = std::string(TEST_DATA_DIR) + "/swain_county.osm.pbf";
     OSMConfig osm_cfg;
     osm_cfg.pbf_path = pbf_path;
@@ -162,7 +162,7 @@ TEST_CASE("Swain County progressive fragility — Greedy Betweenness k=50", "[re
 
     prog_cfg.selection_strategy = SelectionStrategy::GREEDY_BETWEENNESS;
     prog_cfg.k_max = 50;
-    prog_cfg.monte_carlo_runs = 1;   // greedy is deterministic — one run
+    prog_cfg.monte_carlo_runs = 1;   // greedy is deterministic - one run
     prog_cfg.base_seed = 42;
 
     std::cerr << "\nRunning progressive fragility (GREEDY_BETWEENNESS, k_max=50)...\n";
@@ -220,7 +220,7 @@ TEST_CASE("Swain County progressive fragility — Greedy Betweenness k=50", "[re
     std::cerr << "\n=== PASS ===\n";
 }
 
-TEST_CASE("Swain County progressive fragility — Greedy Betweenness k_max_fraction=0.001", "[real_progressive][.]") {
+TEST_CASE("Swain County progressive fragility - Greedy Betweenness k_max_fraction=0.001", "[real_progressive][.]") {
     std::string pbf_path = std::string(TEST_DATA_DIR) + "/swain_county.osm.pbf";
     OSMConfig osm_cfg;
     osm_cfg.pbf_path = pbf_path;

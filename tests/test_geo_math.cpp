@@ -21,7 +21,7 @@ TEST_CASE("Haversine known distances", "[geo]") {
     REQUIRE_THAT(d2, Catch::Matchers::WithinRel(111000.0, 0.01));  // within 1%
 }
 
-TEST_CASE("Projection onto segment — midpoint", "[geo]") {
+TEST_CASE("Projection onto segment - midpoint", "[geo]") {
     Coord a = {35.0, -83.0};
     Coord b = {35.0, -82.0};
     Coord point = {35.001, -82.5};  // slightly above midpoint
@@ -33,7 +33,7 @@ TEST_CASE("Projection onto segment — midpoint", "[geo]") {
     REQUIRE(result.distance_m < 200.0);  // should be close
 }
 
-TEST_CASE("Projection onto segment — endpoint clamp", "[geo]") {
+TEST_CASE("Projection onto segment - endpoint clamp", "[geo]") {
     Coord a = {35.0, -83.0};
     Coord b = {35.0, -82.0};
 

@@ -111,7 +111,7 @@ TEST_CASE("IncrementalSSSP multiple sources", "[incremental_sssp]") {
     REQUIRE(engine.dist(1, 0) == 40);
 }
 
-TEST_CASE("IncrementalSSSP diamond graph — alternate path", "[incremental_sssp]") {
+TEST_CASE("IncrementalSSSP diamond graph - alternate path", "[incremental_sssp]") {
     auto g = make_diamond_graph();
 
     // Block the short path edge 0-1

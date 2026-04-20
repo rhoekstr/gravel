@@ -60,7 +60,7 @@ TEST_CASE("Natural connectivity SLQ vs brute-force on K_6", "[natural_connectivi
     REQUIRE_THAT(slq, Catch::Matchers::WithinRel(bf, 0.05));
 }
 
-TEST_CASE("Natural connectivity — more connected graph has higher value", "[natural_connectivity]") {
+TEST_CASE("Natural connectivity - more connected graph has higher value", "[natural_connectivity]") {
     auto path_graph = [](uint32_t n) {
         std::vector<Edge> edges;
         for (uint32_t i = 0; i + 1 < n; ++i) {

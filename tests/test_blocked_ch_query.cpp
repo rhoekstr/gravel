@@ -87,7 +87,7 @@ TEST_CASE("BlockedCHQuery on grid matches leave-one-out Dijkstra", "[blocked_ch]
 }
 
 TEST_CASE("BlockedCHQuery returns INF for bridge edge", "[blocked_ch]") {
-    // Chain: 0-1-2-3 — every edge is a bridge
+    // Chain: 0-1-2-3 - every edge is a bridge
     std::vector<Edge> edges;
     for (int i = 0; i < 3; ++i) {
         edges.push_back({(NodeID)i, (NodeID)(i + 1), 1.0});
@@ -98,7 +98,7 @@ TEST_CASE("BlockedCHQuery returns INF for bridge edge", "[blocked_ch]") {
     ShortcutIndex idx(ch);
     BlockedCHQuery blocked(ch, idx, graph);
 
-    // Block edge 1→2 — should disconnect 0 from 3
+    // Block edge 1→2 - should disconnect 0 from 3
     Weight d = blocked.distance_blocking(0, 3, {{1, 2}});
     REQUIRE(d >= INF_WEIGHT);
 }

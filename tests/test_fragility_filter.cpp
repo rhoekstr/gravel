@@ -23,7 +23,7 @@ TEST_CASE("Filtered fragility matches unfiltered on computed edges", "[fragility
     auto unfiltered = route_fragility(ch, idx, *graph, s, t);
     REQUIRE(unfiltered.valid());
 
-    // Filtered (with all filters disabled — should match exactly)
+    // Filtered (with all filters disabled - should match exactly)
     FilterConfig fc;
     fc.use_ch_level_filter = false;
     fc.use_alt_filter = false;

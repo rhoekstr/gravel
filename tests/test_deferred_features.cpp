@@ -49,7 +49,7 @@ static ArrayGraph make_two_region_graph() {
 
 // --- Border Edge Tests ---
 
-TEST_CASE("Border edges — counts cross-region edges", "[border_edges]") {
+TEST_CASE("Border edges - counts cross-region edges", "[border_edges]") {
     auto graph = make_two_region_graph();
     auto regions = make_two_regions();
     auto assignment = assign_nodes_to_regions(graph, regions);
@@ -68,7 +68,7 @@ TEST_CASE("Border edges — counts cross-region edges", "[border_edges]") {
     REQUIRE(summary.max_weight == 20.0);
 }
 
-TEST_CASE("Border edges — unassigned nodes counted separately", "[border_edges]") {
+TEST_CASE("Border edges - unassigned nodes counted separately", "[border_edges]") {
     std::vector<Coord> coords = {
         {35.25, -83.75},  // in R1
         {0.0, 0.0},       // unassigned
@@ -87,7 +87,7 @@ TEST_CASE("Border edges — unassigned nodes counted separately", "[border_edges
 
 // --- Graph Coarsening Tests ---
 
-TEST_CASE("Graph coarsening — two regions produce 2-node graph", "[graph_coarsening]") {
+TEST_CASE("Graph coarsening - two regions produce 2-node graph", "[graph_coarsening]") {
     auto graph = make_two_region_graph();
     auto regions = make_two_regions();
     auto assignment = assign_nodes_to_regions(graph, regions);
@@ -104,7 +104,7 @@ TEST_CASE("Graph coarsening — two regions produce 2-node graph", "[graph_coars
     REQUIRE(result.node_counts[1] == 2);
 }
 
-TEST_CASE("Graph coarsening — centroids computed", "[graph_coarsening]") {
+TEST_CASE("Graph coarsening - centroids computed", "[graph_coarsening]") {
     auto graph = make_two_region_graph();
     auto regions = make_two_regions();
     auto assignment = assign_nodes_to_regions(graph, regions);
@@ -122,7 +122,7 @@ TEST_CASE("Graph coarsening — centroids computed", "[graph_coarsening]") {
     REQUIRE_THAT(c0->lon, Catch::Matchers::WithinAbs(-83.675, 0.01));
 }
 
-TEST_CASE("Graph coarsening — min_border_edges filter", "[graph_coarsening]") {
+TEST_CASE("Graph coarsening - min_border_edges filter", "[graph_coarsening]") {
     auto graph = make_two_region_graph();
     auto regions = make_two_regions();
     auto assignment = assign_nodes_to_regions(graph, regions);
@@ -136,7 +136,7 @@ TEST_CASE("Graph coarsening — min_border_edges filter", "[graph_coarsening]") 
     REQUIRE(result.graph->edge_count() == 0);  // filtered out
 }
 
-TEST_CASE("Graph coarsening — internal edge counts", "[graph_coarsening]") {
+TEST_CASE("Graph coarsening - internal edge counts", "[graph_coarsening]") {
     auto graph = make_two_region_graph();
     auto regions = make_two_regions();
     auto assignment = assign_nodes_to_regions(graph, regions);
@@ -193,7 +193,7 @@ TEST_CASE("Scenario fragility uses BlockedCHQuery fast path", "[scenario_fragili
 
 // --- FIPS Crosswalk Tests ---
 
-TEST_CASE("FIPS crosswalk — state extraction from county FIPS", "[fips_crosswalk]") {
+TEST_CASE("FIPS crosswalk - state extraction from county FIPS", "[fips_crosswalk]") {
     RegionAssignment county_assignment;
     RegionSpec r;
     r.region_id = "37173";
@@ -212,7 +212,7 @@ TEST_CASE("FIPS crosswalk — state extraction from county FIPS", "[fips_crosswa
     REQUIRE(xwalk.county_to_cbsa("37173").empty());  // no CBSA assignment
 }
 
-TEST_CASE("FIPS crosswalk — counties in state", "[fips_crosswalk]") {
+TEST_CASE("FIPS crosswalk - counties in state", "[fips_crosswalk]") {
     RegionAssignment county_assignment;
 
     RegionSpec r1;

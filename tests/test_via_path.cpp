@@ -49,7 +49,7 @@ TEST_CASE("Via-path respects max_stretch and max_sharing", "[via_path]") {
 }
 
 TEST_CASE("Chain graph produces no alternatives", "[via_path]") {
-    // Chain: 0-1-2-3-4 — only one path exists
+    // Chain: 0-1-2-3-4 - only one path exists
     std::vector<Edge> edges;
     for (int i = 0; i < 4; ++i) {
         edges.push_back({(NodeID)i, (NodeID)(i + 1), 1.0});
