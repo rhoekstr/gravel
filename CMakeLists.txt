@@ -11,6 +11,19 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # object; recompile with -fPIC".
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Windows-only: tame <windows.h> preprocessor pollution. Without NOMINMAX
+# Windows defines min/max as macros, which breaks any code using
+# std::numeric_limits<T>::min() / ::max() — most notably libosmium's
+# osmium/osm/location.hpp and osmium/util/minmax.hpp. WIN32_LEAN_AND_MEAN
+# trims away the unused COM/OLE/RPC/crypto API surface that otherwise
+# bloats every compile unit that transitively sees a Windows header.
+# Already set locally in src/io/mapped_file.cpp; making it project-wide
+# prevents recurrences when new code picks up a Windows-header-pulling
+# dependency.
+if(WIN32)
+    add_compile_definitions(NOMINMAX WIN32_LEAN_AND_MEAN)
+endif()
+
 option(GRAVEL_BUILD_CLI      "Build CLI executable"        ON)
 option(GRAVEL_BUILD_PYTHON   "Build Python bindings"       OFF)
 option(GRAVEL_BUILD_TESTS    "Build tests"                 ON)
