@@ -159,7 +159,11 @@ python_files = "test_*.py"
 [tool.cibuildwheel]
 build = "cp310-* cp311-* cp312-* cp313-*"
 skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*"]
-test-command = "python -c 'import gravel; print(gravel.__version__)'"
+# TOML literal string (single-quoted) so we can embed double-quotes
+# without escaping. cmd.exe on Windows does not recognize single
+# quotes as arg delimiters, so the Python -c argument must be
+# double-quoted for the command to parse on all three platforms.
+test-command = 'python -c "import gravel; print(gravel.__version__)"'
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64"]
