@@ -9,9 +9,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Added
 - **Windows support** — `src/io/mapped_file.cpp` now has a Windows backend using `CreateFileMappingW`/`MapViewOfFile`/`UnmapViewOfFile`, with UTF-8 paths transparently converted to wide for the WinAPI. `FILE_FLAG_SEQUENTIAL_SCAN` hints the cache manager to read-ahead, matching the POSIX `madvise(MADV_SEQUENTIAL)` hint. Binary wheels now ship for `win_amd64` alongside Linux and macOS.
 - **`gravel/core/constants.h`** — centralized `PI`, `TWO_PI`, `DEG_TO_RAD`, `RAD_TO_DEG` via `std::numbers` (C++20). Replaces all uses of the POSIX `M_PI` macro across source and tests. `M_PI` was a GNU extension not exposed by MSVC's `<cmath>`, which blocked Windows builds.
+- **`FIND_PACKAGE_ARGS` on every `FetchContent_Declare`** — CMake 3.24 feature that lets builds use a system/conda-forge/vcpkg-installed package when available, and only fall back to git-cloning when no system dep exists. This makes the project conda-forge-ready out of the box (conda-forge blocks network at build time, so system deps are required there) and sidesteps systemic FetchContent git-clone hangs observed on GitHub Actions `windows-latest` runners.
 
 ### Changed
-- **CI now runs on Windows** — C++ tests execute on `windows-latest` in the matrix with `GRAVEL_USE_OSMIUM=OFF` (libosmium is unavailable on Windows). OSM tests continue to run only on Linux and macOS.
+- **Minimum CMake is now 3.24** (was 3.20) — required for `FetchContent_Declare(... FIND_PACKAGE_ARGS ...)`. Ubuntu 22.04's stock `apt install cmake` gives 3.22, which no longer suffices; 22.04 users should `pip install cmake` or `snap install cmake --classic` to get ≥3.24. Ubuntu 24.04 ships 3.28, so stock apt works there.
+- **CI now runs on Windows** — C++ tests execute on `windows-latest` in the matrix with `GRAVEL_USE_OSMIUM=OFF` (libosmium is unavailable on Windows). OSM tests continue to run only on Linux and macOS. Windows CI pre-installs Eigen + nlohmann-json + Catch2 via vcpkg; wheel builds similarly pre-install Eigen + nlohmann-json via cibuildwheel's `before-build` hook.
+- **macOS CI now installs Eigen + nlohmann-json via brew** — takes advantage of the new `FIND_PACKAGE_ARGS` path for faster configure (skips Eigen git-clone).
 - Wheel-build matrix re-includes `windows-latest`; `pyproject.toml` re-adds the Windows classifier.
 
 ### Notes

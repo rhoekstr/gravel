@@ -23,12 +23,16 @@ jobs:
             install-cmd: sudo apt-get update && sudo apt-get install -y libosmium2-dev libeigen3-dev nlohmann-json3-dev
             osm-flag: "-DGRAVEL_USE_OSMIUM=ON"
           - os: macos-latest
-            install-cmd: brew install libosmium protozero
+            install-cmd: brew install libosmium protozero eigen nlohmann-json
             osm-flag: "-DGRAVEL_USE_OSMIUM=ON"
           - os: windows-latest
-            # No system libosmium on Windows — exercise the core library only.
-            # OSM loaders on Windows are a future item (see CHANGELOG).
-            install-cmd: echo "No system deps needed"
+            # Windows uses vcpkg to pre-install Eigen + nlohmann-json +
+            # Catch2 so CMake's find_package succeeds (via our
+            # FIND_PACKAGE_ARGS on each FetchContent_Declare). Without
+            # this, FetchContent's git-clone of Eigen systemically
+            # hangs on GHA windows-latest runners.
+            # No system libosmium on Windows — exercise core lib only.
+            install-cmd: "vcpkg install eigen3 nlohmann-json catch2"
             osm-flag: "-DGRAVEL_USE_OSMIUM=OFF"
 
     steps:
@@ -38,12 +42,23 @@ jobs:
         shell: bash
         run: ${{ matrix.install-cmd }}
 
-      - name: Configure CMake
+      - name: Configure CMake (non-Windows)
+        if: runner.os != 'Windows'
         shell: bash
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
             -DGRAVEL_BUILD_TESTS=ON \
+            ${{ matrix.osm-flag }}
+
+      - name: Configure CMake (Windows, with vcpkg toolchain)
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ matrix.build-type }} \
+            -DGRAVEL_BUILD_TESTS=ON \
+            -DCMAKE_TOOLCHAIN_FILE="$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake" \
             ${{ matrix.osm-flag }}
 
       - name: Build

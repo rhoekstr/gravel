@@ -78,7 +78,7 @@ wheel.packages = ["python/gravel"]
 build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.verbose = false
-cmake.version = ">=3.20"
+cmake.version = ">=3.24"
 
 # Editable install settings: redirect imports to a persistent editable location
 # so `pip install -e .` properly places _gravel.so alongside the gravel package.
@@ -172,3 +172,9 @@ environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
+# Pre-install C++ deps via vcpkg so CMake's find_package (enabled by
+# FIND_PACKAGE_ARGS on our FetchContent_Declare entries) picks them up,
+# bypassing git-clone over Windows runner networks which has shown
+# multi-minute hangs for Eigen in particular.
+before-build = "vcpkg install eigen3 nlohmann-json"
+environment = { CMAKE_ARGS = "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake" }
