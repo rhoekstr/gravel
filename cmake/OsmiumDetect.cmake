@@ -35,37 +35,30 @@ set(_gravel_osmium_status_reason "")
 set(_gravel_osmium_status_hint "")
 
 function(_gravel_find_osmium_headers out_var out_version)
-    # Prefer the CMake config module if libosmium installed one (rare but
-    # possible via vcpkg / custom builds).
-    find_package(Osmium 2.20 QUIET CONFIG)
-    if(Osmium_FOUND)
-        set(${out_var} "${OSMIUM_INCLUDE_DIRS}" PARENT_SCOPE)
-        set(${out_version} "${Osmium_VERSION}" PARENT_SCOPE)
-        return()
-    endif()
-
-    # Fall back to header search on common install roots. Covers brew
-    # (/opt/homebrew or /usr/local), apt (/usr/include), and vcpkg toolchain
-    # (CMAKE_PREFIX_PATH takes care of it via find_path).
-    find_path(_osmium_include_dir osmium/osm.hpp
+    # libosmium is header-only; some distributions ship an OsmiumConfig.cmake
+    # and some don't. Do a single find_path against common install roots
+    # (including the active CMAKE_PREFIX_PATH, which the vcpkg toolchain
+    # populates). This avoids the 20+ minute slowdown we saw when
+    # find_package(Osmium CONFIG) on Windows CI with many vcpkg packages
+    # triggered an apparently expensive vcpkg-wide config scan.
+    find_path(GRAVEL_OSMIUM_INCLUDE_DIR osmium/osm.hpp
+        HINTS
+            ${CMAKE_PREFIX_PATH}
         PATHS
             /opt/homebrew/include
             /usr/local/include
             /usr/include
-            $ENV{VCPKG_INSTALLATION_ROOT}/installed/x64-windows/include
-        PATH_SUFFIXES include
-        NO_CACHE
     )
-    if(_osmium_include_dir)
+    if(GRAVEL_OSMIUM_INCLUDE_DIR)
         # Parse version from the header — libosmium/version.hpp defines
         # LIBOSMIUM_VERSION_STRING.
-        if(EXISTS "${_osmium_include_dir}/osmium/version.hpp")
-            file(STRINGS "${_osmium_include_dir}/osmium/version.hpp" _ver_line
+        if(EXISTS "${GRAVEL_OSMIUM_INCLUDE_DIR}/osmium/version.hpp")
+            file(STRINGS "${GRAVEL_OSMIUM_INCLUDE_DIR}/osmium/version.hpp" _ver_line
                  REGEX "LIBOSMIUM_VERSION_STRING")
             string(REGEX MATCH "\"([0-9.]+)\"" _m "${_ver_line}")
             set(${out_version} "${CMAKE_MATCH_1}" PARENT_SCOPE)
         endif()
-        set(${out_var} "${_osmium_include_dir}" PARENT_SCOPE)
+        set(${out_var} "${GRAVEL_OSMIUM_INCLUDE_DIR}" PARENT_SCOPE)
     endif()
 endfunction()
 
