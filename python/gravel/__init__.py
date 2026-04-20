@@ -167,20 +167,29 @@ from ._gravel import (
     validate_shortcut_interaction,
 )
 
-# Conditional OSM imports (only available when built with GRAVEL_USE_OSMIUM=ON)
+# OSM loader availability depends on how the extension was built.
+# PyPI wheels from v2.2.2+ ship with OSM enabled on every platform; older
+# wheels and source builds without libosmium will have HAS_OSM = False.
+# The supported runtime check is `gravel.HAS_OSM`:
+#
+#     import gravel
+#     if gravel.HAS_OSM:
+#         g = gravel.load_osm_graph(cfg)
 try:
     from ._gravel import (
         OSMConfig,
         SpeedProfile,
         load_osm_graph,
-        load_osm_graph_with_labels,
     )
+    HAS_OSM = True
 except ImportError:
-    pass  # OSM support not compiled in
+    HAS_OSM = False
 
-__version__ = "2.2.1"
+__version__ = "2.2.2"
 
 __all__ = [
+    # Feature flags
+    "HAS_OSM",
     # Core
     "Graph", "CH", "CHQuery", "RouteResult", "Coord", "Polygon",
     "build_ch", "build_ch_with_config", "CHBuildConfig",

@@ -50,7 +50,7 @@ add_executable(gravel_tests
     test_inter_region.cpp
 )
 
-if(GRAVEL_USE_OSMIUM)
+if(GRAVEL_OSMIUM_ENABLED)
     target_sources(gravel_tests PRIVATE
         test_real_osm.cpp
         test_swain_progressive.cpp

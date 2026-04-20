@@ -27,13 +27,14 @@ jobs:
             osm-flag: "-DGRAVEL_USE_OSMIUM=ON"
           - os: windows-latest
             # Windows uses vcpkg to pre-install Eigen + nlohmann-json +
-            # Catch2 so CMake's find_package succeeds (via our
+            # Catch2 + Spectra so CMake's find_package succeeds (via our
             # FIND_PACKAGE_ARGS on each FetchContent_Declare). Without
-            # this, FetchContent's git-clone of Eigen systemically
-            # hangs on GHA windows-latest runners.
-            # No system libosmium on Windows — exercise core lib only.
-            install-cmd: "vcpkg install eigen3 nlohmann-json catch2 spectra"
-            osm-flag: "-DGRAVEL_USE_OSMIUM=OFF"
+            # this, FetchContent's git-clone systemically hangs on GHA
+            # windows-latest runners. libosmium + protozero + runtime
+            # libs are installed too — as of v2.2.2, OSM is supported
+            # on Windows.
+            install-cmd: "vcpkg install eigen3 nlohmann-json catch2 spectra libosmium protozero zlib expat bzip2 lz4"
+            osm-flag: "-DGRAVEL_USE_OSMIUM=ON"
 
     steps:
       - uses: actions/checkout@v4

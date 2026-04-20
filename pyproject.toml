@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "gravel-fragility"
-version = "2.2.1"
+version = "2.2.2"
 description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -89,9 +89,13 @@ GRAVEL_BUILD_PYTHON = "ON"
 GRAVEL_BUILD_CLI = "OFF"
 GRAVEL_BUILD_TESTS = "OFF"
 GRAVEL_BUILD_BENCH = "OFF"
-# OSM disabled by default in PyPI wheels (libosmium not available on PyPI).
-# For OSM support, install via conda-forge or build from source with GRAVEL_USE_OSMIUM=ON.
-GRAVEL_USE_OSMIUM = "OFF"
+# AUTO is the source-build-friendly default — builds gracefully with or
+# without libosmium and emits a clear CMake status message either way.
+# cibuildwheel explicitly installs libosmium before each wheel build and
+# then passes GRAVEL_USE_OSMIUM=ON so wheel builds fail fast if the
+# pre-install didn't happen (rather than silently shipping an OSM-less
+# wheel because of a broken before-build hook).
+GRAVEL_USE_OSMIUM = "AUTO"
 
 # Source distribution: include everything needed to build from source
 [tool.scikit-build.sdist]
@@ -163,22 +167,41 @@ skip = ["*-win32", "*-manylinux_i686", "*-musllinux_*"]
 # without escaping. cmd.exe on Windows does not recognize single
 # quotes as arg delimiters, so the Python -c argument must be
 # double-quoted for the command to parse on all three platforms.
-test-command = 'python -c "import gravel; print(gravel.__version__)"'
+# Also assert HAS_OSM — every wheel shipped from CI must have OSM
+# enabled (the before-all hooks install libosmium); if a wheel escapes
+# CI without OSM, the test_command fails fast.
+test-command = 'python -c "import gravel; assert gravel.HAS_OSM, \"OSM missing\"; print(gravel.__version__)"'
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64"]
+# manylinux_2_17 (Rocky Linux 8) has zlib/bz2/expat headers pre-installed.
+# libosmium + protozero are header-only C++ — clone a pinned release and
+# drop headers under /usr/local/include where CMake's find_path picks
+# them up. lz4-devel comes from the extras repo; its absence downgrades
+# libosmium support (still functional, just no lz4-compressed PBF input).
+before-all = """
+yum install -y lz4-devel || true
+cd /tmp
+curl -sL https://github.com/osmcode/libosmium/archive/refs/tags/v2.20.0.tar.gz | tar xz
+cp -r libosmium-2.20.0/include/osmium /usr/local/include/
+curl -sL https://github.com/mapbox/protozero/archive/refs/tags/v1.7.1.tar.gz | tar xz
+cp -r protozero-1.7.1/include/protozero /usr/local/include/
+"""
+environment = { CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
 
 [tool.cibuildwheel.macos]
 archs = ["x86_64", "arm64"]
 # std::filesystem requires macOS 10.15+. cibuildwheel's default of 10.9
 # triggers "'exists' is unavailable" errors on the x86_64 wheels.
-environment = { MACOSX_DEPLOYMENT_TARGET = "10.15" }
+before-all = "brew install libosmium protozero lz4"
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.15", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
 # Pre-install C++ deps via vcpkg so CMake's find_package (enabled by
 # FIND_PACKAGE_ARGS on our FetchContent_Declare entries) picks them up,
 # bypassing git-clone over Windows runner networks which has shown
-# multi-minute hangs for Eigen in particular.
-before-build = "vcpkg install eigen3 nlohmann-json"
-environment = { CMAKE_ARGS = "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake" }
+# multi-minute hangs for Eigen in particular. libosmium + protozero +
+# runtime libs (zlib/expat/bz2/lz4) are all vcpkg ports.
+before-all = "vcpkg install libosmium protozero zlib expat bzip2 lz4"
+environment = { CMAKE_ARGS = "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake -DGRAVEL_USE_OSMIUM=ON" }

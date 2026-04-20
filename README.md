@@ -16,27 +16,48 @@ The library is built around contraction hierarchies for fast shortest-path queri
 
 ## Installation
 
-### conda (recommended for C++ dependencies)
-
-```bash
-conda install -c conda-forge gravel-fragility
-```
-
-### pip (source build — requires C++ compiler)
+### pip
 
 ```bash
 pip install gravel-fragility
 ```
 
-For OSM data loading, install libosmium separately (`brew install libosmium` on macOS, `apt install libosmium2-dev` on Debian/Ubuntu).
+Binary wheels for Linux (x86_64, aarch64), macOS (x86_64, arm64), and Windows (AMD64) × Python 3.10–3.13. OSM loaders (`load_osm_graph`, `OSMConfig`, `SpeedProfile`) ship enabled on every wheel from v2.2.2 onward — no extra system dependencies required.
+
+### conda-forge
+
+```bash
+conda install -c conda-forge gravel-fragility
+```
+
+Same feature set as the PyPI wheels plus the usual conda benefits (pinned C++ ABI, binary deps managed by conda).
 
 ### From source
 
 ```bash
 git clone https://github.com/rhoekstr/gravel.git
 cd gravel
-cmake -B build -DGRAVEL_BUILD_PYTHON=ON -DGRAVEL_USE_OSMIUM=ON
+cmake -B build -DGRAVEL_BUILD_PYTHON=ON
 cmake --build build -j
+```
+
+The default `GRAVEL_USE_OSMIUM=AUTO` enables OSM loaders when `libosmium` is present on the system and disables them gracefully when it isn't. CMake prints a clear status message either way. To hard-require libosmium (fail configure if missing), pass `-DGRAVEL_USE_OSMIUM=ON`. To opt out entirely, `-DGRAVEL_USE_OSMIUM=OFF`.
+
+Install libosmium with:
+- **macOS**: `brew install libosmium protozero`
+- **Debian/Ubuntu**: `sudo apt install libosmium2-dev`
+- **conda**: `conda install -c conda-forge libosmium`
+- **vcpkg (Windows)**: `vcpkg install libosmium protozero`
+
+### Checking OSM availability at runtime
+
+```python
+import gravel
+if gravel.HAS_OSM:
+    graph = gravel.load_osm_graph("county.osm.pbf", gravel.SpeedProfile.car())
+else:
+    # Running on a build without OSM support (e.g., source build without libosmium).
+    raise RuntimeError("gravel was built without OSM support")
 ```
 
 ## Quick Start

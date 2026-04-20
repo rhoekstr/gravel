@@ -4,6 +4,30 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.2] — 2026-04-20
+
+### Added
+- **OSM support now ships in every PyPI wheel on every platform** (Linux x86_64/aarch64, macOS x86_64/arm64, Windows AMD64 — 20 wheels). `cibuildwheel` `before-all` hooks install libosmium + protozero + runtime libs (zlib/expat/bz2/lz4) on each platform before the wheel build: headers-only checkout for manylinux, `brew install` for macOS, `vcpkg install` for Windows. `load_osm_graph`, `OSMConfig`, `SpeedProfile` are present in the `gravel` module after `pip install gravel-fragility` — no source build required.
+- **`gravel.HAS_OSM: bool`** — public feature flag for runtime OSM detection. Replaces the implicit `hasattr(gravel, "load_osm_graph")` pattern. Guaranteed to exist on every build (True when OSM is compiled in, False otherwise) so downstream code can branch cleanly.
+
+### Fixed
+- `python/gravel/__init__.py` no longer imports `load_osm_graph_with_labels` — that symbol exists in the C++ core (`OSMLoadResult load_osm_graph_with_labels(...)`) but was never exposed via pybind11, so the `from ._gravel import` always raised `ImportError` and the old `except: pass` silently set OSM imports as all-or-nothing. The stale import masked that `HAS_OSM` could never be `True` via the old pattern. If you need per-edge OSM tags in Python, open an issue — we'll add the `OSMLoadResult` binding in a future release.
+- **`GRAVEL_USE_OSMIUM` now supports `AUTO`** as the default. Three values:
+  - `AUTO` (default) — enable if libosmium is found, disable gracefully if not
+  - `ON` — hard-require libosmium, fail configure if missing
+  - `OFF` — never enable, even if libosmium is present
+  Source-build users no longer need to manually pass any flag to get OSM loaders when libosmium is installed. `cmake/OsmiumDetect.cmake` centralizes the detection + version check (≥2.20) + informative status messages in one place.
+
+### Changed
+- **CMake OSM detection emits loud status messages** in every configure run. Enabled builds print the libosmium path + version. Disabled AUTO builds print platform-specific install commands (`brew install libosmium protozero` / `sudo apt install libosmium2-dev` / `conda install -c conda-forge libosmium` / `vcpkg install libosmium protozero`) plus the `-DGRAVEL_USE_OSMIUM=ON` escape hatch. Source builders never need to guess what they got.
+- **Windows CI now tests the OSM code path.** `vcpkg install libosmium protozero zlib expat bzip2 lz4` runs before the Windows C++ tests configure, and the matrix entry's `osm-flag` changed from `OFF` to `ON`.
+- **PyPI wheel test command** now asserts `gravel.HAS_OSM` — if the `before-all` hook ever fails to install libosmium but the build somehow completes, the test fails fast rather than silently shipping a no-OSM wheel.
+
+### Notes
+- Source-distribution installs (`pip install gravel-fragility --no-binary gravel-fragility`) behave on the AUTO default: users with libosmium get OSM automatically; users without it get a fully working library minus OSM loaders and a clear CMake message explaining how to enable them.
+- conda-forge recipe (PR [#33037](https://github.com/conda-forge/staged-recipes/pull/33037)) will be updated to target v2.2.2. The pybind11 patch remains necessary there (network-blocked build sandbox).
+
+
 ## [2.2.1] — 2026-04-19
 
 ### Added

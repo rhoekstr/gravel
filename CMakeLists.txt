@@ -15,7 +15,14 @@ option(GRAVEL_BUILD_CLI      "Build CLI executable"        ON)
 option(GRAVEL_BUILD_PYTHON   "Build Python bindings"       OFF)
 option(GRAVEL_BUILD_TESTS    "Build tests"                 ON)
 option(GRAVEL_BUILD_BENCH    "Build benchmarks"            OFF)
-option(GRAVEL_USE_OSMIUM     "Build OSM graph support"     OFF)
+# GRAVEL_USE_OSMIUM accepts three values (see cmake/OsmiumDetect.cmake for
+# the normalization logic):
+#   AUTO (default) — enable if libosmium is found, disable gracefully if not
+#   ON             — hard-require libosmium (error if missing)
+#   OFF            — never enable OSM, even if libosmium is available
+set(GRAVEL_USE_OSMIUM "AUTO" CACHE STRING
+    "Build OSM graph support: AUTO (detect), ON (require), OFF (never)")
+set_property(CACHE GRAVEL_USE_OSMIUM PROPERTY STRINGS "AUTO" "ON" "OFF")
 option(GRAVEL_USE_ARROW      "Build Arrow/Parquet output"  OFF)
 option(GRAVEL_ENABLE_LTO     "Enable link-time optimization" OFF)
 option(GRAVEL_ENABLE_PGO     "Enable profile-guided optimization (set GRAVEL_PGO_DIR)" OFF)
@@ -45,6 +52,7 @@ if(GRAVEL_ENABLE_PGO)
 endif()
 
 include(cmake/Dependencies.cmake)
+include(cmake/OsmiumDetect.cmake)
 
 # ===========================================================================
 # Sub-library targets — strict dependency DAG:
@@ -178,23 +186,18 @@ add_library(gravel-geo
 )
 target_link_libraries(gravel-geo PUBLIC gravel-core gravel-simplify nlohmann_json::nlohmann_json)
 
-if(GRAVEL_USE_OSMIUM)
+if(GRAVEL_OSMIUM_ENABLED)
+    # GRAVEL_OSMIUM_ENABLED / GRAVEL_OSMIUM_INCLUDE_DIRS / GRAVEL_OSMIUM_VERSION
+    # are set by cmake/OsmiumDetect.cmake — it runs find_package + header
+    # fallback + version check + status messaging in one place, so this block
+    # just has to wire up the library.
     target_sources(gravel-geo PRIVATE src/geo/osm_graph.cpp)
-
-    find_package(Osmium QUIET)
-    if(NOT Osmium_FOUND)
-        find_path(OSMIUM_INCLUDE_DIR osmium/osm.hpp
-                  PATHS /opt/homebrew/include /usr/local/include /usr/include)
-        if(OSMIUM_INCLUDE_DIR)
-            target_include_directories(gravel-geo PUBLIC ${OSMIUM_INCLUDE_DIR})
-        else()
-            message(FATAL_ERROR "libosmium not found. Install with: brew install libosmium")
-        endif()
-    else()
-        target_include_directories(gravel-geo PUBLIC ${OSMIUM_INCLUDE_DIRS})
-    endif()
+    target_include_directories(gravel-geo PUBLIC ${GRAVEL_OSMIUM_INCLUDE_DIRS})
     target_compile_definitions(gravel-geo PUBLIC GRAVEL_HAS_OSMIUM)
 
+    # libosmium's OSM readers need these at runtime. zlib is required by
+    # PBF; expat drives XML parsing; bz2 and lz4 are optional compression
+    # formats and libosmium functions without them (we just emit a warning).
     find_package(ZLIB REQUIRED)
     find_package(BZip2 QUIET)
     find_package(EXPAT QUIET)
