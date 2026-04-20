@@ -221,9 +221,16 @@ if(GRAVEL_OSMIUM_ENABLED)
     if(EXPAT_FOUND)
         target_link_libraries(gravel-geo PUBLIC ${EXPAT_LIBRARIES})
     endif()
-    find_library(LZ4_LIBRARY lz4 PATHS /opt/homebrew/lib /usr/local/lib)
-    if(LZ4_LIBRARY)
-        target_link_libraries(gravel-geo PUBLIC ${LZ4_LIBRARY})
+    # lz4 is an optional PBF compression codec. Off by default on wheels
+    # because on GHA's macos runners /opt/homebrew/lib/liblz4.dylib targets
+    # the current macOS (15+), breaking delocate for our 11.0 wheel target.
+    # Source builds and conda-forge enable it.
+    option(GRAVEL_OSMIUM_LZ4 "Link libosmium's optional lz4 PBF codec" ON)
+    if(GRAVEL_OSMIUM_LZ4)
+        find_library(LZ4_LIBRARY lz4 PATHS /opt/homebrew/lib /usr/local/lib)
+        if(LZ4_LIBRARY)
+            target_link_libraries(gravel-geo PUBLIC ${LZ4_LIBRARY})
+        endif()
     endif()
 endif()
 

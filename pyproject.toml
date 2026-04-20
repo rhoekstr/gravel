@@ -195,17 +195,16 @@ environment = { CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
 archs = ["x86_64", "arm64"]
 # std::filesystem requires macOS 10.15+. cibuildwheel's default of 10.9
 # triggers "'exists' is unavailable" errors on the x86_64 wheels.
-# Intentionally skip lz4: brew's lz4 is built targeting the current
-# runner macOS (14+), which trips delocate with
+# GRAVEL_OSMIUM_LZ4=OFF: GHA's macos runners have /opt/homebrew/lib/liblz4.dylib
+# pre-installed (built for macOS 15+), which our find_library(lz4) picks
+# up even when we don't brew-install lz4 ourselves. When delocate tries
+# to vendor it into a macos_11_0_arm64 wheel, it fails with
 #   "Library dependencies do not satisfy target MacOS version 11.0"
-# when we try to bundle into a macos_11_0_arm64 wheel. libosmium + protozero
-# are header-only so the macOS target only matters for the .dylibs we
-# link against — zlib/bz2/expat are system libs and match the target
-# automatically. We lose lz4-compressed PBF support on macOS wheels
-# (rare codec); users who need it can pip-build from sdist after
-# `brew install lz4`.
+# Skipping the find_library avoids the issue. libosmium's lz4 support
+# is rare anyway (most PBF uses deflate). Users who need it can build
+# from sdist after `brew install lz4`.
 before-all = "brew install libosmium protozero"
-environment = { MACOSX_DEPLOYMENT_TARGET = "10.15", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
+environment = { MACOSX_DEPLOYMENT_TARGET = "10.15", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON -DGRAVEL_OSMIUM_LZ4=OFF" }
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
@@ -222,4 +221,7 @@ environment = { CMAKE_ARGS = "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsyste
 # bz2.dll / liblz4.dll so the resulting wheel doesn't raise
 #   ImportError: DLL load failed while importing _gravel
 # at install time on user machines that don't have vcpkg.
-repair-wheel-command = "delvewheel repair -w {dest_dir} --add-path C:/vcpkg/installed/x64-windows/bin {wheel}"
+# `python -m delvewheel` (not bare `delvewheel`): cibuildwheel installs
+# delvewheel into its managed venv but doesn't always put the bin dir
+# on cmd.exe's PATH. Invoking via `python -m` works in both cases.
+repair-wheel-command = "python -m delvewheel repair -w {dest_dir} --add-path C:/vcpkg/installed/x64-windows/bin {wheel}"
