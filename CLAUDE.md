@@ -4,7 +4,7 @@ The single reference for working in this repository — what Gravel is, its arch
 invariants, and how to build/test it. **Canonical, version-controlled copy.** Keep it in sync with
 the code (and with `REFERENCE.md` / `CHANGELOG.md` / `docs/PRD.md`).
 
-> Gravel is **published** (PyPI `gravel-fragility`, conda-forge; current **2.2.2**). Changes here
+> Gravel is **published** (PyPI `gravel-fragility`, conda-forge; current **2.2.3**). Changes here
 > ship to real users — preserve the public API and the wheel build, or bump versions deliberately.
 
 ## The one rule that can't bend (READ FIRST): the sub-library DAG

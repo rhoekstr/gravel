@@ -216,10 +216,12 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.2.0}
+  version = {2.2.3}
 }
 ```
 
-## About the Author
+## About
+
+Gravel is an [Awry Labs](https://awrylabs.com/) project — see the [Gravel project page](https://awrylabs.com/gravel.html) for an overview. Also from Awry Labs: [Kindling](https://awrylabs.com/kindling.html).
 
 Built by Robert Hoekstra — more projects and writing at [awrylabs.com](https://awrylabs.com/).

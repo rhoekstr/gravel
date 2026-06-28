@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "gravel-fragility"
-version = "2.2.2"
+version = "2.2.3"
 description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -67,6 +67,8 @@ Documentation = "https://rhoekstr.github.io/gravel/"
 Repository = "https://github.com/rhoekstr/gravel"
 Issues = "https://github.com/rhoekstr/gravel/issues"
 Changelog = "https://github.com/rhoekstr/gravel/blob/main/CHANGELOG.md"
+"Project Page (Awry Labs)" = "https://awrylabs.com/gravel.html"
+"Kindling (related project)" = "https://awrylabs.com/kindling.html"
 "Author Website" = "https://awrylabs.com/"
 
 # ============================================================

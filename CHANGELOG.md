@@ -4,6 +4,11 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.3] — 2026-06-28
+
+### Changed
+- **Package metadata now links to the [Awry Labs](https://awrylabs.com/) project pages.** The PyPI sidebar (`[project.urls]`) gains a *Project Page (Awry Labs)* link (https://awrylabs.com/gravel.html) and a *Kindling (related project)* cross-link (https://awrylabs.com/kindling.html); the README "About" section carries the same links. No code or API changes — metadata only.
+
 ## [2.2.2] — 2026-04-20
 
 ### Added
