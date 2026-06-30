@@ -28,22 +28,30 @@ FragilityResult route_fragility(const ContractionResult& ch,
     size_t num_edges = result.primary_path.size() - 1;
     result.edge_fragilities.resize(num_edges);
 
-    // 2. For each path edge, compute replacement distance.
-    BlockedCHQuery blocked(ch, shortcut_idx, graph);
+    // 2. Each path edge's replacement distance is independent — block that one edge and
+    //    re-query. Parallelize over edges with a thread-local BlockedCHQuery (the same
+    //    pattern batch_fragility uses over O-D pairs). Writes target distinct result slots;
+    //    primary_path / primary_distance are read-only. Signed index for MSVC OpenMP 2.0.
+    const int64_t n = static_cast<int64_t>(num_edges);
+    #pragma omp parallel if(n > 4)
+    {
+        BlockedCHQuery blocked(ch, shortcut_idx, graph);
 
-    for (size_t i = 0; i < num_edges; ++i) {
-        NodeID u = result.primary_path[i];
-        NodeID v = result.primary_path[i + 1];
+        #pragma omp for schedule(dynamic)
+        for (int64_t i = 0; i < n; ++i) {
+            NodeID u = result.primary_path[i];
+            NodeID v = result.primary_path[i + 1];
 
-        EdgeFragility& ef = result.edge_fragilities[i];
-        ef.source = u;
-        ef.target = v;
-        ef.replacement_distance = blocked.distance_blocking(source, target, {{u, v}});
+            EdgeFragility& ef = result.edge_fragilities[i];
+            ef.source = u;
+            ef.target = v;
+            ef.replacement_distance = blocked.distance_blocking(source, target, {{u, v}});
 
-        if (ef.replacement_distance >= INF_WEIGHT) {
-            ef.fragility_ratio = std::numeric_limits<double>::infinity();
-        } else {
-            ef.fragility_ratio = ef.replacement_distance / result.primary_distance;
+            if (ef.replacement_distance >= INF_WEIGHT) {
+                ef.fragility_ratio = std::numeric_limits<double>::infinity();
+            } else {
+                ef.fragility_ratio = ef.replacement_distance / result.primary_distance;
+            }
         }
     }
 

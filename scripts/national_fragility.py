@@ -19,6 +19,7 @@ import sys
 import tempfile
 import time
 import urllib.request
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
 
 import geopandas as gpd
@@ -143,6 +144,46 @@ def analyze_county(county_pbf, centroid_lat, centroid_lon, radius_meters, mc_run
     }
 
 
+def _process_one_county(task):
+    """Worker: extract + analyze a single county. Top-level so it is picklable for
+    ProcessPoolExecutor (counties are independent; only the shared state PBF is read).
+
+    Returns a dict with the CSV identity fields, the analysis ``result``, and ``dt``.
+    """
+    (state_fips, state_name, state_pbf, fips, name, geom,
+     centroid_y, centroid_x, radius, mc_runs, pbf_dir, omp_threads) = task
+
+    # Cap OpenMP threads per worker so a pool of W workers doesn't oversubscribe the
+    # box (W processes x all-cores each). 0 leaves the library default (use all cores).
+    if omp_threads and getattr(gravel, "HAS_OPENMP", False):
+        gravel.set_max_threads(omp_threads)
+
+    t0 = time.time()
+    county_pbf = os.path.join(pbf_dir, f"{fips}.osm.pbf")
+    tmp_geojson = None
+    try:
+        buffered = buffer_polygon_meters(geom, 10000)
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".geojson", delete=False) as tmp:
+            tmp_geojson = tmp.name
+            feature = {"type": "Feature", "geometry": mapping(buffered), "properties": {}}
+            json.dump({"type": "FeatureCollection", "features": [feature]}, tmp)
+        extract_county_pbf(state_pbf, tmp_geojson, county_pbf)
+        result = analyze_county(county_pbf, centroid_y, centroid_x, radius, mc_runs)
+    except Exception as e:
+        result = {"notes": f"error: {e}"}
+    finally:
+        if tmp_geojson and os.path.exists(tmp_geojson):
+            os.unlink(tmp_geojson)
+        if os.path.exists(county_pbf):
+            os.unlink(county_pbf)
+
+    return {
+        "fips": fips, "county_name": name,
+        "state_fips": state_fips, "state_name": state_name,
+        "result": result, "dt": time.time() - t0,
+    }
+
+
 def load_county_boundaries(geojson_path):
     """Load county boundaries, return GeoDataFrame with FIPS, name, geometry."""
     gdf = gpd.read_file(geojson_path)
@@ -177,7 +218,19 @@ def main():
     parser.add_argument("--skip-download", action="store_true", help="Skip PBF downloads (use cached)")
     parser.add_argument("--pbf-dir", default="/tmp/gravel_pbf", help="Directory for PBF downloads")
     parser.add_argument("--keep-pbf", action="store_true", help="Keep state PBFs after processing")
+    parser.add_argument("--jobs", "-j", type=int, default=1,
+                        help="Counties to process in parallel via a process pool (default 1). "
+                             "Each worker's OpenMP threads are capped to cores//jobs to avoid "
+                             "oversubscription.")
     args = parser.parse_args()
+
+    jobs = max(1, args.jobs)
+    cpu = os.cpu_count() or 1
+    # 0 = leave the OpenMP default (single worker gets all cores).
+    omp_threads = max(1, cpu // jobs) if jobs > 1 else 0
+    if jobs > 1:
+        print(f"  Parallel: {jobs} worker processes x {omp_threads} OpenMP threads each "
+              f"({cpu} cores detected)")
 
     os.makedirs(args.output_dir, exist_ok=True)
     os.makedirs(args.pbf_dir, exist_ok=True)
@@ -249,73 +302,53 @@ def main():
 
         radius = RADIUS_OVERRIDE.get(state_fips, DEFAULT_RADIUS)
 
-        for county in pending:
-            fips = county["fips"]
-            name = county["county_name"]
-            geom = county["geometry"]
-            centroid = geom.centroid
+        # One independent task per pending county; only the shared state PBF is read.
+        tasks = [
+            (
+                state_fips, state_name, state_pbf,
+                county["fips"], county["county_name"], county["geometry"],
+                county["geometry"].centroid.y, county["geometry"].centroid.x,
+                radius, args.mc_runs, args.pbf_dir, omp_threads,
+            )
+            for county in pending
+        ]
 
-            print(f"  {fips} {name}...", end=" ", flush=True)
-            t0 = time.time()
-
-            try:
-                # Buffer polygon
-                buffered = buffer_polygon_meters(geom, 10000)
-
-                # Write buffered polygon as GeoJSON for osmium
-                with tempfile.NamedTemporaryFile(mode="w", suffix=".geojson", delete=False) as tmp:
-                    tmp_geojson = tmp.name
-                    feature = {
-                        "type": "Feature",
-                        "geometry": mapping(buffered),
-                        "properties": {},
-                    }
-                    json.dump({"type": "FeatureCollection", "features": [feature]}, tmp)
-
-                # Extract from state PBF
-                county_pbf = os.path.join(args.pbf_dir, f"{fips}.osm.pbf")
-                extract_county_pbf(state_pbf, tmp_geojson, county_pbf)
-                os.unlink(tmp_geojson)
-
-                # Analyze
-                result = analyze_county(
-                    county_pbf, centroid.y, centroid.x, radius, args.mc_runs)
-
-                # Clean up county PBF
-                if os.path.exists(county_pbf):
-                    os.unlink(county_pbf)
-
-            except Exception as e:
-                result = {"notes": f"error: {e}"}
-
-            dt = time.time() - t0
-            total_time += dt
+        # CSV + checkpoint writes happen here in the parent only — no cross-process race.
+        def handle(out):
+            nonlocal total_counties, total_time
+            result = out["result"]
+            total_time += out["dt"]
             total_counties += 1
 
-            # Build CSV row
             row = {
-                "fips": fips,
-                "county_name": name,
-                "state_fips": state_fips,
-                "state_name": state_name,
+                "fips": out["fips"],
+                "county_name": out["county_name"],
+                "state_fips": out["state_fips"],
+                "state_name": out["state_name"],
             }
             for field in csv_fields[4:]:
                 row[field] = result.get(field, "")
-
             writer.writerow(row)
             csv_file.flush()
 
-            # Update checkpoint
-            completed.add(fips)
+            completed.add(out["fips"])
             with open(checkpoint_path, "w") as f:
                 json.dump(sorted(completed), f)
 
             risk = result.get("isolation_risk", "N/A")
             notes = result.get("notes", "")
-            if notes:
-                print(f"{dt:.1f}s — {notes}")
-            else:
-                print(f"{dt:.1f}s — risk={risk:.3f}")
+            detail = notes if notes else (
+                f"risk={risk:.3f}" if isinstance(risk, (int, float)) else f"risk={risk}")
+            print(f"  {out['fips']} {out['county_name']}: {out['dt']:.1f}s — {detail}")
+
+        if jobs == 1:
+            for task in tasks:
+                handle(_process_one_county(task))
+        else:
+            with ProcessPoolExecutor(max_workers=jobs) as pool:
+                futures = [pool.submit(_process_one_county, t) for t in tasks]
+                for fut in as_completed(futures):
+                    handle(fut.result())
 
         # Clean up state PBF
         if not args.keep_pbf and os.path.exists(state_pbf):

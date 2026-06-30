@@ -78,7 +78,7 @@ include(cmake/OsmiumDetect.cmake)
 #   gravel → INTERFACE linking all of the above
 # ===========================================================================
 
-find_package(OpenMP QUIET)
+include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/OpenMPDetect.cmake)
 
 # --- gravel-core: graph representation, basic algorithms, utilities ---
 add_library(gravel-core
@@ -103,6 +103,8 @@ target_include_directories(gravel-core PUBLIC
 )
 if(OpenMP_CXX_FOUND)
     target_link_libraries(gravel-core PUBLIC OpenMP::OpenMP_CXX)
+    # PUBLIC so the flag propagates to every dependent library and the Python bindings.
+    target_compile_definitions(gravel-core PUBLIC GRAVEL_HAS_OPENMP)
 endif()
 
 # --- gravel-ch: contraction hierarchies, blocked queries, shortcuts ---

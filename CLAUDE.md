@@ -4,7 +4,7 @@ The single reference for working in this repository — what Gravel is, its arch
 invariants, and how to build/test it. **Canonical, version-controlled copy.** Keep it in sync with
 the code (and with `REFERENCE.md` / `CHANGELOG.md` / `docs/PRD.md`).
 
-> Gravel is **published** (PyPI `gravel-fragility`, conda-forge; current **2.2.3**). Changes here
+> Gravel is **published** (PyPI `gravel-fragility`, conda-forge; current **2.3.0**). Changes here
 > ship to real users — preserve the public API and the wheel build, or bump versions deliberately.
 
 ## The one rule that can't bend (READ FIRST): the sub-library DAG
@@ -48,6 +48,7 @@ Modules map onto the six linkable libraries above:
 | `algo/ · analysis/ · io/ · snap/ · validation/` | shared algorithms, analysis orchestration, I/O (incl. optional Arrow/Parquet), snapping, input validation |
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |
+| `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra) |
 | `cli/cmd_*.cpp` | command-line tools (`build_graph`, `build_ch`, `batch_fragility`, …) |
 | `tests/test_*.cpp` | Catch2 unit tests (+ `python/tests/` pytest) |
 | `bench/ · scripts/` | benchmarks + national-run scripts (`scripts/national_fragility.py`) |
@@ -56,7 +57,17 @@ Modules map onto the six linkable libraries above:
 OSM support is **optional and detected**: `GRAVEL_USE_OSMIUM=AUTO` enables it when libosmium is
 present, off gracefully otherwise. Guard runtime use with `gravel.HAS_OSM` (Python) /
 `GRAVEL_HAS_OSMIUM` (C++) — never assume OSM is compiled in. Apache Arrow (`GRAVEL_USE_ARROW`) is
-similarly optional for Parquet output.
+similarly optional for Parquet output; guard runtime use with `gravel.HAS_ARROW` (Python) /
+`GRAVEL_HAS_ARROW` (C++). Per-edge OSM tags reach Python via `load_osm_graph_with_metadata` →
+`EdgeMetadata`, aligned in CSR edge order with `Graph.to_coo()`.
+
+**OpenMP is optional and detected too** (`cmake/OpenMPDetect.cmake`) — it powers the parallel kernels
+(fragility, betweenness, distance matrices, `route_fragility` over path edges, MC runs). On Apple
+Clang it's found via Homebrew `libomp` (`brew install libomp`); without it the build is **silently
+serial**, so check `gravel.HAS_OPENMP` (Python) / `GRAVEL_HAS_OPENMP` (C++), and `gravel.max_threads()`
+/ `set_max_threads(n)`. For reproducible covariates use `BetweennessConfig.deterministic=True`
+(bit-identical across thread counts). When parallelizing *across* analyses with processes
+(`national_fragility.py --jobs N`), cap each worker's threads to avoid oversubscription.
 
 ## Build & test
 

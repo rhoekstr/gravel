@@ -4,6 +4,89 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] — 2026-06-30
+
+The **interop keystone** — the Python surface now exposes capabilities that previously
+existed only in the C++ core, and gains first-class adapters to the geo-Python ecosystem.
+This unblocks NetworkX/GeoPandas workflows and visualization without adding any heavy
+dependency to the core install. No existing API changed; all additions are backward
+compatible.
+
+### Added
+- **`Graph` coordinate and COO accessors.**
+  - `Graph.node_coordinates() -> ndarray (N, 2)` — per-node `[lat, lon]` (`(0, 2)` when the
+    graph has no coordinates).
+  - `Graph.has_coordinates -> bool`.
+  - `Graph.to_coo() -> (sources, targets, weights)` — three parallel NumPy arrays
+    (`uint32, uint32, float64`) in CSR edge order.
+  - `Graph.from_coo(num_nodes, sources, targets, weights, coords=None)` — the inverse of
+    `to_coo()`, with optional `(N, 2)` `[lat, lon]` coordinates. Round-trips exactly.
+- **Per-edge OSM metadata in Python.** `load_osm_graph_with_metadata(pbf_path, speed_profile=SpeedProfile.car(), bidirectional=True) -> (Graph, EdgeMetadata)`
+  wires up the existing C++ `load_osm_graph_with_labels` path. The new `EdgeMetadata`
+  Python type exposes `keys`, `get(key)`, `has(key)`, `key in md`, and `md[key]`, with
+  per-edge tags (`highway`, `lanes`, `maxspeed`, `name`, `surface`, `bridge`, `tunnel`,
+  `ref`) in CSR edge order — aligned with `Graph.to_coo()`. **This resolves the v2.2.2 note**
+  that deferred per-edge OSM tag access ("If you need per-edge OSM tags in Python, open an
+  issue"). OSM-enabled builds only (`gravel.HAS_OSM`).
+- **GeoJSON / tabular export bindings.** `route_to_geojson(graph, path, fragility=None)` and
+  `location_fragility_to_geojson(result, center)` return GeoJSON strings;
+  `write_fragility_jsonl(results, od_pairs, path)` writes JSON Lines (always available). The
+  Arrow Parquet writers (`write_fragility_parquet`, `write_county_fragility_parquet`,
+  `write_betweenness_parquet`) are now exposed when built with Arrow.
+- **`gravel.HAS_ARROW: bool`** — public feature flag for Parquet support, mirroring
+  `gravel.HAS_OSM`. `False` in the standard PyPI wheels (built without Arrow).
+- **`gravel.interop` adapter module** — NetworkX and GeoPandas converters:
+  `to_networkx` / `from_networkx` and `to_geodataframe` / `from_geodataframe`. Optional
+  dependencies are lazy-imported, so importing `gravel.interop` never fails for a missing
+  package; install the heavier ones with the new **`gravel-fragility[interop]`** extra
+  (NetworkX, GeoPandas, Shapely, pyproj). Edge metadata flows through as NetworkX edge
+  attributes and GeoDataFrame columns. From a `GeoDataFrame`, `gdf.explore()` yields an
+  interactive Folium map.
+
+### Changed
+- **NumPy is now a required runtime dependency.** The core `Graph` array accessors
+  (`node_coordinates`, `to_coo`, `from_coo`) and the CSR constructor return/accept NumPy
+  arrays, so `numpy>=1.23` moved from the `[interop]` extra into `[project].dependencies`.
+  NumPy is the floor of the scientific-Python stack and present in essentially every relevant
+  deployment; heavier integrations (NetworkX, GeoPandas) remain optional.
+
+### Performance & parallelism (hardening)
+
+This release also hardens Gravel's parallelism — making it real on every platform,
+exploiting the largest parallel axis, and giving reproducibility a guarantee.
+
+- **macOS builds are no longer silently serial.** `find_package(OpenMP)` fails on Apple
+  Clang (no bundled OpenMP runtime), which meant every `#pragma omp` was a no-op and the
+  parallel kernels (fragility, betweenness, distance matrices) ran single-threaded on macOS
+  *with no warning*. New `cmake/OpenMPDetect.cmake` locates Homebrew `libomp` and builds a
+  working `OpenMP::OpenMP_CXX` target, and emits a loud status line either way. The macOS
+  wheel build now installs `libomp`. Measured ~4.6× on betweenness (10-core M-series) where
+  it was previously serial.
+- **`gravel.HAS_OPENMP: bool`, `gravel.max_threads()`, `gravel.set_max_threads(n)`** — make
+  the parallel state visible and controllable; `set_max_threads` is also used to avoid
+  oversubscription under a process pool. (`GRAVEL_HAS_OPENMP` is the C++ equivalent.)
+- **`route_fragility` is now parallelized over path edges.** Previously only `batch_fragility`
+  (over O-D pairs) was threaded; a single `route_fragility` ran its per-edge blocked queries
+  serially. On a long real path this was minutes; it now scales across cores with a
+  thread-local `BlockedCHQuery` (same pattern as `batch_fragility`).
+- **National pipeline parallelizes across counties.** `scripts/national_fragility.py` gains
+  `--jobs/-j N`: a process pool over the (independent) counties, with each worker's OpenMP
+  threads capped to `cores // jobs` to prevent W×cores oversubscription. The pipeline was
+  previously serial across counties.
+- **Reproducible betweenness.** `BetweennessConfig.deterministic` (default `false`)
+  accumulates source contributions serially in a fixed order, so the result is bit-identical
+  across runs and thread counts — for when betweenness feeds a published/covariate value. The
+  default parallel path can differ in low-order bits (~1e-9) by thread count. (Monte Carlo
+  fragility statistics were already thread-count deterministic — `compute_level_stats` sorts
+  before aggregating.)
+
+### Notes
+- **Geometry caveat.** Edges store endpoints, not the intermediate OSM way polyline, so
+  `to_geodataframe` renders straight node-to-node segments. Persisting full edge geometry is
+  planned for a later release; treat the geometry as topological, not cartographic.
+- The DAG is preserved: all additions live in the Python bindings, `gravel.interop`
+  (pure Python), or existing layers. No new cross-library C++ dependency was introduced.
+
 ## [2.2.3] — 2026-06-28
 
 ### Changed

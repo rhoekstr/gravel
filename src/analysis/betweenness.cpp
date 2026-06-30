@@ -42,7 +42,9 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
 
     int num_sources = static_cast<int>(sources.size());
 
-    #pragma omp parallel if(num_sources > 4)
+    // In deterministic mode the parallel region collapses to one thread, so the per-thread
+    // partials are summed in a single fixed order — bit-identical across runs / thread counts.
+    #pragma omp parallel if(num_sources > 4 && !config.deterministic)
     {
         // Per-thread workspace
         std::vector<double> dist(n);
