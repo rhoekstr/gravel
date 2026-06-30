@@ -121,6 +121,7 @@ include = [
     "cmake/**",
     "include/**",
     "src/**",
+    "third_party/**",
     "python/**",
     "tests/CMakeLists.txt",
     "LICENSE",
@@ -197,7 +198,7 @@ archs = ["x86_64", "aarch64"]
 # PBF input (a rare OSM codec).
 # libosmium + protozero are header-only — extract pinned releases into
 # /usr/local/include where cmake/OsmiumDetect.cmake's find_path picks
-# them up.
+# them up. (Eigen is vendored at third_party/eigen — no fetch needed.)
 before-all = """
 yum install -y bzip2-devel lz4-devel || true
 cd /tmp
@@ -209,31 +210,43 @@ cp -r protozero-1.7.1/include/protozero /usr/local/include/
 environment = { CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON" }
 
 [tool.cibuildwheel.macos]
-archs = ["x86_64", "arm64"]
-# std::filesystem requires macOS 10.15+. cibuildwheel's default of 10.9
-# triggers "'exists' is unavailable" errors on the x86_64 wheels.
-# GRAVEL_OSMIUM_LZ4=OFF: GHA's macos runners have /opt/homebrew/lib/liblz4.dylib
-# pre-installed (built for macOS 15+), which our find_library(lz4) picks
-# up even when we don't brew-install lz4 ourselves. When delocate tries
-# to vendor it into a macos_11_0_arm64 wheel, it fails with
-#   "Library dependencies do not satisfy target MacOS version 11.0"
-# Skipping the find_library avoids the issue. libosmium's lz4 support
-# is rare anyway (most PBF uses deflate). Users who need it can build
-# from sdist after `brew install lz4`.
-# libomp gives Apple Clang an OpenMP runtime — without it the parallel kernels
-# (fragility, betweenness, distance matrices) ship SERIAL in the macOS wheels.
-# cmake/OpenMPDetect.cmake locates it via `brew --prefix libomp`; delocate then
-# vendors libomp.dylib into the wheel.
-before-all = "brew install libosmium protozero libomp"
-environment = { MACOSX_DEPLOYMENT_TARGET = "10.15", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON -DGRAVEL_OSMIUM_LZ4=OFF" }
+# arm64 only. The macos-latest runner is Apple Silicon; Homebrew provides an
+# arm64-only libomp, so an x86_64 cross-build (built under Rosetta with an x86_64
+# Python) links no OpenMP runtime and the wheel fails to import with a missing
+# __kmpc_* symbol. Rather than ship a broken or silently-serial Intel wheel, we
+# ship arm64 wheels with OpenMP and let Intel-Mac users install from the sdist
+# (which builds offline thanks to the vendored Eigen, picking up their own libomp).
+# Apple stopped selling Intel Macs in 2023.
+archs = ["arm64"]
+# std::filesystem requires macOS 10.15+ (cibuildwheel's 10.9 default trips
+# "'exists' is unavailable"). GRAVEL_OSMIUM_LZ4=OFF: the runner's
+# /opt/homebrew/lib/liblz4.dylib (built for macOS 15+) gets vendored by delocate
+# and fails the wheel's deployment target; libosmium's lz4 support is rare anyway.
+# libomp gives Apple Clang an OpenMP runtime; cmake/OpenMPDetect.cmake locates it
+# via `brew --prefix libomp` and delocate vendors libomp.dylib into the wheel.
+# (Eigen is vendored at third_party/eigen.)
+#
+# Homebrew builds libomp on the macOS-15 runner, so its dylib declares a minimum
+# target of 15.0. delocate then refuses to vendor it into our macOS-11 wheel
+# ("Library dependencies do not satisfy target MacOS version 11.0"). The OpenMP
+# runtime is genuinely fine on macOS 11 — the 15.0 is just an artifact of the build
+# host — so rewrite the declared min-OS down to 11.0 with vtool. delocate re-signs
+# vendored dylibs, so the edit holds.
+before-all = """
+brew install libosmium protozero libomp
+LIBOMP="$(brew --prefix libomp)/lib/libomp.dylib"
+xcrun vtool -set-build-version macos 11.0 11.0 -replace -output /tmp/libomp.dylib "$LIBOMP"
+cp -f /tmp/libomp.dylib "$LIBOMP"
+"""
+environment = { MACOSX_DEPLOYMENT_TARGET = "11.0", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON -DGRAVEL_OSMIUM_LZ4=OFF" }
 
 [tool.cibuildwheel.windows]
 archs = ["AMD64"]
 # Pre-install C++ deps via vcpkg so CMake's find_package (enabled by
 # FIND_PACKAGE_ARGS on our FetchContent_Declare entries) picks them up,
-# bypassing git-clone over Windows runner networks which has shown
-# multi-minute hangs for Eigen in particular. libosmium + protozero +
-# runtime libs (zlib/expat/bz2/lz4) are all vcpkg ports.
+# bypassing git-clone over Windows runner networks. libosmium + protozero +
+# runtime libs (zlib/expat/bz2/lz4) are all vcpkg ports. (Eigen is vendored at
+# third_party/eigen — no vcpkg eigen3, which now resolves to the wrong major 5.0.)
 before-all = "vcpkg install libosmium protozero zlib expat bzip2 lz4"
 # cibuildwheel auto-installs delvewheel when using the default
 # repair-wheel-command, but skips that install when we override the

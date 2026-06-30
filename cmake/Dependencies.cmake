@@ -63,17 +63,17 @@ if(GRAVEL_BUILD_BENCH)
     FetchContent_MakeAvailable(benchmark)
 endif()
 
-# Eigen 3.4 — header-only linear algebra (required for spectral analysis)
-FetchContent_Declare(Eigen3
-    GIT_REPOSITORY https://gitlab.com/libeigen/eigen.git
-    GIT_TAG        3.4.0
-    GIT_SHALLOW    TRUE
-    FIND_PACKAGE_ARGS 3.4 NAMES Eigen3
-)
-set(EIGEN_BUILD_DOC OFF CACHE BOOL "" FORCE)
-set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-set(EIGEN_BUILD_PKGCONFIG OFF CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(Eigen3)
+# Eigen 3.4 — header-only linear algebra (required for spectral analysis).
+#
+# VENDORED at third_party/eigen (Eigen 3.4.0 headers + a minimal Eigen3 config). We no
+# longer FetchContent-clone Eigen from gitlab.com: that broke releases during gitlab load
+# incidents, and modern Homebrew/vcpkg ship Eigen 5.0 which find_package(Eigen3 3.4) won't
+# match (Spectra 1.0.1 needs 3.4). Pointing Eigen3_DIR at the vendored config makes
+# find_package(Eigen3) resolve fully offline for both our code AND the FetchContent'd
+# Spectra (which does its own find_package(Eigen3) and exports a target linking it). See
+# third_party/eigen/VENDORING.md.
+set(Eigen3_DIR "${CMAKE_SOURCE_DIR}/third_party/eigen/cmake" CACHE PATH "Vendored Eigen3 config" FORCE)
+find_package(Eigen3 3.4 REQUIRED NO_MODULE)
 
 # Spectra 1.0 — header-only Lanczos eigenvalue solver (depends on Eigen).
 #

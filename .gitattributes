@@ -1,0 +1,4 @@
+# Vendored third-party dependency — exclude from language stats, diffs, and
+# GitHub's "lines changed" so it isn't counted as project code.
+third_party/eigen/** linguist-vendored
+third_party/eigen/** linguist-generated
