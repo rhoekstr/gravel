@@ -9,8 +9,6 @@
 #
 # On success, sets OpenMP_CXX_FOUND=TRUE and provides the OpenMP::OpenMP_CXX target.
 
-include(CheckCXXSourceCompiles)
-
 find_package(OpenMP QUIET)
 
 if(NOT OpenMP_CXX_FOUND AND APPLE)
@@ -26,33 +24,16 @@ if(NOT OpenMP_CXX_FOUND AND APPLE)
         set(OpenMP_omp_LIBRARY "${_gravel_libomp_prefix}/lib/libomp.dylib")
         find_package(OpenMP QUIET)
         if(NOT OpenMP_CXX_FOUND)
-            # FindOpenMP's compile check is flaky with `-Xclang -fopenmp`, so do our own
-            # compile+LINK test before committing to a hand-built target. Building an
-            # executable (not a -undefined dynamic_lookup module) means undefined symbols
-            # are hard link errors — which ALSO guards against an arch mismatch: Homebrew's
-            # libomp is host-arch only, so the x86_64 macOS wheel cross-built on an arm64
-            # runner fails this link and degrades to SERIAL, instead of producing a wheel
-            # that dies at import with a missing __kmpc_* symbol. arm64 macOS, Linux, and
-            # Windows keep OpenMP.
-            set(CMAKE_REQUIRED_FLAGS "-Xclang -fopenmp -I${_gravel_libomp_prefix}/include")
-            set(CMAKE_REQUIRED_LIBRARIES "${_gravel_libomp_prefix}/lib/libomp.dylib")
-            check_cxx_source_compiles(
-                "#include <omp.h>\nint main() { return omp_get_max_threads() > 0 ? 0 : 1; }"
-                GRAVEL_LIBOMP_LINKS)
-            unset(CMAKE_REQUIRED_FLAGS)
-            unset(CMAKE_REQUIRED_LIBRARIES)
-            if(GRAVEL_LIBOMP_LINKS)
-                add_library(OpenMP::OpenMP_CXX INTERFACE IMPORTED)
-                set_target_properties(OpenMP::OpenMP_CXX PROPERTIES
-                    INTERFACE_COMPILE_OPTIONS "-Xclang;-fopenmp"
-                    INTERFACE_INCLUDE_DIRECTORIES "${_gravel_libomp_prefix}/include"
-                    INTERFACE_LINK_LIBRARIES "${_gravel_libomp_prefix}/lib/libomp.dylib")
-                set(OpenMP_CXX_FOUND TRUE)
-            endif()
+            # FindOpenMP's compile check is flaky with `-Xclang -fopenmp`; fall back to a
+            # hand-built imported target, which is reliable once libomp is on disk.
+            add_library(OpenMP::OpenMP_CXX INTERFACE IMPORTED)
+            set_target_properties(OpenMP::OpenMP_CXX PROPERTIES
+                INTERFACE_COMPILE_OPTIONS "-Xclang;-fopenmp"
+                INTERFACE_INCLUDE_DIRECTORIES "${_gravel_libomp_prefix}/include"
+                INTERFACE_LINK_LIBRARIES "${_gravel_libomp_prefix}/lib/libomp.dylib")
+            set(OpenMP_CXX_FOUND TRUE)
         endif()
-        if(OpenMP_CXX_FOUND)
-            set(_gravel_openmp_source " (Homebrew libomp: ${_gravel_libomp_prefix})")
-        endif()
+        set(_gravel_openmp_source " (Homebrew libomp: ${_gravel_libomp_prefix})")
     endif()
 endif()
 

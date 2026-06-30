@@ -62,6 +62,12 @@ exploiting the largest parallel axis, and giving reproducibility a guarantee.
   working `OpenMP::OpenMP_CXX` target, and emits a loud status line either way. The macOS
   wheel build now installs `libomp`. Measured ~4.6× on betweenness (10-core M-series) where
   it was previously serial.
+- **macOS wheels are now arm64-only.** Homebrew on the Apple-Silicon CI runner provides an
+  arm64-only `libomp`, so an x86_64 (Intel) cross-build links no OpenMP runtime and the wheel
+  fails to import. Rather than ship a broken or silently-serial Intel wheel, the project ships
+  arm64 wheels (with OpenMP) and Intel-Mac users install from the **sdist**, which now builds
+  fully offline (vendored Eigen) and picks up the user's own `libomp`. Apple stopped selling
+  Intel Macs in 2023.
 - **`gravel.HAS_OPENMP: bool`, `gravel.max_threads()`, `gravel.set_max_threads(n)`** — make
   the parallel state visible and controllable; `set_max_threads` is also used to avoid
   oversubscription under a process pool. (`GRAVEL_HAS_OPENMP` is the C++ equivalent.)
