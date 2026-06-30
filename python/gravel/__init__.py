@@ -34,6 +34,9 @@ Quick start::
 
 from ._gravel import (
     CH,
+    # --- Export / interop + parallelism flags ---
+    HAS_ARROW,
+    HAS_OPENMP,
     AlternateRouteResult,
     AssignmentConfig,
     BernsteinConfig,
@@ -145,26 +148,31 @@ from ._gravel import (
     load_tiger_states,
     load_tiger_urban_areas,
     location_fragility,
+    location_fragility_to_geojson,
     # --- Graph construction ---
     make_grid_graph,
     make_random_graph,
     make_tree_with_bridges,
+    max_threads,
     natural_connectivity,
     outgoing_edges,
     precompute_landmarks,
     progressive_fragility,
     route_fragility,
+    route_to_geojson,
     save_elevation,
     # --- Region serialization ---
     save_region_assignment,
     scenario_fragility,
     seasonal_weight_multipliers,
+    set_max_threads,
     snap_quality,
     stratified_sample,
     summarize_border_edges,
     validate,
     validate_fragility,
     validate_shortcut_interaction,
+    write_fragility_jsonl,
 )
 
 # OSM loader availability depends on how the extension was built.
@@ -177,15 +185,32 @@ from ._gravel import (
 #         g = gravel.load_osm_graph(cfg)
 try:
     from ._gravel import (
+        EdgeMetadata,
         OSMConfig,
         SpeedProfile,
         load_osm_graph,
+        load_osm_graph_with_metadata,
     )
     HAS_OSM = True
 except ImportError:
     HAS_OSM = False
 
-__version__ = "2.2.3"
+# Parquet writers exist only when the extension was built with Arrow
+# (GRAVEL_USE_ARROW=ON). `gravel.HAS_ARROW` is the supported runtime check;
+# the JSONL writer (`write_fragility_jsonl`) is always available.
+if HAS_ARROW:
+    from ._gravel import (
+        write_betweenness_parquet,
+        write_county_fragility_parquet,
+        write_fragility_parquet,
+    )
+
+# NetworkX / GeoPandas adapters. The submodule imports cleanly without the
+# optional deps (they are lazy-imported inside each function), so this never
+# fails for a missing networkx/geopandas — see `pip install gravel-fragility[interop]`.
+from . import interop  # noqa: E402
+
+__version__ = "2.3.0"
 
 __all__ = [
     # Feature flags
@@ -245,4 +270,9 @@ __all__ = [
     # Closure risk
     "ClosureRiskTier", "ClosureRiskData", "classify_closure_risk",
     "seasonal_weight_multipliers",
+    # Export / interop
+    "HAS_ARROW", "route_to_geojson", "location_fragility_to_geojson",
+    "write_fragility_jsonl", "interop",
+    # Parallelism
+    "HAS_OPENMP", "max_threads", "set_max_threads",
 ]

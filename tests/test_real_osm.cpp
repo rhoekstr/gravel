@@ -272,17 +272,25 @@ TEST_CASE("Real OSM: route fragility on sampled pair", "[real_osm]") {
     if (!data_available()) { SKIP("Swain County PBF not found"); }
     auto& f = SwainFixture::instance();
 
-    // Find two nodes that are reachable from each other
+    // Find a reachable pair whose shortest path is non-trivial but BOUNDED. route_fragility
+    // blocks-and-requeries once per path edge, so an unbounded random pair can draw a
+    // multi-thousand-edge path and make this test pathologically slow (esp. on a serial,
+    // no-OpenMP build). A cheap CH route() gives the path length up front; we only run the
+    // expensive route_fragility on a pair within the window.
     std::mt19937_64 rng(123);
     std::uniform_int_distribution<NodeID> node_dist(0, f.graph->node_count() - 1);
 
-    for (int attempt = 0; attempt < 50; ++attempt) {
+    constexpr size_t kMinPathNodes = 5;
+    constexpr size_t kMaxPathNodes = 150;  // bounds blocked-query work (esp. bridge edges)
+    bool tested = false;
+
+    for (int attempt = 0; attempt < 2000 && !tested; ++attempt) {
         NodeID s = node_dist(rng);
         NodeID t = node_dist(rng);
         if (s == t) continue;
 
-        Weight d = f.query->distance(s, t);
-        if (d >= INF_WEIGHT) continue;
+        auto route = f.query->route(s, t);
+        if (route.path.size() < kMinPathNodes || route.path.size() > kMaxPathNodes) continue;
 
         auto frag = route_fragility(f.ch, *f.idx, *f.graph, s, t);
         REQUIRE(frag.valid());
@@ -295,9 +303,14 @@ TEST_CASE("Real OSM: route fragility on sampled pair", "[real_osm]") {
 
         std::cerr << "  Route " << s << " -> " << t
                   << ": dist=" << frag.primary_distance
+                  << ", path_nodes=" << route.path.size()
                   << ", edges=" << frag.edge_fragilities.size()
                   << ", bottleneck_ratio=" << ratio << "\n";
-        break;
+        tested = true;
+    }
+
+    if (!tested) {
+        SKIP("No reachable pair with a bounded-length path found in the attempt budget");
     }
 }
 

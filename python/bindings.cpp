@@ -52,6 +52,13 @@
 #include "gravel/simplify/reduced_graph.h"
 #include "gravel/fragility/inter_region_fragility.h"
 #include "gravel/geo/geography_skeleton.h"
+#include "gravel/core/edge_metadata.h"
+#include "gravel/io/geojson_output.h"
+#include "gravel/io/arrow_output.h"
+
+#ifdef GRAVEL_HAS_OPENMP
+#include <omp.h>
+#endif
 
 namespace py = pybind11;
 using namespace gravel;
@@ -137,6 +144,51 @@ PYBIND11_MODULE(_gravel, m) {
         }, py::arg("num_nodes"), py::arg("edges"),
            "Create from list of (source, target, weight) tuples")
 
+        .def_static("from_coo", [](NodeID num_nodes,
+                                    py::array_t<uint32_t> py_sources,
+                                    py::array_t<uint32_t> py_targets,
+                                    py::array_t<double> py_weights,
+                                    py::object py_coords) -> std::shared_ptr<ArrayGraph> {
+            auto s = py_sources.unchecked<1>();
+            auto t = py_targets.unchecked<1>();
+            auto w = py_weights.unchecked<1>();
+            const py::ssize_t e = s.shape(0);
+            if (t.shape(0) != e || w.shape(0) != e) {
+                throw std::runtime_error("sources, targets, weights must have equal length");
+            }
+            // Counting sort by source into CSR (mirrors OSM/CSV graph construction).
+            std::vector<uint32_t> offsets(num_nodes + 1, 0);
+            for (py::ssize_t i = 0; i < e; ++i) {
+                NodeID src = s(i);
+                if (src >= num_nodes) throw std::runtime_error("source id >= num_nodes");
+                offsets[src + 1]++;
+            }
+            for (NodeID i = 1; i <= num_nodes; ++i) offsets[i] += offsets[i - 1];
+            std::vector<NodeID> targets(e);
+            std::vector<Weight> weights(e);
+            auto pos = offsets;
+            for (py::ssize_t i = 0; i < e; ++i) {
+                uint32_t idx = pos[s(i)]++;
+                targets[idx] = t(i);
+                weights[idx] = w(i);
+            }
+            std::vector<Coord> coords;
+            if (!py_coords.is_none()) {
+                auto c = py_coords.cast<py::array_t<double>>();
+                auto cc = c.unchecked<2>();
+                if (cc.shape(0) != static_cast<py::ssize_t>(num_nodes) || cc.shape(1) != 2) {
+                    throw std::runtime_error("coords must have shape (num_nodes, 2)");
+                }
+                coords.resize(num_nodes);
+                for (NodeID i = 0; i < num_nodes; ++i) coords[i] = {cc(i, 0), cc(i, 1)};
+            }
+            return std::make_shared<ArrayGraph>(std::move(offsets), std::move(targets),
+                                                std::move(weights), std::move(coords));
+        }, py::arg("num_nodes"), py::arg("sources"), py::arg("targets"), py::arg("weights"),
+           py::arg("coords") = py::none(),
+           "Build a graph from COO arrays (sources, targets, weights) plus an optional "
+           "(N, 2) [lat, lon] coordinate array. The inverse of to_coo().")
+
         .def_static("load", [](const std::string& path) -> std::shared_ptr<ArrayGraph> {
             return load_graph(path);
         }, py::arg("path"))
@@ -147,6 +199,45 @@ PYBIND11_MODULE(_gravel, m) {
 
         .def_property_readonly("node_count", &ArrayGraph::node_count)
         .def_property_readonly("edge_count", &ArrayGraph::edge_count)
+
+        .def_property_readonly("has_coordinates", [](const ArrayGraph& g) {
+            return !g.raw_coords().empty();
+        }, "True if per-node (lat, lon) coordinates are available (e.g. from OSM).")
+
+        .def("node_coordinates", [](const ArrayGraph& g) -> py::array_t<double> {
+            const auto& coords = g.raw_coords();
+            const auto n = static_cast<py::ssize_t>(coords.size());
+            py::array_t<double> arr({n, py::ssize_t{2}});
+            auto a = arr.mutable_unchecked<2>();
+            for (py::ssize_t i = 0; i < n; ++i) {
+                a(i, 0) = coords[i].lat;
+                a(i, 1) = coords[i].lon;
+            }
+            return arr;
+        }, "Per-node coordinates as an (N, 2) array of [lat, lon]. "
+           "Returns a (0, 2) array when the graph has no coordinates.")
+
+        .def("to_coo", [](const ArrayGraph& g) -> py::tuple {
+            const auto& offsets = g.raw_offsets();
+            const auto& targets = g.raw_targets();
+            const auto& weights = g.raw_weights();
+            const auto e = static_cast<py::ssize_t>(targets.size());
+            py::array_t<uint32_t> srcs(e), tgts(e);
+            py::array_t<double> wts(e);
+            auto s = srcs.mutable_unchecked<1>();
+            auto t = tgts.mutable_unchecked<1>();
+            auto w = wts.mutable_unchecked<1>();
+            const NodeID n = g.node_count();
+            for (NodeID u = 0; u < n; ++u) {
+                for (uint32_t k = offsets[u]; k < offsets[u + 1]; ++k) {
+                    s(static_cast<py::ssize_t>(k)) = u;
+                    t(static_cast<py::ssize_t>(k)) = targets[k];
+                    w(static_cast<py::ssize_t>(k)) = weights[k];
+                }
+            }
+            return py::make_tuple(srcs, tgts, wts);
+        }, "Edges in coordinate (COO) form: (sources, targets, weights) as three "
+           "parallel arrays in CSR edge order. Mirrors the order of metadata tags.")
 
         .def("__repr__", [](const ArrayGraph& g) {
             return "Graph(nodes=" + std::to_string(g.node_count())
@@ -196,7 +287,8 @@ PYBIND11_MODULE(_gravel, m) {
     // Free functions
     m.def("build_ch", [](const ArrayGraph& g) {
         return build_ch(g);
-    }, py::arg("graph"), "Build contraction hierarchy from graph");
+    }, py::arg("graph"), "Build contraction hierarchy from graph",
+       py::call_guard<py::gil_scoped_release>());
 
     m.def("route", [](const CHQuery& q, NodeID src, NodeID tgt) {
         return q.route(src, tgt);
@@ -310,14 +402,16 @@ PYBIND11_MODULE(_gravel, m) {
         return route_fragility(ch, idx, graph, source, target);
     }, py::arg("ch"), py::arg("shortcut_index"), py::arg("graph"),
        py::arg("source"), py::arg("target"),
-       "Compute edge fragility for every edge on the shortest s-t path");
+       "Compute edge fragility for every edge on the shortest s-t path",
+       py::call_guard<py::gil_scoped_release>());
 
     m.def("batch_fragility", [](const ContractionResult& ch, const ShortcutIndex& idx,
                                  const ArrayGraph& graph,
                                  const std::vector<std::pair<NodeID, NodeID>>& pairs) {
         return batch_fragility(ch, idx, graph, pairs);
     }, py::arg("ch"), py::arg("shortcut_index"), py::arg("graph"), py::arg("pairs"),
-       "Batch fragility for multiple O-D pairs (parallelized with OpenMP)");
+       "Batch fragility for multiple O-D pairs (parallelized with OpenMP)",
+       py::call_guard<py::gil_scoped_release>());
 
     m.def("find_alternative_routes", [](const ContractionResult& ch, NodeID source, NodeID target,
                                          const ViaPathConfig& config) {
@@ -382,14 +476,16 @@ PYBIND11_MODULE(_gravel, m) {
 
     // Algebraic connectivity
     m.def("algebraic_connectivity", &algebraic_connectivity,
-          py::arg("graph"), "Compute Fiedler value (second smallest eigenvalue of Laplacian)");
+          py::arg("graph"), "Compute Fiedler value (second smallest eigenvalue of Laplacian)",
+          py::call_guard<py::gil_scoped_release>());
 
     // Edge betweenness
     py::class_<BetweennessConfig>(m, "BetweennessConfig")
         .def(py::init<>())
         .def_readwrite("sample_sources", &BetweennessConfig::sample_sources)
         .def_readwrite("range_limit", &BetweennessConfig::range_limit)
-        .def_readwrite("seed", &BetweennessConfig::seed);
+        .def_readwrite("seed", &BetweennessConfig::seed)
+        .def_readwrite("deterministic", &BetweennessConfig::deterministic);
 
     py::class_<BetweennessResult>(m, "BetweennessResult")
         .def_readonly("edge_scores", &BetweennessResult::edge_scores)
@@ -398,7 +494,8 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("edge_betweenness", &edge_betweenness,
           py::arg("graph"), py::arg("config") = BetweennessConfig{},
-          "Compute edge betweenness centrality via Brandes' algorithm");
+          "Compute edge betweenness centrality via Brandes' algorithm",
+          py::call_guard<py::gil_scoped_release>());
 
     // Kirchhoff index
     py::class_<KirchhoffConfig>(m, "KirchhoffConfig")
@@ -408,13 +505,15 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("kirchhoff_index", &kirchhoff_index,
           py::arg("graph"), py::arg("config") = KirchhoffConfig{},
-          "Compute Kirchhoff index via stochastic trace estimation");
+          "Compute Kirchhoff index via stochastic trace estimation",
+          py::call_guard<py::gil_scoped_release>());
 
     // Natural connectivity
     m.def("natural_connectivity", &natural_connectivity,
           py::arg("graph"), py::arg("num_probes") = 20,
           py::arg("lanczos_steps") = 50, py::arg("seed") = 42,
-          "Compute natural connectivity via stochastic Lanczos quadrature");
+          "Compute natural connectivity via stochastic Lanczos quadrature",
+          py::call_guard<py::gil_scoped_release>());
 
     // County fragility
     py::class_<CountyFragilityWeights>(m, "CountyFragilityWeights")
@@ -452,7 +551,8 @@ PYBIND11_MODULE(_gravel, m) {
                                         const ShortcutIndex& idx, const CountyFragilityConfig& cfg) {
         return county_fragility_index(g, ch, idx, cfg);
     }, py::arg("graph"), py::arg("ch"), py::arg("shortcut_index"), py::arg("config"),
-       "Compute county-level fragility index within polygon");
+       "Compute county-level fragility index within polygon",
+       py::call_guard<py::gil_scoped_release>());
 
     // AnalysisContext for cached analysis
     py::class_<AnalysisContextConfig>(m, "AnalysisContextConfig")
@@ -585,7 +685,8 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("location_fragility", &location_fragility,
           py::arg("graph"), py::arg("ch"), py::arg("config"),
-          "Compute isolation risk for a location using Dijkstra + incremental SSSP");
+          "Compute isolation risk for a location using Dijkstra + incremental SSSP",
+          py::call_guard<py::gil_scoped_release>());
 
     // --- v0.6: Elevation + Closure Risk ---
 
@@ -756,7 +857,8 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("scenario_fragility", &scenario_fragility,
           py::arg("graph"), py::arg("ch"), py::arg("shortcut_index"), py::arg("config"),
-          "Compare baseline vs scenario fragility with blocked edges");
+          "Compare baseline vs scenario fragility with blocked edges",
+          py::call_guard<py::gil_scoped_release>());
 
     m.def("edges_in_polygon", &edges_in_polygon,
           py::arg("graph"), py::arg("polygon"),
@@ -894,7 +996,8 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("progressive_fragility", &progressive_fragility,
           py::arg("graph"), py::arg("ch"), py::arg("shortcut_index"), py::arg("config"),
-          "Progressive elimination fragility: degradation curve under sequential edge removal");
+          "Progressive elimination fragility: degradation curve under sequential edge removal",
+          py::call_guard<py::gil_scoped_release>());
 
     // --- EdgeSampler ---
 
@@ -1060,7 +1163,110 @@ PYBIND11_MODULE(_gravel, m) {
         cfg.speed_profile = speed_profile;
         return std::shared_ptr<ArrayGraph>(load_osm_graph(cfg).release());
     }, py::arg("pbf_path"), py::arg("speed_profile"),
-       "Load a road network from an OSM .pbf file");
+       "Load a road network from an OSM .pbf file",
+       py::call_guard<py::gil_scoped_release>());
+
+    // Per-edge OSM tag store, indexed in CSR edge order (aligned with Graph.to_coo()).
+    py::class_<EdgeMetadata>(m, "EdgeMetadata")
+        .def_property_readonly("keys", [](const EdgeMetadata& md) {
+            return md.tag_keys;
+        }, "Available tag keys, e.g. ['bridge', 'highway', 'lanes', 'maxspeed', 'name', ...].")
+        .def("get", [](const EdgeMetadata& md, const std::string& key) {
+            return md.get(key);
+        }, py::arg("key"),
+           "Per-edge values for `key` in CSR edge order (empty string where the tag is absent "
+           "on that edge). Returns an empty list if no edge carries the key.")
+        .def("has", &EdgeMetadata::has, py::arg("key"))
+        .def("__contains__", &EdgeMetadata::has, py::arg("key"))
+        .def("__getitem__", [](const EdgeMetadata& md, const std::string& key) {
+            if (!md.has(key)) throw py::key_error(key);
+            return md.get(key);
+        }, py::arg("key"))
+        .def("__repr__", [](const EdgeMetadata& md) {
+            std::string s = "EdgeMetadata(keys=[";
+            for (size_t i = 0; i < md.tag_keys.size(); ++i) {
+                if (i) s += ", ";
+                s += "'" + md.tag_keys[i] + "'";
+            }
+            return s + "])";
+        });
+
+    m.def("load_osm_graph_with_metadata", [](const std::string& pbf_path,
+                const std::unordered_map<std::string, double>& speed_profile,
+                bool bidirectional) -> py::tuple {
+        OSMConfig cfg;
+        cfg.pbf_path = pbf_path;
+        cfg.speed_profile = speed_profile;
+        cfg.bidirectional = bidirectional;
+        // Release the GIL only for the heavy C++ load; re-acquire before building the
+        // Python tuple (py::make_tuple needs the GIL held).
+        OSMLoadResult res;
+        {
+            py::gil_scoped_release release;
+            res = load_osm_graph_with_labels(cfg);
+        }
+        std::shared_ptr<ArrayGraph> graph(res.graph.release());
+        return py::make_tuple(graph, std::move(res.metadata));
+    }, py::arg("pbf_path"),
+       py::arg("speed_profile") = SpeedProfile::car(),
+       py::arg("bidirectional") = true,
+       "Load an OSM .pbf, returning (Graph, EdgeMetadata). The metadata preserves per-edge "
+       "OSM tags (highway, lanes, maxspeed, name, surface, bridge, tunnel, ref) in CSR edge "
+       "order, aligned with Graph.to_coo().");
+#endif
+
+    // --- GeoJSON / tabular export ---
+
+    m.def("route_to_geojson", [](const ArrayGraph& graph, const std::vector<NodeID>& path,
+                                  const FragilityResult* fragility) -> std::string {
+        return path_to_geojson(graph, path, fragility).dump();
+    }, py::arg("graph"), py::arg("path"), py::arg("fragility") = nullptr,
+       "Serialize a route path to a GeoJSON LineString Feature (string). If a FragilityResult "
+       "is supplied, its bottleneck/distance properties are attached.");
+
+    m.def("location_fragility_to_geojson", [](const LocationFragilityResult& result,
+                                               Coord center) -> std::string {
+        return location_fragility_to_geojson(result, center).dump();
+    }, py::arg("result"), py::arg("center"),
+       "Serialize a LocationFragilityResult to a GeoJSON FeatureCollection (string).");
+
+    m.def("write_fragility_jsonl", &write_fragility_jsonl,
+          py::arg("results"), py::arg("od_pairs"), py::arg("path"),
+          "Write batch fragility results to JSON Lines (.jsonl). Always available (no Arrow).");
+
+#ifdef GRAVEL_HAS_ARROW
+    m.attr("HAS_ARROW") = true;
+    m.def("write_fragility_parquet", &write_fragility_parquet,
+          py::arg("results"), py::arg("od_pairs"), py::arg("path"),
+          "Write batch fragility results to Parquet (requires Arrow-enabled build).");
+    m.def("write_county_fragility_parquet", &write_county_fragility_parquet,
+          py::arg("results"), py::arg("labels"), py::arg("path"),
+          "Write county fragility results to Parquet (requires Arrow-enabled build).");
+    m.def("write_betweenness_parquet", &write_betweenness_parquet,
+          py::arg("result"), py::arg("graph"), py::arg("path"),
+          "Write edge betweenness scores to Parquet (requires Arrow-enabled build).");
+#else
+    m.attr("HAS_ARROW") = false;
+#endif
+
+    // --- Parallelism / runtime info ---
+    // `HAS_OPENMP` is the supported way to tell whether the parallel kernels
+    // (fragility, betweenness, distance matrices) actually run multi-threaded.
+    // A build without OpenMP runs every kernel serially.
+#ifdef GRAVEL_HAS_OPENMP
+    m.attr("HAS_OPENMP") = true;
+    m.def("max_threads", []() { return omp_get_max_threads(); },
+          "Maximum number of threads the parallel kernels may use.");
+    m.def("set_max_threads", [](int n) { omp_set_num_threads(n < 1 ? 1 : n); },
+          py::arg("n"),
+          "Cap the threads used by the parallel kernels (>=1). Useful for "
+          "reproducible runs and to avoid oversubscription under a process pool.");
+#else
+    m.attr("HAS_OPENMP") = false;
+    m.def("max_threads", []() { return 1; },
+          "Maximum threads (always 1 — this build has no OpenMP; see gravel.HAS_OPENMP).");
+    m.def("set_max_threads", [](int) {}, py::arg("n"),
+          "No-op — this build has no OpenMP (see gravel.HAS_OPENMP).");
 #endif
 
     // --- Region serialization ---
@@ -1131,6 +1337,7 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("inter_region_fragility", &inter_region_fragility,
           py::arg("reduced"), py::arg("config") = InterRegionFragilityConfig{},
-          "Progressive fragility analysis between adjacent regions on a ReducedGraph");
+          "Progressive fragility analysis between adjacent regions on a ReducedGraph",
+          py::call_guard<py::gil_scoped_release>());
 
 }

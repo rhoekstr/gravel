@@ -101,7 +101,10 @@ jobs:
       - name: Run Python tests
         if: hashFiles('python/tests/**') != ''
         run: |
-          pip install pytest
+          # numpy is a core dependency (installed with the package). networkx
+          # additionally exercises the to/from_networkx adapters; geopandas/OSM
+          # tests self-skip when their deps aren't present (see @requires_* guards).
+          pip install pytest networkx
           pytest python/tests/
 
   # ============================================================

@@ -8,6 +8,11 @@ struct BetweennessConfig {
     uint32_t sample_sources = 0;  // 0 = exact (all sources), >0 = sample this many
     double range_limit = 0.0;     // 0 = unlimited, >0 = Dijkstra cutoff distance
     uint64_t seed = 42;
+    // Reproducible mode: accumulate source contributions serially in a fixed order so the
+    // result is bit-identical across runs and thread counts. The parallel path sums
+    // per-thread partials in nondeterministic completion order (tiny FP differences). Use
+    // this when betweenness feeds a published/covariate value. Slower (single-threaded).
+    bool deterministic = false;
 };
 
 struct BetweennessResult {

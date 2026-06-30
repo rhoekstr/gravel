@@ -65,6 +65,8 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 28. [FIPS Crosswalk and Typed Wrappers](#28-fips-crosswalk-and-typed-wrappers)
 29. [Reduced Graph](#29-reduced-graph-gravelsimplifyreduced_graphh)
 30. [Inter-Region Fragility](#30-inter-region-fragility-gravelfragilityinter_region_fragilityh)
+31. [Python Interop & Export](#31-python-interop--export)
+32. [Parallelism & Reproducibility](#32-parallelism--reproducibility)
 
 ---
 
@@ -3253,3 +3255,162 @@ InterRegionFragilityResult inter_region_fragility(
 - 8,547 adjacent county pairs analyzed for inter-county fragility in ~22 hours
 - 1,082 cross-state pairs correctly captured via adjacency-driven pipeline with `osmium merge`
 - Full results in `data/sample-results/`
+
+---
+
+## 31. Python Interop & Export
+
+*Added in v2.3.0.* The Python surface gains coordinate/COO accessors, per-edge OSM
+metadata, GeoJSON/JSONL export, and adapters to the geo-Python ecosystem. These let you
+build or clean networks in NetworkX, hand the heavy loops to Gravel's C++ core, and
+visualize results through GeoPandas (Folium, kepler.gl, matplotlib).
+
+### 31.1 Graph accessors (coordinates, COO)
+
+New methods on the Python `Graph` (all return NumPy arrays):
+
+| Member | Returns | Notes |
+|--------|---------|-------|
+| `has_coordinates` | `bool` | True when per-node `(lat, lon)` are present (e.g. from OSM). |
+| `node_coordinates()` | `ndarray (N, 2)` float64 | `[lat, lon]` per node; `(0, 2)` when absent. |
+| `to_coo()` | `(sources, targets, weights)` | `uint32, uint32, float64`, length `edge_count`, in CSR edge order. |
+| `Graph.from_coo(num_nodes, sources, targets, weights, coords=None)` | `Graph` | Inverse of `to_coo()`; `coords` is an optional `(N, 2)` `[lat, lon]` array. |
+
+The CSR edge order of `to_coo()` is shared with `EdgeMetadata`, so the i-th metadata value
+aligns with the i-th COO edge.
+
+```python
+import gravel
+g, md = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+s, t, w = g.to_coo()              # parallel edge arrays
+coords = g.node_coordinates()     # (N, 2) lat/lon
+g2 = gravel.Graph.from_coo(g.node_count, s, t, w, coords)  # round-trips exactly
+```
+
+### 31.2 OSM edge metadata
+
+```python
+graph, metadata = gravel.load_osm_graph_with_metadata(
+    pbf_path, speed_profile=gravel.SpeedProfile.car(), bidirectional=True)
+```
+
+Returns `(Graph, EdgeMetadata)`. Available only on OSM-enabled builds (`gravel.HAS_OSM`).
+`EdgeMetadata` preserves per-edge OSM tags in CSR edge order:
+
+| Member | Returns | Notes |
+|--------|---------|-------|
+| `keys` | `list[str]` | Tag keys present, e.g. `['bridge', 'highway', 'lanes', 'maxspeed', 'name', 'ref', 'surface', 'tunnel']`. |
+| `get(key)` | `list[str]` | Per-edge values (`''` where absent on an edge); empty list if no edge carries `key`. |
+| `has(key)` / `key in md` | `bool` | Key presence. |
+| `md[key]` | `list[str]` | Same as `get`, raises `KeyError` if absent. |
+
+This supersedes the v2.2.2 note deferring per-edge OSM tag access to a future release.
+
+### 31.3 GeoJSON / tabular export
+
+| Function | Returns | Notes |
+|----------|---------|-------|
+| `route_to_geojson(graph, path, fragility=None)` | `str` | GeoJSON `LineString` Feature; attaches bottleneck/distance if a `FragilityResult` is given. |
+| `location_fragility_to_geojson(result, center)` | `str` | GeoJSON `FeatureCollection`. |
+| `write_fragility_jsonl(results, od_pairs, path)` | — | JSON Lines; always available (no Arrow). |
+| `write_fragility_parquet` / `write_county_fragility_parquet` / `write_betweenness_parquet` | — | Present only when `gravel.HAS_ARROW` (Arrow-enabled build). |
+
+`gravel.HAS_ARROW: bool` is the supported runtime check for Parquet support, mirroring
+`gravel.HAS_OSM`.
+
+### 31.4 NetworkX & GeoPandas adapters (`gravel.interop`)
+
+Adapters for the heavier graph/geo libraries. NumPy is a core dependency (always present);
+the rest come with the `interop` extra (`pip install gravel-fragility[interop]`: NetworkX,
+GeoPandas, Shapely, pyproj). The submodule imports without those packages — each is
+lazy-imported inside the function that needs it.
+
+| Function | Signature | Notes |
+|----------|-----------|-------|
+| `to_networkx` | `(graph, *, metadata=None, directed=True, include_coordinates=True)` | `DiGraph`/`Graph` with `weight` edge attrs; metadata tags become edge attrs; coords become `lat`/`lon`/`x`/`y` node attrs. |
+| `from_networkx` | `(graph, *, weight="weight")` | Dense-relabels nodes; preserves `lat`/`lon` node attrs as coordinates; undirected graphs become bidirectional. |
+| `to_geodataframe` | `(graph, *, metadata=None, edge_values=None, crs="EPSG:4326")` | Edge `GeoDataFrame` of `LineString`s; `edge_values` attaches arbitrary per-edge arrays (e.g. betweenness). Requires coordinates. |
+| `from_geodataframe` | `(gdf, *, weight=None, directed=False, precision=7)` | Snaps `LineString` endpoints to nodes (coordinate rounding); `weight=None` uses great-circle meters. |
+
+> **Geometry caveat.** Gravel stores edge endpoints, not the intermediate OSM way
+> polyline, so `to_geodataframe` draws each edge as a straight node-to-node segment.
+> Persisting full edge geometry is planned for a later release; treat the geometry as
+> topological, not cartographic.
+
+```python
+from gravel import interop
+g, md = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+
+G = interop.to_networkx(g, metadata=md)        # NetworkX DiGraph with highway/lanes/... attrs
+gdf = interop.to_geodataframe(g, metadata=md)  # GeoDataFrame; gdf.explore() -> interactive map
+g2 = interop.from_geodataframe(gdf, weight="weight")
+```
+
+---
+
+## 32. Parallelism & Reproducibility
+
+*Added in v2.3.0.* Gravel's compute kernels (fragility, betweenness, distance matrices,
+`route_fragility` over path edges, Monte Carlo runs) are OpenMP-parallel over their natural
+work axis. CH construction additionally uses `std::thread`. This section covers how to tell
+whether parallelism is active, how to control it, and how to get reproducible numbers.
+
+### 32.1 Is OpenMP active?
+
+OpenMP is **optional and detected** (`cmake/OpenMPDetect.cmake`). Without it, every kernel
+runs serial — so *check, don't assume*:
+
+| Symbol | Meaning |
+|--------|---------|
+| `gravel.HAS_OPENMP: bool` | True when the build has a working OpenMP runtime. `GRAVEL_HAS_OPENMP` is the C++ define. |
+| `gravel.max_threads() -> int` | Threads the parallel kernels may use (1 when serial). |
+| `gravel.set_max_threads(n)` | Cap the threads (>=1). Used for reproducibility and to avoid oversubscription. |
+
+> **macOS note.** Apple Clang ships no OpenMP runtime; Gravel's CMake locates Homebrew
+> `libomp` (`brew install libomp`). Before v2.3.0 macOS builds were silently serial. If
+> `gravel.HAS_OPENMP` is `False` on macOS, install `libomp` and rebuild.
+
+### 32.2 Avoiding oversubscription under a process pool
+
+Gravel's kernels do not release the GIL *and* fan out — they release the GIL (heavy calls)
+so a single county runs its OpenMP threads freely. When you run many analyses in parallel
+**processes** (e.g. `scripts/national_fragility.py --jobs N`), cap each worker so the box
+isn't oversubscribed:
+
+```python
+import os, gravel
+workers = 8
+gravel.set_max_threads(max(1, (os.cpu_count() or 1) // workers))  # call inside each worker
+```
+
+The national pipeline does this automatically: `--jobs N` runs a process pool over counties
+with each worker's OpenMP threads set to `cores // N`.
+
+### 32.3 Reproducible results
+
+- **Monte Carlo fragility** (`location_fragility`, `progressive_fragility`) — the reported
+  statistics (isolation risk, AUC, percentiles, mean/std) are **already thread-count
+  deterministic**: the per-run values are sorted before aggregation. Only the raw
+  `run_values` array is stored in completion order.
+- **Edge betweenness** — the default parallel reduction sums per-thread partials in
+  nondeterministic completion order, so results can differ in low-order bits (~1e-9) by
+  thread count. Set `BetweennessConfig.deterministic = True` to accumulate serially in a
+  fixed order — **bit-identical across runs and thread counts** (slower; single-threaded).
+  Use it when betweenness feeds a published or covariate value.
+
+```python
+cfg = gravel.BetweennessConfig()
+cfg.sample_sources = 256
+cfg.deterministic = True          # reproducible, thread-count invariant
+bc = gravel.edge_betweenness(g, cfg)
+```
+
+### 32.4 GIL release
+
+The heavy compute bindings (`build_ch`, `route_fragility`, `batch_fragility`,
+`edge_betweenness`, `kirchhoff_index`, `algebraic_connectivity`, `natural_connectivity`,
+`county_fragility_index`, `location_fragility`, `progressive_fragility`, `scenario_fragility`,
+`inter_region_fragility`, the OSM loaders) release the GIL for the duration of the C++ work.
+A long call no longer blocks the interpreter (Ctrl-C stays responsive), and you can drive
+several from a Python `ThreadPoolExecutor`. Note that `set_max_threads` follows OpenMP's
+per-thread semantics, so set it in the same thread that invokes the kernel.

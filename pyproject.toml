@@ -4,13 +4,20 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "gravel-fragility"
-version = "2.2.3"
+version = "2.3.0"
 description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { file = "LICENSE" }
 authors = [
     { name = "Robert Hoekstra", email = "rhoekstr@gmail.com" },
+]
+# numpy is a hard dependency: the core Graph array accessors (node_coordinates,
+# to_coo, from_coo) and the CSR constructor return/accept numpy arrays. It is the
+# floor of the scientific-Python stack and present in essentially every relevant
+# deployment. Heavier integrations (NetworkX, GeoPandas) stay in the [interop] extra.
+dependencies = [
+    "numpy>=1.23",
 ]
 keywords = [
     "routing",
@@ -44,6 +51,14 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# numpy is a core dependency (see [project].dependencies); this extra adds the
+# heavier graph/geo integrations used by gravel.interop.
+interop = [
+    "networkx>=3.0",
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+]
 viz = [
     "plotly>=5.20",
     "geopandas>=0.14",
@@ -205,7 +220,11 @@ archs = ["x86_64", "arm64"]
 # Skipping the find_library avoids the issue. libosmium's lz4 support
 # is rare anyway (most PBF uses deflate). Users who need it can build
 # from sdist after `brew install lz4`.
-before-all = "brew install libosmium protozero"
+# libomp gives Apple Clang an OpenMP runtime — without it the parallel kernels
+# (fragility, betweenness, distance matrices) ship SERIAL in the macOS wheels.
+# cmake/OpenMPDetect.cmake locates it via `brew --prefix libomp`; delocate then
+# vendors libomp.dylib into the wheel.
+before-all = "brew install libosmium protozero libomp"
 environment = { MACOSX_DEPLOYMENT_TARGET = "10.15", CMAKE_ARGS = "-DGRAVEL_USE_OSMIUM=ON -DGRAVEL_OSMIUM_LZ4=OFF" }
 
 [tool.cibuildwheel.windows]
