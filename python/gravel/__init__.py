@@ -220,14 +220,16 @@ if HAS_ARROW:
         write_fragility_parquet,
     )
 
-# Pure-Python submodules. Both import cleanly without the optional geo deps, which
+# Pure-Python submodules. All import cleanly without the optional geo deps, which
 # are lazy-imported inside the functions that need them (`pip install
 # gravel-fragility[interop]`):
 #   interop  — NetworkX / GeoPandas adapters
 #   hazards  — hazard footprints -> per-edge failure probabilities for stochastic_fragility
+#   viz      — fragility results -> plot-ready GeoDataFrames (visualization data bridge)
 from . import (  # noqa: E402
     hazards,
     interop,
+    viz,
 )
 
 __version__ = "2.4.0"
@@ -297,9 +299,9 @@ __all__ = [
     # Closure risk
     "ClosureRiskTier", "ClosureRiskData", "classify_closure_risk",
     "seasonal_weight_multipliers",
-    # Export / interop / hazards
+    # Export / interop / hazards / viz
     "HAS_ARROW", "route_to_geojson", "location_fragility_to_geojson",
-    "write_fragility_jsonl", "interop", "hazards",
+    "write_fragility_jsonl", "interop", "hazards", "viz",
     # Parallelism
     "HAS_OPENMP", "max_threads", "set_max_threads",
 ]

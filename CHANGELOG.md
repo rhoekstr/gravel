@@ -40,6 +40,12 @@ curves/distributions — never hidden constants. The DAG is intact: capacity/pro
   `GeoDataFrame` → probabilities), plus disclosed `NFHL_EVENT_CLOSURE` (design-flood scenario, default)
   and `NFHL_ANNUAL_PROBABILITY` (annual-exceedance) tables. Derivation lives in Python; the DAG keeps
   `gravel-fragility` hazard-agnostic. Reuses the shipped `edges_in_polygon`; no C++/ABI change.
+- **Visualization data bridge (`gravel.viz`, Tier 0).** Turns a fragility result into a per-edge column
+  ready for `gdf.plot(...)` / pydeck / lonboard: `edge_failure_round` (progressive greedy removal order
+  → animatable rounds), `edge_failure_frequency` (stochastic per-edge P(fail) → static choropleth), and
+  `failure_geoframe` (dispatches to a plot-ready `GeoDataFrame`). Rendering helpers land in 2.5.0.
+- **`StochasticFragilityResult.edge_failure_frequency`** — per-edge empirical failure probability (CSR
+  order, thread-count invariant), the honest floodplain visual (which roads actually fail across runs).
 
 ### Docs
 - Refreshed the README / `routing_performance.md` benchmark table (Release + OpenMP, real counties,

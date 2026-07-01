@@ -50,6 +50,8 @@ Modules map onto the six linkable libraries above:
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |
 | `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra) |
+| `python/gravel/hazards.py` | hazard footprints → per-edge failure probabilities (floodplain/NFHL → `stochastic_fragility`) |
+| `python/gravel/viz.py` | fragility results → plot-ready per-edge failure traces / `GeoDataFrame` (viz data bridge) |
 | `cli/cmd_*.cpp` | command-line tools (`build_graph`, `build_ch`, `batch_fragility`, …) |
 | `tests/test_*.cpp` | Catch2 unit tests (+ `python/tests/` pytest) |
 | `bench/ · scripts/` | benchmarks + national-run scripts (`scripts/national_fragility.py`) |

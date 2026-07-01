@@ -94,10 +94,15 @@ StochasticFragilityResult stochastic_fragility(
     std::vector<double> prob(edge_probabilities);
     for (auto& p : prob) p = std::clamp(p, 0.0, 1.0);
 
+    // Per-edge failure counts, summed across runs. Integer addition is associative, so the
+    // thread-local → shared reduction below is thread-count invariant.
+    std::vector<uint64_t> total_fail(m, 0);
+
     #pragma omp parallel if(runs > 2)
     {
         BlockedCHQuery blocked(ch, idx, graph);
         std::vector<std::pair<NodeID, NodeID>> failed;
+        std::vector<uint64_t> local_fail(m, 0);
 
         #pragma omp for schedule(dynamic)
         for (int r = 0; r < runs; ++r) {
@@ -106,8 +111,10 @@ StochasticFragilityResult stochastic_fragility(
             std::uniform_real_distribution<double> unif(0.0, 1.0);
             failed.clear();
             for (EdgeID e = 0; e < m; ++e)
-                if (prob[e] > 0.0 && unif(rng) < prob[e])
+                if (prob[e] > 0.0 && unif(rng) < prob[e]) {
                     failed.push_back({src_of_edge[e], targets[e]});
+                    ++local_fail[e];
+                }
 
             double sum_infl = 0.0;
             int connected = 0, disconnected = 0;
@@ -124,7 +131,16 @@ StochasticFragilityResult stochastic_fragility(
             result.run_disconnected[r] =
                 static_cast<double>(disconnected) / static_cast<double>(pairs.size());
         }
+
+        #pragma omp critical
+        for (EdgeID e = 0; e < m; ++e) total_fail[e] += local_fail[e];
     }
+
+    // Per-edge empirical failure probability (CSR order) — for visualization / mapping.
+    result.edge_failure_frequency.assign(m, 0.0);
+    for (EdgeID e = 0; e < m; ++e)
+        result.edge_failure_frequency[e] =
+            static_cast<double>(total_fail[e]) / static_cast<double>(runs);
 
     // Aggregate on a sorted copy → statistics are thread-count invariant.
     result.runs = static_cast<uint32_t>(runs);

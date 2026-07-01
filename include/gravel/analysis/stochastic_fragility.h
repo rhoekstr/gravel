@@ -63,6 +63,11 @@ struct StochasticFragilityResult {
     std::vector<double> run_values;
     std::vector<double> run_disconnected;
 
+    /// Per-edge failure frequency (fraction of runs in which the edge failed), in CSR edge
+    /// order (length == edge_count). Thread-count invariant (integer counts, then divided by
+    /// runs). Feeds visualization: colour edges by empirical P(fail). Empty if runs == 0.
+    std::vector<double> edge_failure_frequency;
+
     uint32_t runs = 0;
     uint32_t probe_pairs = 0;
 };

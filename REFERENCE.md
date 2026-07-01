@@ -68,6 +68,7 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 31. [Python Interop & Export](#31-python-interop--export)
 32. [Parallelism & Reproducibility](#32-parallelism--reproducibility)
 33. [Research Depth: Capacity, Stochastic & Cascade](#33-research-depth-capacity-stochastic--cascade)
+34. [Visualizing Results (data bridge)](#34-visualizing-results-data-bridge)
 
 ---
 
@@ -3453,7 +3454,8 @@ Each of `monte_carlo_runs` realizations fails edge `e` with probability `edge_pr
 | `INTER_REGION` | Explicit `od_pairs` (e.g. region centroids). |
 
 Result: `mean`, `std_dev`, `p50`/`p90`/`p99` of per-run mean inflation, `mean_disconnected_fraction`,
-`exceedance` (aligned with `config.exceedance_thresholds`), and raw `run_values` / `run_disconnected`.
+`exceedance` (aligned with `config.exceedance_thresholds`), raw `run_values` / `run_disconnected`, and
+`edge_failure_frequency` (per-edge empirical P(fail), CSR order — thread-count invariant; feeds §34).
 Uses `BlockedCHQuery` (no CH rebuild); parallel over runs; seeded + ordered reduction
 (thread-count invariant). The per-edge probability array is the hazard hook: derive it however you
 like (§33.5 turns a FEMA floodplain into one).
@@ -3504,3 +3506,39 @@ flood = gpd.read_file("NFHL_37173_S_FLD_HAZ_AR.shp")     # FEMA county floodplai
 probs = hazards.flood_edge_probabilities(g, flood)        # design-flood scenario
 res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
 ```
+
+---
+
+## 34. Visualizing Results (data bridge)
+
+*Added in v2.4.0.* `gravel.viz` is the **data bridge**: it turns a fragility result into a per-edge
+column ready for `gdf.plot(...)`, folium, pydeck, or lonboard. Rendering helpers (static
+publication figures; interactive animated maps) arrive in a later release — this module gives you the
+frame. Pure Python; the GeoDataFrame path needs `[interop]`, the array helpers need only numpy.
+
+| Function | Result type | Column / return | Meaning |
+|----------|-------------|-----------------|---------|
+| `edge_failure_round(graph, result)` | `ProgressiveFragilityResult` (greedy) | `float64[edge_count]` | 1-based **removal step** per edge; `NaN` = survived. Animate by scrubbing rounds. |
+| `edge_failure_frequency(result)` | `StochasticFragilityResult` | `float64[edge_count]` | Empirical **P(fail)** per edge across MC runs. A *static* choropleth — draws have no order. |
+| `failure_geoframe(graph, result, *, metadata=None, crs="EPSG:4326")` | either | `GeoDataFrame` | Adds `failure_round` (progressive) or `failure_frequency` (stochastic); ready for `.plot()`. |
+
+```python
+import gravel
+from gravel import hazards, viz
+
+g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
+probs = hazards.flood_edge_probabilities(g, flood_gdf)
+res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
+
+gdf = viz.failure_geoframe(g, res)                       # 'failure_frequency' column
+gdf.plot(column="failure_frequency", cmap="viridis", legend=True)  # colorblind-safe
+```
+
+**Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the
+researcher's *accurate* snapshot — quantitative choropleth, colorblind-safe sequential colormap
+(avoid red→green), honest about uncertainty; the **dynamic/interactive** artifact is for comprehension
+and public reach — watch isolation propagate, WebGL scale, texture (dots/lines/grid) as an ordinal
+encoding. **Geometry caveat:** edges are straight node-to-node segments until real per-edge road
+geometry lands, so any map is *schematic* — over a floodplain it can misrepresent which roads sit in
+the hazard.

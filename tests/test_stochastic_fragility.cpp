@@ -90,3 +90,33 @@ TEST_CASE("Stochastic fragility: rejects mismatched probability length", "[stoch
     std::vector<double> p(3, 0.1);  // wrong length
     CHECK_THROWS_AS(stochastic_fragility(*graph, ch, idx, p), std::invalid_argument);
 }
+
+TEST_CASE("Stochastic fragility: per-edge failure frequency bounds & determinism", "[stochastic]") {
+    auto graph = make_grid_graph(6, 6);
+    auto ch = build_ch(*graph);
+    ShortcutIndex idx(ch);
+    const auto m = graph->edge_count();
+
+    // Edge 0 always fails, edge 1 never fails; the rest are coin flips.
+    std::vector<double> p(m, 0.5);
+    p[0] = 1.0;
+    p[1] = 0.0;
+    StochasticFragilityConfig cfg;
+    cfg.monte_carlo_runs = 32;
+    cfg.od_sample_count = 8;
+    cfg.seed = 5;
+
+    auto a = stochastic_fragility(*graph, ch, idx, p, cfg);
+    REQUIRE(a.edge_failure_frequency.size() == m);
+    CHECK(a.edge_failure_frequency[0] == 1.0);   // certain-failure edge
+    CHECK(a.edge_failure_frequency[1] == 0.0);   // never-failure edge
+    for (double f : a.edge_failure_frequency) {
+        CHECK(f >= 0.0);
+        CHECK(f <= 1.0);
+    }
+
+    // Same seed => identical per-edge frequencies (integer counts, fixed per-run seeds).
+    auto b = stochastic_fragility(*graph, ch, idx, p, cfg);
+    for (std::size_t e = 0; e < m; ++e)
+        CHECK(a.edge_failure_frequency[e] == b.edge_failure_frequency[e]);
+}

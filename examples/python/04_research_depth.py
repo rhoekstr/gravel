@@ -103,6 +103,12 @@ def main():
     print(f"   P(mean inflation > {sc.exceedance_thresholds}) = "
           f"{[round(x, 3) for x in res.exceedance]}\n")
 
+    # Show the work: per-edge empirical failure probability (viz data bridge).
+    pfail = np.asarray(res.edge_failure_frequency)
+    print(f"   per-edge P(fail): {int((pfail > 0.5).sum())} edges > 0.5, max {pfail.max():.2f}")
+    # To plot it (needs geopandas): gdf = gravel.viz.failure_geoframe(fg, res);
+    #   gdf.plot(column="failure_frequency", cmap="viridis")  # colorblind-safe
+
     # ------------------------------------------------------------------
     # 3. Cascading failure — robustness as a curve over tolerance alpha
     # ------------------------------------------------------------------

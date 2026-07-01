@@ -907,6 +907,7 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readonly("exceedance", &StochasticFragilityResult::exceedance)
         .def_readonly("run_values", &StochasticFragilityResult::run_values)
         .def_readonly("run_disconnected", &StochasticFragilityResult::run_disconnected)
+        .def_readonly("edge_failure_frequency", &StochasticFragilityResult::edge_failure_frequency)
         .def_readonly("runs", &StochasticFragilityResult::runs)
         .def_readonly("probe_pairs", &StochasticFragilityResult::probe_pairs);
 

@@ -415,9 +415,17 @@ probabilities enter fragility as arrays, derivation in geo/Python).
 - **Persist edge polyline geometry.** Store the intermediate OSM way geometry per edge so maps render
   real road shapes instead of straight node-to-node segments. Prerequisite for honest cartography.
   *(geo layer, optional, memory cost noted)*
-- **Thin visualization layer** (`gravel.viz`, `gravel[viz]` extra, pure Python): `plot_fragility`
-  returning a Folium/matplotlib object via `GeoDataFrame.explore()`, plus a county-choropleth helper.
-  Sits downstream of `to_geodataframe`; never in the C++ core.
+- **Visualization** (`gravel.viz`, `gravel[viz]` extra, pure Python; downstream of `to_geodataframe`,
+  never in the C++ core). Staged:
+  - ✅ **Tier 0 (data bridge, shipped 2.4.0).** Results expose a per-edge failure trace
+    (`edge_failure_round` from progressive greedy removal order; `edge_failure_frequency` from
+    stochastic MC) and `failure_geoframe` returns a plot-ready `GeoDataFrame`. Zero new deps.
+  - **Tier 1 + 2 (2.5.0 — comprehensive visual update).** Two audiences, two modes (durable design
+    principle): **static** = the researcher's *accurate* artifact (quantitative choropleth,
+    colorblind-safe sequential colormap, honest about uncertainty; matplotlib/geopandas); **dynamic**
+    = comprehension + public reach (watch isolation propagate; pydeck/lonboard WebGL; dots/lines/grid
+    texture as an ordinal encoding). Not aimed at B&W journal figures. Geo-viz credibility is coupled
+    to the 2B edge-geometry work above — label maps schematic until it lands.
 
 ### Hardening & operational (surfaced during the 2.3.0 release)
 
