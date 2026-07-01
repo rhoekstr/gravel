@@ -26,11 +26,9 @@ Binary wheels for Linux (x86_64, aarch64), macOS (x86_64, arm64), and Windows (A
 
 ### conda-forge
 
-```bash
-conda install -c conda-forge gravel-fragility
-```
-
-Same feature set as the PyPI wheels plus the usual conda benefits (pinned C++ ABI, binary deps managed by conda).
+Not currently available. The conda-forge feedstock is out of date and does **not** track recent
+releases — install via `pip` (above) for the current version. (If the feedstock is revived, a
+`conda install` path will return here.)
 
 ### From source
 
