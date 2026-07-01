@@ -148,6 +148,8 @@ add_library(gravel-fragility
     src/analysis/location_fragility.cpp
     src/analysis/closure_risk.cpp
     src/analysis/scenario_fragility.cpp
+    src/analysis/stochastic_fragility.cpp
+    src/analysis/cascade_fragility.cpp
     src/analysis/uncertainty.cpp
     src/analysis/tiled_fragility.cpp
     src/analysis/progressive_fragility.cpp
@@ -188,6 +190,7 @@ endif()
 # --- gravel-geo: OSM loading, snapping, elevation, edge confidence ---
 add_library(gravel-geo
     src/geo/elevation.cpp
+    src/geo/capacity.cpp
     src/geo/edge_confidence.cpp
     src/geo/region_assignment.cpp
     src/geo/geojson_loader.cpp

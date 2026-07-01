@@ -67,6 +67,8 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 30. [Inter-Region Fragility](#30-inter-region-fragility-gravelfragilityinter_region_fragilityh)
 31. [Python Interop & Export](#31-python-interop--export)
 32. [Parallelism & Reproducibility](#32-parallelism--reproducibility)
+33. [Research Depth: Capacity, Stochastic & Cascade](#33-research-depth-capacity-stochastic--cascade)
+34. [Visualizing Results (data bridge)](#34-visualizing-results-data-bridge)
 
 ---
 
@@ -3414,3 +3416,129 @@ The heavy compute bindings (`build_ch`, `route_fragility`, `batch_fragility`,
 A long call no longer blocks the interpreter (Ctrl-C stays responsive), and you can drive
 several from a Python `ThreadPoolExecutor`. Note that `set_max_threads` follows OpenMP's
 per-thread semantics, so set it in the same thread that invokes the kernel.
+
+---
+
+## 33. Research Depth: Capacity, Stochastic & Cascade
+
+*Added in v2.4.0.* Modeling depth on top of the topological core. **Design invariant:** capacity
+and failure-probability are **inputs** to `gravel-fragility` (plain arrays); their derivation lives
+in `gravel-geo`/Python. Every constant (PCE, probability, tolerance α) is disclosed and sweepable —
+report covariates as curves/distributions, not single numbers.
+
+### 33.1 Capacity model (`gravel/geo/capacity.h`)
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `CapacityConfig` | `per_lane_capacity`, `default_lanes` (by highway class), `fallback_capacity`; static `hcm()` | HCM-style defaults; all overridable / sweepable. |
+| `estimate_capacity` | `(EdgeMetadata, CapacityConfig=hcm()) → vector<double>` | Per-edge PCE/hour = `lanes × per_lane(class)`; class-default lanes when the `lanes` tag is absent; CSR edge order. OSM builds. |
+
+### 33.2 Capacity-aware betweenness (`gravel/analysis/betweenness.h`)
+
+- `BetweennessConfig.edge_capacity` (optional, length `edge_count`) → populates
+  `BetweennessResult.criticality[e] = betweenness[e] / capacity[e]` (**saturation**).
+- `capacity_weighted_importance(betweenness, capacity) → vector<double>` = `betweenness × capacity`
+  (**consequence** — high-throughput corridors rank above low-capacity streets). Throws on length
+  mismatch.
+
+### 33.3 Stochastic fragility (`gravel/analysis/stochastic_fragility.h`)
+
+`stochastic_fragility(graph, ch, shortcut_index, edge_probabilities, config) → StochasticFragilityResult`.
+Each of `monte_carlo_runs` realizations fails edge `e` with probability `edge_probabilities[e]`
+(CSR order), then measures distance inflation + disconnection over probe O-D pairs.
+
+| `StochasticTarget` | Probe pairs |
+|--------------------|-------------|
+| `OD_DISTANCE_INFLATION` (default) | Random reachable pairs (`od_sample_count`). |
+| `LOCATION_ISOLATION` | `center` → sampled targets. |
+| `INTER_REGION` | Explicit `od_pairs` (e.g. region centroids). |
+
+Result: `mean`, `std_dev`, `p50`/`p90`/`p99` of per-run mean inflation, `mean_disconnected_fraction`,
+`exceedance` (aligned with `config.exceedance_thresholds`), raw `run_values` / `run_disconnected`, and
+`edge_failure_frequency` (per-edge empirical P(fail), CSR order — thread-count invariant; feeds §34).
+Uses `BlockedCHQuery` (no CH rebuild); parallel over runs; seeded + ordered reduction
+(thread-count invariant). The per-edge probability array is the hazard hook: derive it however you
+like (§33.5 turns a FEMA floodplain into one).
+
+### 33.4 Cascading failure — Motter–Lai (`gravel/analysis/cascade_fragility.h`, experimental)
+
+`cascade_fragility(graph, config) → CascadeFragilityResult` and
+`cascade_vs_alpha(graph, config, alphas) → [CascadeAlphaPoint]`.
+
+- Load = edge betweenness; `capacity = (1+α)·initial_load` (`BETWEENNESS_TOLERANCE`) or
+  `(1 + α·pce/mean_pce)·initial_load` (`PCE_WEIGHTED`, needs `edge_pce`).
+- Trigger via `trigger_edges` (or the highest-load edge if empty); recompute betweenness on the
+  degraded graph each round (failed edges masked with ∞ weight — edge indexing preserved); fail edges
+  whose load exceeds capacity; iterate to a fixed point. Zero-initial-load edges never overload.
+- Result: `cascade_size`, `cascade_fraction`, `iterations`, `failed_edges`.
+- **Experimental & costly** (betweenness per round): use sampled betweenness on large graphs, set
+  `BetweennessConfig.deterministic` for reproducibility, and report `cascade_vs_alpha` (which can be
+  non-monotone near the transition — a genuine property of the model), not a single α.
+
+### 33.5 Floodplain / hazard ingestion (`gravel.hazards`, Python)
+
+Turns a spatial hazard footprint into the per-edge probability array §33.3 consumes. Pure Python —
+the DAG keeps `gravel-fragility` hazard-agnostic, so derivation lives here; the spatial predicate
+reuses the shipped `edges_in_polygon`. Two layers:
+
+| Function | Input | Notes |
+|----------|-------|-------|
+| `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**. Returns `float64[edge_count]` in CSR order. |
+| `flood_edge_probabilities(graph, gdf, *, zone_field="FLD_ZONE", zone_probabilities=NFHL_EVENT_CLOSURE, baseline=0.0, default_probability=None)` | FEMA NFHL `GeoDataFrame` | Reprojects to WGS84, maps flood-zone codes → prob, explodes MultiPolygons, delegates to the core. Needs `[interop]`. |
+
+**Probability semantics (pick deliberately).** `prob[e]` is the chance edge `e` fails in one Monte
+Carlo run, so what a "run" means is your choice:
+- `NFHL_EVENT_CLOSURE` (default) — `P(road impassable | the design flood occurs)`; a run is one
+  design-flood realization. **Illustrative** closure rates (SFHA ≈ 0.9, V ≈ 0.95), not FEMA-published — sweep them.
+- `NFHL_ANNUAL_PROBABILITY` — the zone's annual exceedance (SFHA = 0.01, 0.2%-zone = 0.002); a run is
+  one "year." **Grounded** in the zone definitions.
+
+**Caveats:** both-endpoints rule (boundary-straddling edges excluded); interior rings/holes ignored
+(slightly over-inclusive); the two directed edges of a road share a probability but fail
+independently; cost is O(#rings × #nodes) — dissolve the layer by zone for national-scale runs.
+
+```python
+import geopandas as gpd, gravel
+from gravel import hazards
+g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
+flood = gpd.read_file("NFHL_37173_S_FLD_HAZ_AR.shp")     # FEMA county floodplain
+probs = hazards.flood_edge_probabilities(g, flood)        # design-flood scenario
+res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
+```
+
+---
+
+## 34. Visualizing Results (data bridge)
+
+*Added in v2.4.0.* `gravel.viz` is the **data bridge**: it turns a fragility result into a per-edge
+column ready for `gdf.plot(...)`, folium, pydeck, or lonboard. Rendering helpers (static
+publication figures; interactive animated maps) arrive in a later release — this module gives you the
+frame. Pure Python; the GeoDataFrame path needs `[interop]`, the array helpers need only numpy.
+
+| Function | Result type | Column / return | Meaning |
+|----------|-------------|-----------------|---------|
+| `edge_failure_round(graph, result)` | `ProgressiveFragilityResult` (greedy) | `float64[edge_count]` | 1-based **removal step** per edge; `NaN` = survived. Animate by scrubbing rounds. |
+| `edge_failure_frequency(result)` | `StochasticFragilityResult` | `float64[edge_count]` | Empirical **P(fail)** per edge across MC runs. A *static* choropleth — draws have no order. |
+| `failure_geoframe(graph, result, *, metadata=None, crs="EPSG:4326")` | either | `GeoDataFrame` | Adds `failure_round` (progressive) or `failure_frequency` (stochastic); ready for `.plot()`. |
+
+```python
+import gravel
+from gravel import hazards, viz
+
+g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
+probs = hazards.flood_edge_probabilities(g, flood_gdf)
+res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
+
+gdf = viz.failure_geoframe(g, res)                       # 'failure_frequency' column
+gdf.plot(column="failure_frequency", cmap="viridis", legend=True)  # colorblind-safe
+```
+
+**Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the
+researcher's *accurate* snapshot — quantitative choropleth, colorblind-safe sequential colormap
+(avoid red→green), honest about uncertainty; the **dynamic/interactive** artifact is for comprehension
+and public reach — watch isolation propagate, WebGL scale, texture (dots/lines/grid) as an ordinal
+encoding. **Geometry caveat:** edges are straight node-to-node segments until real per-edge road
+geometry lands, so any map is *schematic* — over a floodplain it can misrepresent which roads sit in
+the hazard.

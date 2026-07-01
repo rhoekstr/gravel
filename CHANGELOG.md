@@ -4,6 +4,59 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] — Unreleased
+
+**Phase 2A — research depth.** Adds modeling depth on top of the topological core, all as
+**disclosed, sweepable inputs** (capacity, failure probability, cascade tolerance) reported as
+curves/distributions — never hidden constants. The DAG is intact: capacity/probabilities enter
+`gravel-fragility` as input arrays; derivation lives in `gravel-geo`/Python.
+
+### Added
+- **HCM capacity model** (`gravel-geo`). `estimate_capacity(EdgeMetadata, CapacityConfig=CapacityConfig.hcm())`
+  → per-edge capacity (PCE/hour) = `lanes × per-lane-capacity(highway class)`, with class-default
+  lanes when the `lanes` tag is absent. Citable HCM-style defaults (motorway ~2200 down to service
+  ~400 PCE/h/lane); every constant is overridable and meant to be sensitivity-swept. Uses the
+  `EdgeMetadata` exposed in 2.3.0 (OSM builds).
+- **Capacity-aware betweenness.** `BetweennessConfig.edge_capacity` populates
+  `BetweennessResult.criticality` (betweenness ÷ capacity — saturation); `capacity_weighted_importance(betweenness, capacity)`
+  = betweenness × capacity (consequence — high-throughput corridors rank above low-capacity streets).
+- **Stochastic fragility.** `stochastic_fragility(graph, ch, shortcut_index, edge_probabilities, config)`
+  → a *distribution* of fragility under independent per-edge failures: mean / std / p50 / p90 / p99 of
+  O-D distance inflation, mean disconnected fraction, and an exceedance curve. Three targets
+  (`OD_DISTANCE_INFLATION` default, `LOCATION_ISOLATION`, `INTER_REGION`) all reduce to distance
+  inflation over a probe-pair set. Uses `BlockedCHQuery` (no CH rebuild), parallel over runs, seeded
+  with an ordered reduction (thread-count invariant). Flagship hazard source: floodplain / FEMA-NFHL
+  intersection → per-edge closure probability.
+- **Motter–Lai cascading failure (experimental).** `cascade_fragility(graph, config)` and
+  `cascade_vs_alpha(graph, config, alphas)`: load = edge betweenness, capacity = `(1+α)·initial_load`
+  (or PCE-weighted); recompute betweenness on the degraded graph each round (failed edges masked with
+  infinite weight, so edge indexing is preserved), fail overloaded edges, iterate to a fixed point.
+  No demand matrix, no CH mutation. Reported as cascade-size-vs-α (which can be non-monotone near the
+  transition — a real property of the model). Set `BetweennessConfig.deterministic` for reproducible
+  cascades and prefer sampled betweenness on large graphs.
+- **Floodplain / hazard ingestion.** New `gravel.hazards` module turns a spatial hazard footprint into
+  the per-edge failure-probability array `stochastic_fragility` consumes: `hazard_edge_probabilities`
+  (geopandas-free core over `(Polygon, prob)` zones) and `flood_edge_probabilities` (FEMA NFHL
+  `GeoDataFrame` → probabilities), plus disclosed `NFHL_EVENT_CLOSURE` (design-flood scenario, default)
+  and `NFHL_ANNUAL_PROBABILITY` (annual-exceedance) tables. Derivation lives in Python; the DAG keeps
+  `gravel-fragility` hazard-agnostic. Reuses the shipped `edges_in_polygon`; no C++/ABI change.
+- **Visualization data bridge (`gravel.viz`, Tier 0).** Turns a fragility result into a per-edge column
+  ready for `gdf.plot(...)` / pydeck / lonboard: `edge_failure_round` (progressive greedy removal order
+  → animatable rounds), `edge_failure_frequency` (stochastic per-edge P(fail) → static choropleth), and
+  `failure_geoframe` (dispatches to a plot-ready `GeoDataFrame`). Rendering helpers land in 2.5.0.
+- **`StochasticFragilityResult.edge_failure_frequency`** — per-edge empirical failure probability (CSR
+  order, thread-count invariant), the honest floodplain visual (which roads actually fail across runs).
+
+### Docs
+- Refreshed the README / `routing_performance.md` benchmark table (Release + OpenMP, real counties,
+  2026-07-01). Documents the 2.3.0 parallel wins now visible on macOS: distance matrix and
+  `route_fragility` ~5× faster (1→10-thread scaling curve included); single-threaded ops unchanged.
+
+### Notes
+- Capacity-weighted ranking is exposed as full-graph operations (criticality + weighted importance);
+  embedding capacity into `progressive_fragility`'s re-indexed subgraph strategy is deferred (it needs
+  a subgraph edge-index mapping).
+
 ## [2.3.0] — 2026-06-30
 
 The **interop keystone** — the Python surface now exposes capabilities that previously

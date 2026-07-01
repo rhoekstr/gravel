@@ -30,7 +30,8 @@ A C++20 library (with Python bindings) that computes how vulnerable road/infrast
 to edge failures — *"how isolated does this place become when N% of its roads fail?"* Built on
 **contraction hierarchies** for fast shortest paths plus a Dijkstra / incremental-SSSP pipeline for
 edge-removal analysis. ~2s isolation fragility on a 200K-node county graph. Apache-2.0. Dual purpose:
-a dissertation covariate tool and a workforce-planning resource (Awry Labs).
+a network-fragility research tool and a workforce-planning resource (Awry Labs). (Originally a
+disaster-sociology dissertation covariate; that tie ended with a null result — it's a general tool now.)
 
 ## Architecture — where code lives
 
@@ -49,6 +50,8 @@ Modules map onto the six linkable libraries above:
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |
 | `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra) |
+| `python/gravel/hazards.py` | hazard footprints → per-edge failure probabilities (floodplain/NFHL → `stochastic_fragility`) |
+| `python/gravel/viz.py` | fragility results → plot-ready per-edge failure traces / `GeoDataFrame` (viz data bridge) |
 | `cli/cmd_*.cpp` | command-line tools (`build_graph`, `build_ch`, `batch_fragility`, …) |
 | `tests/test_*.cpp` | Catch2 unit tests (+ `python/tests/` pytest) |
 | `bench/ · scripts/` | benchmarks + national-run scripts (`scripts/national_fragility.py`) |

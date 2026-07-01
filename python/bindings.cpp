@@ -53,6 +53,9 @@
 #include "gravel/fragility/inter_region_fragility.h"
 #include "gravel/geo/geography_skeleton.h"
 #include "gravel/core/edge_metadata.h"
+#include "gravel/geo/capacity.h"
+#include "gravel/analysis/stochastic_fragility.h"
+#include "gravel/analysis/cascade_fragility.h"
 #include "gravel/io/geojson_output.h"
 #include "gravel/io/arrow_output.h"
 
@@ -485,17 +488,29 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readwrite("sample_sources", &BetweennessConfig::sample_sources)
         .def_readwrite("range_limit", &BetweennessConfig::range_limit)
         .def_readwrite("seed", &BetweennessConfig::seed)
-        .def_readwrite("deterministic", &BetweennessConfig::deterministic);
+        .def_readwrite("deterministic", &BetweennessConfig::deterministic)
+        .def_readwrite("edge_capacity", &BetweennessConfig::edge_capacity,
+                       "Optional per-edge capacity (CSR order); when set, the result's "
+                       "`criticality` = betweenness / capacity is populated.");
 
     py::class_<BetweennessResult>(m, "BetweennessResult")
         .def_readonly("edge_scores", &BetweennessResult::edge_scores)
         .def_readonly("node_scores", &BetweennessResult::node_scores)
-        .def_readonly("sources_used", &BetweennessResult::sources_used);
+        .def_readonly("sources_used", &BetweennessResult::sources_used)
+        .def_readonly("criticality", &BetweennessResult::criticality,
+                      "Capacity-normalized betweenness (load/capacity); empty unless "
+                      "BetweennessConfig.edge_capacity was supplied.");
 
     m.def("edge_betweenness", &edge_betweenness,
           py::arg("graph"), py::arg("config") = BetweennessConfig{},
           "Compute edge betweenness centrality via Brandes' algorithm",
           py::call_guard<py::gil_scoped_release>());
+
+    m.def("capacity_weighted_importance", &capacity_weighted_importance,
+          py::arg("betweenness"), py::arg("capacity"),
+          "Capacity-weighted edge importance = betweenness x capacity (CSR edge order). "
+          "Ranks high-throughput corridors above low-capacity streets of equal betweenness. "
+          "Complements BetweennessResult.criticality (betweenness / capacity).");
 
     // Kirchhoff index
     py::class_<KirchhoffConfig>(m, "KirchhoffConfig")
@@ -864,6 +879,85 @@ PYBIND11_MODULE(_gravel, m) {
           py::arg("graph"), py::arg("polygon"),
           "Find graph edges within a polygon (for hazard footprint conversion)");
 
+    // --- Stochastic fragility (Monte Carlo over per-edge failure probabilities) ---
+    py::enum_<StochasticTarget>(m, "StochasticTarget")
+        .value("OD_DISTANCE_INFLATION", StochasticTarget::OD_DISTANCE_INFLATION)
+        .value("LOCATION_ISOLATION", StochasticTarget::LOCATION_ISOLATION)
+        .value("INTER_REGION", StochasticTarget::INTER_REGION);
+
+    py::class_<StochasticFragilityConfig>(m, "StochasticFragilityConfig")
+        .def(py::init<>())
+        .def_readwrite("monte_carlo_runs", &StochasticFragilityConfig::monte_carlo_runs)
+        .def_readwrite("seed", &StochasticFragilityConfig::seed)
+        .def_readwrite("target", &StochasticFragilityConfig::target)
+        .def_readwrite("od_sample_count", &StochasticFragilityConfig::od_sample_count)
+        .def_readwrite("center", &StochasticFragilityConfig::center)
+        .def_readwrite("od_pairs", &StochasticFragilityConfig::od_pairs)
+        .def_readwrite("exceedance_thresholds",
+                       &StochasticFragilityConfig::exceedance_thresholds);
+
+    py::class_<StochasticFragilityResult>(m, "StochasticFragilityResult")
+        .def_readonly("mean", &StochasticFragilityResult::mean)
+        .def_readonly("std_dev", &StochasticFragilityResult::std_dev)
+        .def_readonly("p50", &StochasticFragilityResult::p50)
+        .def_readonly("p90", &StochasticFragilityResult::p90)
+        .def_readonly("p99", &StochasticFragilityResult::p99)
+        .def_readonly("mean_disconnected_fraction",
+                      &StochasticFragilityResult::mean_disconnected_fraction)
+        .def_readonly("exceedance", &StochasticFragilityResult::exceedance)
+        .def_readonly("run_values", &StochasticFragilityResult::run_values)
+        .def_readonly("run_disconnected", &StochasticFragilityResult::run_disconnected)
+        .def_readonly("edge_failure_frequency", &StochasticFragilityResult::edge_failure_frequency)
+        .def_readonly("runs", &StochasticFragilityResult::runs)
+        .def_readonly("probe_pairs", &StochasticFragilityResult::probe_pairs);
+
+    m.def("stochastic_fragility", &stochastic_fragility,
+          py::arg("graph"), py::arg("ch"), py::arg("shortcut_index"),
+          py::arg("edge_probabilities"),
+          py::arg("config") = StochasticFragilityConfig{},
+          "Distribution of fragility under independent per-edge failures "
+          "(edge fails w.p. edge_probabilities[e]). Monte Carlo over realizations; "
+          "measures distance inflation + disconnection across probe O-D pairs. "
+          "Feed floodplain / hazard-derived probabilities in as the array.",
+          py::call_guard<py::gil_scoped_release>());
+
+    // --- Cascading failure (Motter-Lai, experimental) ---
+    py::enum_<CascadeCapacity>(m, "CascadeCapacity")
+        .value("BETWEENNESS_TOLERANCE", CascadeCapacity::BETWEENNESS_TOLERANCE)
+        .value("PCE_WEIGHTED", CascadeCapacity::PCE_WEIGHTED);
+
+    py::class_<CascadeFragilityConfig>(m, "CascadeFragilityConfig")
+        .def(py::init<>())
+        .def_readwrite("alpha", &CascadeFragilityConfig::alpha)
+        .def_readwrite("trigger_edges", &CascadeFragilityConfig::trigger_edges)
+        .def_readwrite("capacity_source", &CascadeFragilityConfig::capacity_source)
+        .def_readwrite("edge_pce", &CascadeFragilityConfig::edge_pce)
+        .def_readwrite("betweenness_config", &CascadeFragilityConfig::betweenness_config)
+        .def_readwrite("max_iterations", &CascadeFragilityConfig::max_iterations);
+
+    py::class_<CascadeFragilityResult>(m, "CascadeFragilityResult")
+        .def_readonly("cascade_size", &CascadeFragilityResult::cascade_size)
+        .def_readonly("cascade_fraction", &CascadeFragilityResult::cascade_fraction)
+        .def_readonly("iterations", &CascadeFragilityResult::iterations)
+        .def_readonly("trigger_size", &CascadeFragilityResult::trigger_size)
+        .def_readonly("failed_edges", &CascadeFragilityResult::failed_edges);
+
+    py::class_<CascadeAlphaPoint>(m, "CascadeAlphaPoint")
+        .def_readonly("alpha", &CascadeAlphaPoint::alpha)
+        .def_readonly("cascade_fraction", &CascadeAlphaPoint::cascade_fraction)
+        .def_readonly("iterations", &CascadeAlphaPoint::iterations);
+
+    m.def("cascade_fragility", &cascade_fragility,
+          py::arg("graph"), py::arg("config") = CascadeFragilityConfig{},
+          "Motter-Lai cascading edge failure (experimental). Load = betweenness, "
+          "capacity = (1+alpha)*initial_load (or PCE-weighted); iterate to a fixed point.",
+          py::call_guard<py::gil_scoped_release>());
+
+    m.def("cascade_vs_alpha", &cascade_vs_alpha,
+          py::arg("graph"), py::arg("config"), py::arg("alphas"),
+          "Sweep alpha: cascade fraction + iteration count per tolerance value.",
+          py::call_guard<py::gil_scoped_release>());
+
     // --- Uncertainty Quantification ---
 
     py::class_<EnsembleConfig>(m, "EnsembleConfig")
@@ -1213,6 +1307,24 @@ PYBIND11_MODULE(_gravel, m) {
        "Load an OSM .pbf, returning (Graph, EdgeMetadata). The metadata preserves per-edge "
        "OSM tags (highway, lanes, maxspeed, name, surface, bridge, tunnel, ref) in CSR edge "
        "order, aligned with Graph.to_coo().");
+
+    // --- Capacity model (HCM-style per-edge throughput from OSM metadata) ---
+    py::class_<CapacityConfig>(m, "CapacityConfig")
+        .def(py::init<>())
+        .def_readwrite("per_lane_capacity", &CapacityConfig::per_lane_capacity,
+                       "PCE/hour/lane by OSM highway class (overridable / sweepable).")
+        .def_readwrite("default_lanes", &CapacityConfig::default_lanes,
+                       "Assumed lane count by highway class when the `lanes` tag is absent.")
+        .def_readwrite("fallback_capacity", &CapacityConfig::fallback_capacity,
+                       "Capacity for unmapped highway classes.")
+        .def_static("hcm", &CapacityConfig::hcm,
+                    "Citable HCM-style defaults (motorway ~2200 down to service ~400 PCE/h/lane).");
+
+    m.def("estimate_capacity", &estimate_capacity,
+          py::arg("metadata"), py::arg("config") = CapacityConfig::hcm(),
+          "Per-edge capacity (PCE/hour) in CSR edge order (aligned with Graph.to_coo()): "
+          "lanes x per-lane-capacity(highway class). Feed the result into fragility ranking as "
+          "an edge_capacity array. The constants are a disclosed, sweepable assumption.");
 #endif
 
     // --- GeoJSON / tabular export ---

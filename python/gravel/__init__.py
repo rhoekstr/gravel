@@ -47,6 +47,11 @@ from ._gravel import (
     BorderEdgeResult,
     BorderEdgeSummary,
     BridgeResult,
+    # --- Cascading failure (Motter-Lai) ---
+    CascadeAlphaPoint,
+    CascadeCapacity,
+    CascadeFragilityConfig,
+    CascadeFragilityResult,
     CHBuildConfig,
     CHQuery,
     ClosureRiskData,
@@ -109,6 +114,10 @@ from ._gravel import (
     ShortcutIndex,
     # --- Snapping ---
     SnapQualityReport,
+    # --- Stochastic fragility ---
+    StochasticFragilityConfig,
+    StochasticFragilityResult,
+    StochasticTarget,
     # --- Network analysis ---
     SubgraphResult,
     # --- Validation ---
@@ -123,6 +132,9 @@ from ._gravel import (
     build_ch,
     build_ch_with_config,
     build_reduced_geography_graph,  # geo adapter for RegionAssignment
+    capacity_weighted_importance,
+    cascade_fragility,
+    cascade_vs_alpha,
     classify_closure_risk,
     coarsen_graph,
     county_fragility_index,
@@ -167,6 +179,7 @@ from ._gravel import (
     seasonal_weight_multipliers,
     set_max_threads,
     snap_quality,
+    stochastic_fragility,
     stratified_sample,
     summarize_border_edges,
     validate,
@@ -185,9 +198,11 @@ from ._gravel import (
 #         g = gravel.load_osm_graph(cfg)
 try:
     from ._gravel import (
+        CapacityConfig,
         EdgeMetadata,
         OSMConfig,
         SpeedProfile,
+        estimate_capacity,
         load_osm_graph,
         load_osm_graph_with_metadata,
     )
@@ -205,12 +220,19 @@ if HAS_ARROW:
         write_fragility_parquet,
     )
 
-# NetworkX / GeoPandas adapters. The submodule imports cleanly without the
-# optional deps (they are lazy-imported inside each function), so this never
-# fails for a missing networkx/geopandas — see `pip install gravel-fragility[interop]`.
-from . import interop  # noqa: E402
+# Pure-Python submodules. All import cleanly without the optional geo deps, which
+# are lazy-imported inside the functions that need them (`pip install
+# gravel-fragility[interop]`):
+#   interop  — NetworkX / GeoPandas adapters
+#   hazards  — hazard footprints -> per-edge failure probabilities for stochastic_fragility
+#   viz      — fragility results -> plot-ready GeoDataFrames (visualization data bridge)
+from . import (  # noqa: E402
+    hazards,
+    interop,
+    viz,
+)
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 
 __all__ = [
     # Feature flags
@@ -232,6 +254,7 @@ __all__ = [
     # Network analysis
     "SubgraphResult", "extract_subgraph",
     "algebraic_connectivity", "BetweennessConfig", "BetweennessResult", "edge_betweenness",
+    "capacity_weighted_importance",
     "KirchhoffConfig", "kirchhoff_index", "natural_connectivity", "BridgeResult",
     # County fragility
     "CountyFragilityConfig", "CountyFragilityResult", "county_fragility_index",
@@ -242,6 +265,12 @@ __all__ = [
     "ProgressiveFragilityConfig", "ProgressiveFragilityResult", "progressive_fragility",
     # Scenario fragility
     "ScenarioConfig", "ScenarioResult", "scenario_fragility", "edges_in_polygon",
+    # Stochastic fragility
+    "StochasticFragilityConfig", "StochasticFragilityResult", "StochasticTarget",
+    "stochastic_fragility",
+    # Cascading failure (Motter-Lai, experimental)
+    "CascadeCapacity", "CascadeFragilityConfig", "CascadeFragilityResult",
+    "CascadeAlphaPoint", "cascade_fragility", "cascade_vs_alpha",
     # Edge sampling
     "SamplingStrategy", "SamplerConfig", "EdgeSampler",
     # Region assignment
@@ -270,9 +299,9 @@ __all__ = [
     # Closure risk
     "ClosureRiskTier", "ClosureRiskData", "classify_closure_risk",
     "seasonal_weight_multipliers",
-    # Export / interop
+    # Export / interop / hazards / viz
     "HAS_ARROW", "route_to_geojson", "location_fragility_to_geojson",
-    "write_fragility_jsonl", "interop",
+    "write_fragility_jsonl", "interop", "hazards", "viz",
     # Parallelism
     "HAS_OPENMP", "max_threads", "set_max_threads",
 ]

@@ -48,6 +48,9 @@ add_executable(gravel_tests
     test_boundary_contraction.cpp
     test_deferred_features.cpp
     test_inter_region.cpp
+    test_capacity.cpp
+    test_stochastic_fragility.cpp
+    test_cascade_fragility.cpp
 )
 
 if(GRAVEL_OSMIUM_ENABLED)

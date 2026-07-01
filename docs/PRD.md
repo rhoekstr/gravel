@@ -13,13 +13,18 @@ analysis.
 Gravel is **published and in use** — PyPI (`gravel-fragility`) and conda-forge, currently **2.3.0**,
 Apache-2.0. It is deliberately **dual-purpose**:
 
-- a **dissertation covariate tool** — generating defensible network-fragility measures that correlate
-  with FEMA disaster outcomes for disaster-sociology research; and
+- a **network-fragility research tool** — generating defensible, reproducible measures of how isolated
+  a place becomes under infrastructure failure, for social-science and hazards research; and
 - a **workforce-planning resource** (Awry Labs) — ranking where infrastructure isolation risk is
   highest for planners and emergency managers.
 
+> **Scope note (2026-07):** Gravel began as a disaster-sociology dissertation covariate, but that tie
+> has ended — road fragility washed out under covariates in the post-disaster-crime analysis (a null
+> result). Gravel is now a **general** network-fragility tool with an academic/research core and a
+> public-sector audience, not a bespoke covariate generator for one study.
+
 That dual purpose is the lens for every prioritization call in this document: a change earns its
-place when it serves a defensible research covariate, an adopter's workflow, or (ideally) both.
+place when it serves a defensible research measure, an adopter's workflow, or (ideally) both.
 
 ## Problem Statement
 
@@ -279,7 +284,12 @@ inputs** — never as a new simulated paradigm baked into the core. See Roadmap 
 
 ## Version History
 
-### v2.3.0 (June 2026) — Current
+### v2.4.0 (in review) — Phase 2A research depth
+- HCM capacity model + capacity-aware betweenness (criticality + weighted importance);
+  `stochastic_fragility` (distribution over per-edge failures, floodplain-ready);
+  `cascade_fragility` (Motter–Lai, experimental). Modeling constants are disclosed, sweepable inputs.
+
+### v2.3.0 (June 2026)
 - **Interop keystone (Phase 1).** Python surface gains `Graph.node_coordinates` / `has_coordinates`,
   `to_coo` / `from_coo`; per-edge OSM metadata via `load_osm_graph_with_metadata` → `EdgeMetadata`;
   GeoJSON/JSONL/Parquet export bindings + `HAS_ARROW` flag; and the `gravel.interop` NetworkX /
@@ -366,10 +376,13 @@ gave reproducibility a guarantee.
 - ✅ **Reproducible covariates:** `BetweennessConfig.deterministic` gives bit-identical, thread-count-
   invariant betweenness; Monte Carlo statistics were already deterministic (sort-before-aggregate).
 
-### Phase 2A — Research depth (capacity → stochastic → cascade)
+### Phase 2A — Research depth (capacity → stochastic → cascade) ✅ built for 2.4.0 (in review)
 
-Serves the dissertation and Gravel's network-fragility identity. Sequenced because each step feeds
-the next.
+Serves Gravel's network-fragility research identity. Sequenced because each step feeds
+the next. Implemented as `capacity` (HCM model + capacity-aware betweenness), `stochastic_fragility`
+(distribution over per-edge failures; floodplain-ready), and `cascade_fragility` (Motter–Lai,
+experimental). All modeling constants are disclosed, sweepable inputs; the DAG holds (capacity /
+probabilities enter fragility as arrays, derivation in geo/Python).
 
 - **Capacity-weighted edge importance.** Derive a per-edge Passenger-Car-Equivalent estimate from
   highway class × `lanes` (class-default fallbacks when `lanes` is unknown); weight
@@ -382,15 +395,15 @@ the next.
 - **Stochastic edge failure** (promoted from prior "medium term"). Per-edge failure probabilities →
   Monte Carlo over realizations → a *distribution* of fragility (confidence intervals) rather than a
   point estimate. Embarrassingly parallel — the natural home for additional OpenMP if profiling
-  confirms a hotspot. Strong dissertation fit: gives a covariate with uncertainty bounds.
-  - **Flagship hazard source — floodplain-weighted closure.** Ingest FEMA National Flood Hazard Layer
-    (NFHL) floodplain polygons (100-yr / 500-yr SFHA) and statically weight road-edge closure by flood
-    exposure: edges within a flood zone get elevated closure probability (feeding stochastic fragility)
-    or are blocked outright (feeding the existing `scenario_fragility`). A concrete, dissertation-aligned
-    supported scenario — "how isolated does this place become when the floodplain roads close?" Reuses
-    the existing point-in-polygon / `edges_in_polygon` machinery; the flood-exposure → probability
-    mapping is the geo/Python derivation, fed into fragility as an input array (DAG-clean). Elevation
-    data can refine exposure. Generalizes to other hazard footprints (wildfire, landslide, storm surge).
+  confirms a hotspot. Strong research fit: gives a measure with uncertainty bounds.
+  - **Flagship hazard source — floodplain-weighted closure.** ✅ built for 2.4.0 (`gravel.hazards`).
+    `flood_edge_probabilities` ingests FEMA NFHL floodplain polygons and maps flood-zone codes to
+    per-edge closure probability (disclosed `NFHL_EVENT_CLOSURE` design-flood-scenario default and
+    `NFHL_ANNUAL_PROBABILITY` annual-exceedance tables), feeding `stochastic_fragility`; the
+    geopandas-free `hazard_edge_probabilities` core generalizes to any polygonal hazard (wildfire,
+    landslide, storm surge). Reuses the shipped `edges_in_polygon`; derivation lives in Python, fed to
+    fragility as an input array (DAG-clean). *Not yet done:* elevation-refined exposure, and finer
+    edge–zone matching once real edge geometry lands (2B) — today's predicate is both-endpoints-inside.
 - **Cascading failure — Motter–Lai style (experimental).** Load = betweenness (already computed),
   capacity = (1+α)×initial load; remove an edge → redistribute → fail anything over capacity →
   iterate to a fixed point. Built on existing betweenness + `progressive_fragility` machinery; no
@@ -402,9 +415,17 @@ the next.
 - **Persist edge polyline geometry.** Store the intermediate OSM way geometry per edge so maps render
   real road shapes instead of straight node-to-node segments. Prerequisite for honest cartography.
   *(geo layer, optional, memory cost noted)*
-- **Thin visualization layer** (`gravel.viz`, `gravel[viz]` extra, pure Python): `plot_fragility`
-  returning a Folium/matplotlib object via `GeoDataFrame.explore()`, plus a county-choropleth helper.
-  Sits downstream of `to_geodataframe`; never in the C++ core.
+- **Visualization** (`gravel.viz`, `gravel[viz]` extra, pure Python; downstream of `to_geodataframe`,
+  never in the C++ core). Staged:
+  - ✅ **Tier 0 (data bridge, shipped 2.4.0).** Results expose a per-edge failure trace
+    (`edge_failure_round` from progressive greedy removal order; `edge_failure_frequency` from
+    stochastic MC) and `failure_geoframe` returns a plot-ready `GeoDataFrame`. Zero new deps.
+  - **Tier 1 + 2 (2.5.0 — comprehensive visual update).** Two audiences, two modes (durable design
+    principle): **static** = the researcher's *accurate* artifact (quantitative choropleth,
+    colorblind-safe sequential colormap, honest about uncertainty; matplotlib/geopandas); **dynamic**
+    = comprehension + public reach (watch isolation propagate; pydeck/lonboard WebGL; dots/lines/grid
+    texture as an ordinal encoding). Not aimed at B&W journal figures. Geo-viz credibility is coupled
+    to the 2B edge-geometry work above — label maps schematic until it lands.
 
 ### Hardening & operational (surfaced during the 2.3.0 release)
 
@@ -415,10 +436,14 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   nlohmann/json, pybind11, and Catch2 still `FetchContent`-clone from github at build time. Vendor or
   checksum-pin the rest so a release can never be blocked by an upstream host outage.
 - **conda-forge → 2.3.0.** The feedstock still targets 2.2.x; bump it to match the PyPI release.
-- **Refresh headline performance numbers.** The README/PRD benchmarks predate the macOS OpenMP fix
-  (measured serial on Mac). Re-benchmark and publish honest parallel numbers.
-- **Extend deterministic mode** to `kirchhoff_index` / `natural_connectivity` — H4 covered betweenness;
-  these still use stochastic estimation whose reduction order isn't pinned.
+- ✅ **Refreshed headline performance numbers** (2026-07-01, `bench/baselines/routing_performance.md`).
+  Re-benchmarked Release + OpenMP on real counties: distance matrix and `route_fragility` are ~5×
+  faster on macOS post-2.3.0 (the April numbers were effectively serial), confirmed by a 1→10-thread
+  scaling curve on the same machine. Single-threaded ops unchanged. The `perf_baseline.json`
+  Google-Benchmark regression gate is refreshed separately via `gravel_perf`.
+- ~~Extend deterministic mode to `kirchhoff_index` / `natural_connectivity`~~ — **not needed.** Audit
+  found both are serial (no OpenMP) and seeded, hence already reproducible; there is no unpinned
+  parallel reduction to fix. (If they are ever parallelized, they'll need the H4 treatment then.)
 
 ### Longer-horizon / research-track
 

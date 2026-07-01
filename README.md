@@ -129,17 +129,25 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 
 ### Performance
 
-Measured on an Apple M-series laptop (see `bench/baselines/routing_performance.md`):
+Measured on an Apple M-series laptop, 10 cores, Release build (2026-07-01; see
+`bench/baselines/routing_performance.md`):
 
 | Operation | 200K-node graph (Swain Co.) | 593K-node graph (Buncombe Co.) |
 |-----------|-----------------------------:|--------------------------------:|
-| OSM PBF load | 0.36s | 0.99s |
-| CH build | 0.85s | 3.92s |
-| CH distance query | 3.8 µs | 8.8 µs |
-| CH route (with path unpacking) | 82.7 µs | 144.8 µs |
-| Distance matrix cell (OpenMP) | 5.5 µs | 6.3 µs |
-| Route fragility (per path edge) | ~60 ms | ~124 ms |
-| Location fragility (MC=20) | 2.1 s | ~8 s |
+| OSM PBF load | 0.43s | 0.96s |
+| CH build | 0.78s | 3.81s |
+| CH distance query | 3.5 µs | 7.8 µs |
+| CH route (with path unpacking) | 80.5 µs | 112.8 µs |
+| Distance matrix cell (OpenMP, 10 threads) | 0.6 µs | 1.3 µs |
+| Route fragility (per path edge, OpenMP) | ~13 ms | ~28 ms |
+| Location fragility (MC=20, 50-mi radius) | 0.11 s | 1.0 s |
+
+The parallel kernels (distance matrix, route fragility) scale ~5× from 1→10 threads on
+this machine. macOS builds only gained working OpenMP in 2.3.0 (Apple Clang needs Homebrew
+`libomp`) and `route_fragility` was parallelized in the same release — so on macOS those two
+rows are roughly **5–9× faster than pre-2.3.0**. Single-threaded operations (load, CH build,
+point queries) are unchanged. Numbers vary by CPU; the `perf_baseline.json` Google-Benchmark
+regression gate is refreshed separately via `gravel_perf`.
 
 At-scale benchmarks:
 - **National per-county isolation fragility** (3,221 counties): 3.1 hours
