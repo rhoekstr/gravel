@@ -118,11 +118,12 @@ struct SimplificationConfig {
     /// Emit per-edge polyline geometry (`SimplificationResult::edge_geometry`).
     /// When true, degree-2 contraction records the coordinate chain each merged
     /// edge collapses, so a simplified graph can still be drawn along the real
-    /// road shape. Off by default (opt-in memory). Only meaningful when the
-    /// graph has coordinates. Honored for the filter + degree-2 pipeline; if
-    /// CH-level pruning also runs the geometry is left empty (it would misalign
-    /// with the pruned edge set).
-    bool emit_geometry = false;
+    /// road shape. **On by default** — the extra array is cheap and enables
+    /// faithful maps out of the box; set false to skip it. Automatically skipped
+    /// when the graph has no coordinates. Honored for the filter + degree-2
+    /// pipeline; if CH-level pruning also runs the geometry is left empty (it
+    /// would misalign with the pruned edge set).
+    bool emit_geometry = true;
 };
 
 /// Result of graph simplification.
@@ -167,14 +168,14 @@ SimplificationResult simplify_graph(
 /// @param bridge_endpoints      Set of node IDs that are bridge endpoints (never contracted).
 /// @param boundary_protection   Additional nodes to protect (e.g., region boundary nodes).
 ///                              The union of both sets is protected from contraction.
-/// @param emit_geometry         When true, populate `SimplificationResult::edge_geometry`
+/// @param emit_geometry         When true (default), populate `SimplificationResult::edge_geometry`
 ///                              with each edge's coordinate chain (real shape for merged
-///                              edges, 2-point for kept edges). Requires graph coordinates.
+///                              edges, 2-point for kept edges). Auto-skipped without coordinates.
 SimplificationResult contract_degree2(
     const ArrayGraph& graph,
     const std::unordered_set<NodeID>& bridge_endpoints = {},
     const std::unordered_set<NodeID>& boundary_protection = {},
-    bool emit_geometry = false);
+    bool emit_geometry = true);
 
 /// CH-level pruning. Requires pre-built CH.
 SimplificationResult prune_by_ch_level(

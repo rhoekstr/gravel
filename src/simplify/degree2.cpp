@@ -18,6 +18,9 @@ SimplificationResult contract_degree2(
 
     auto coord_of = [&](NodeID v) { return graph.node_coordinate(v).value_or(Coord{}); };
 
+    // Geometry is meaningless without coordinates; skip it even if requested.
+    emit_geometry = emit_geometry && !graph.raw_coords().empty();
+
     // Step 1: Build undirected neighbor sets to find degree-2 nodes.
     // For directed graphs, undirected degree = number of distinct neighbors
     // (combining both outgoing and incoming edges).

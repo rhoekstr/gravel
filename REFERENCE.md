@@ -3553,7 +3553,7 @@ along the real road.
 
 | Symbol | What |
 |--------|------|
-| `SimplificationConfig.emit_geometry` (default `False`) | Record each edge's coordinate chain during degree-2 contraction. |
+| `SimplificationConfig.emit_geometry` (**default `True`**) | Record each edge's coordinate chain during degree-2 contraction; set `False` to skip. Auto-skipped without coordinates. |
 | `SimplificationResult.edge_geometry` → `EdgeGeometry` | Ragged-CSR polylines, index-aligned to the simplified graph's edges (empty unless emitted). |
 | `EdgeGeometry.offsets` / `.points` (`(M,2)` [lat,lon]) / `.polyline(e)` / `.edge_count` / `.empty` | Access one edge's run or the whole buffer. |
 | `interop.to_geodataframe(graph, edge_geometry=…)` | Draw true `LineString`s; omit for straight chords. |
