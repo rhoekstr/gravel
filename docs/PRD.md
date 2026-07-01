@@ -423,10 +423,14 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   nlohmann/json, pybind11, and Catch2 still `FetchContent`-clone from github at build time. Vendor or
   checksum-pin the rest so a release can never be blocked by an upstream host outage.
 - **conda-forge → 2.3.0.** The feedstock still targets 2.2.x; bump it to match the PyPI release.
-- **Refresh headline performance numbers.** The README/PRD benchmarks predate the macOS OpenMP fix
-  (measured serial on Mac). Re-benchmark and publish honest parallel numbers.
-- **Extend deterministic mode** to `kirchhoff_index` / `natural_connectivity` — H4 covered betweenness;
-  these still use stochastic estimation whose reduction order isn't pinned.
+- ✅ **Refreshed headline performance numbers** (2026-07-01, `bench/baselines/routing_performance.md`).
+  Re-benchmarked Release + OpenMP on real counties: distance matrix and `route_fragility` are ~5×
+  faster on macOS post-2.3.0 (the April numbers were effectively serial), confirmed by a 1→10-thread
+  scaling curve on the same machine. Single-threaded ops unchanged. The `perf_baseline.json`
+  Google-Benchmark regression gate is refreshed separately via `gravel_perf`.
+- ~~Extend deterministic mode to `kirchhoff_index` / `natural_connectivity`~~ — **not needed.** Audit
+  found both are serial (no OpenMP) and seeded, hence already reproducible; there is no unpinned
+  parallel reduction to fix. (If they are ever parallelized, they'll need the H4 treatment then.)
 
 ### Longer-horizon / research-track
 

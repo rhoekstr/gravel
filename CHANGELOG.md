@@ -41,6 +41,11 @@ curves/distributions — never hidden constants. The DAG is intact: capacity/pro
   and `NFHL_ANNUAL_PROBABILITY` (annual-exceedance) tables. Derivation lives in Python; the DAG keeps
   `gravel-fragility` hazard-agnostic. Reuses the shipped `edges_in_polygon`; no C++/ABI change.
 
+### Docs
+- Refreshed the README / `routing_performance.md` benchmark table (Release + OpenMP, real counties,
+  2026-07-01). Documents the 2.3.0 parallel wins now visible on macOS: distance matrix and
+  `route_fragility` ~5× faster (1→10-thread scaling curve included); single-threaded ops unchanged.
+
 ### Notes
 - Capacity-weighted ranking is exposed as full-graph operations (criticality + weighted importance);
   embedding capacity into `progressive_fragility`'s re-indexed subgraph strategy is deferred (it needs

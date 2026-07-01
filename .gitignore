@@ -1,6 +1,7 @@
 # Build artifacts
 build/
 build_*/
+build-*/
 dist/
 wheelhouse/
 *.o
