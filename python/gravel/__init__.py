@@ -109,6 +109,10 @@ from ._gravel import (
     ShortcutIndex,
     # --- Snapping ---
     SnapQualityReport,
+    # --- Stochastic fragility ---
+    StochasticFragilityConfig,
+    StochasticFragilityResult,
+    StochasticTarget,
     # --- Network analysis ---
     SubgraphResult,
     # --- Validation ---
@@ -168,6 +172,7 @@ from ._gravel import (
     seasonal_weight_multipliers,
     set_max_threads,
     snap_quality,
+    stochastic_fragility,
     stratified_sample,
     summarize_border_edges,
     validate,
@@ -246,6 +251,9 @@ __all__ = [
     "ProgressiveFragilityConfig", "ProgressiveFragilityResult", "progressive_fragility",
     # Scenario fragility
     "ScenarioConfig", "ScenarioResult", "scenario_fragility", "edges_in_polygon",
+    # Stochastic fragility
+    "StochasticFragilityConfig", "StochasticFragilityResult", "StochasticTarget",
+    "stochastic_fragility",
     # Edge sampling
     "SamplingStrategy", "SamplerConfig", "EdgeSampler",
     # Region assignment

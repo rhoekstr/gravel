@@ -54,6 +54,7 @@
 #include "gravel/geo/geography_skeleton.h"
 #include "gravel/core/edge_metadata.h"
 #include "gravel/geo/capacity.h"
+#include "gravel/analysis/stochastic_fragility.h"
 #include "gravel/io/geojson_output.h"
 #include "gravel/io/arrow_output.h"
 
@@ -876,6 +877,47 @@ PYBIND11_MODULE(_gravel, m) {
     m.def("edges_in_polygon", &edges_in_polygon,
           py::arg("graph"), py::arg("polygon"),
           "Find graph edges within a polygon (for hazard footprint conversion)");
+
+    // --- Stochastic fragility (Monte Carlo over per-edge failure probabilities) ---
+    py::enum_<StochasticTarget>(m, "StochasticTarget")
+        .value("OD_DISTANCE_INFLATION", StochasticTarget::OD_DISTANCE_INFLATION)
+        .value("LOCATION_ISOLATION", StochasticTarget::LOCATION_ISOLATION)
+        .value("INTER_REGION", StochasticTarget::INTER_REGION);
+
+    py::class_<StochasticFragilityConfig>(m, "StochasticFragilityConfig")
+        .def(py::init<>())
+        .def_readwrite("monte_carlo_runs", &StochasticFragilityConfig::monte_carlo_runs)
+        .def_readwrite("seed", &StochasticFragilityConfig::seed)
+        .def_readwrite("target", &StochasticFragilityConfig::target)
+        .def_readwrite("od_sample_count", &StochasticFragilityConfig::od_sample_count)
+        .def_readwrite("center", &StochasticFragilityConfig::center)
+        .def_readwrite("od_pairs", &StochasticFragilityConfig::od_pairs)
+        .def_readwrite("exceedance_thresholds",
+                       &StochasticFragilityConfig::exceedance_thresholds);
+
+    py::class_<StochasticFragilityResult>(m, "StochasticFragilityResult")
+        .def_readonly("mean", &StochasticFragilityResult::mean)
+        .def_readonly("std_dev", &StochasticFragilityResult::std_dev)
+        .def_readonly("p50", &StochasticFragilityResult::p50)
+        .def_readonly("p90", &StochasticFragilityResult::p90)
+        .def_readonly("p99", &StochasticFragilityResult::p99)
+        .def_readonly("mean_disconnected_fraction",
+                      &StochasticFragilityResult::mean_disconnected_fraction)
+        .def_readonly("exceedance", &StochasticFragilityResult::exceedance)
+        .def_readonly("run_values", &StochasticFragilityResult::run_values)
+        .def_readonly("run_disconnected", &StochasticFragilityResult::run_disconnected)
+        .def_readonly("runs", &StochasticFragilityResult::runs)
+        .def_readonly("probe_pairs", &StochasticFragilityResult::probe_pairs);
+
+    m.def("stochastic_fragility", &stochastic_fragility,
+          py::arg("graph"), py::arg("ch"), py::arg("shortcut_index"),
+          py::arg("edge_probabilities"),
+          py::arg("config") = StochasticFragilityConfig{},
+          "Distribution of fragility under independent per-edge failures "
+          "(edge fails w.p. edge_probabilities[e]). Monte Carlo over realizations; "
+          "measures distance inflation + disconnection across probe O-D pairs. "
+          "Feed floodplain / hazard-derived probabilities in as the array.",
+          py::call_guard<py::gil_scoped_release>());
 
     // --- Uncertainty Quantification ---
 
