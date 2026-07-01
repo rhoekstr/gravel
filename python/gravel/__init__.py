@@ -123,6 +123,7 @@ from ._gravel import (
     build_ch,
     build_ch_with_config,
     build_reduced_geography_graph,  # geo adapter for RegionAssignment
+    capacity_weighted_importance,
     classify_closure_risk,
     coarsen_graph,
     county_fragility_index,
@@ -185,9 +186,11 @@ from ._gravel import (
 #         g = gravel.load_osm_graph(cfg)
 try:
     from ._gravel import (
+        CapacityConfig,
         EdgeMetadata,
         OSMConfig,
         SpeedProfile,
+        estimate_capacity,
         load_osm_graph,
         load_osm_graph_with_metadata,
     )
@@ -232,6 +235,7 @@ __all__ = [
     # Network analysis
     "SubgraphResult", "extract_subgraph",
     "algebraic_connectivity", "BetweennessConfig", "BetweennessResult", "edge_betweenness",
+    "capacity_weighted_importance",
     "KirchhoffConfig", "kirchhoff_index", "natural_connectivity", "BridgeResult",
     # County fragility
     "CountyFragilityConfig", "CountyFragilityResult", "county_fragility_index",

@@ -486,17 +486,29 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readwrite("sample_sources", &BetweennessConfig::sample_sources)
         .def_readwrite("range_limit", &BetweennessConfig::range_limit)
         .def_readwrite("seed", &BetweennessConfig::seed)
-        .def_readwrite("deterministic", &BetweennessConfig::deterministic);
+        .def_readwrite("deterministic", &BetweennessConfig::deterministic)
+        .def_readwrite("edge_capacity", &BetweennessConfig::edge_capacity,
+                       "Optional per-edge capacity (CSR order); when set, the result's "
+                       "`criticality` = betweenness / capacity is populated.");
 
     py::class_<BetweennessResult>(m, "BetweennessResult")
         .def_readonly("edge_scores", &BetweennessResult::edge_scores)
         .def_readonly("node_scores", &BetweennessResult::node_scores)
-        .def_readonly("sources_used", &BetweennessResult::sources_used);
+        .def_readonly("sources_used", &BetweennessResult::sources_used)
+        .def_readonly("criticality", &BetweennessResult::criticality,
+                      "Capacity-normalized betweenness (load/capacity); empty unless "
+                      "BetweennessConfig.edge_capacity was supplied.");
 
     m.def("edge_betweenness", &edge_betweenness,
           py::arg("graph"), py::arg("config") = BetweennessConfig{},
           "Compute edge betweenness centrality via Brandes' algorithm",
           py::call_guard<py::gil_scoped_release>());
+
+    m.def("capacity_weighted_importance", &capacity_weighted_importance,
+          py::arg("betweenness"), py::arg("capacity"),
+          "Capacity-weighted edge importance = betweenness x capacity (CSR edge order). "
+          "Ranks high-throughput corridors above low-capacity streets of equal betweenness. "
+          "Complements BetweennessResult.criticality (betweenness / capacity).");
 
     // Kirchhoff index
     py::class_<KirchhoffConfig>(m, "KirchhoffConfig")

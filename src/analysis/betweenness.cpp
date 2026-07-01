@@ -7,6 +7,7 @@
 #include <numeric>
 #include <cmath>
 #include <limits>
+#include <stdexcept>
 
 #include <utility>
 #include <functional>
@@ -138,7 +139,31 @@ BetweennessResult edge_betweenness(const ArrayGraph& graph, BetweennessConfig co
         for (auto& s : result.node_scores) s *= scale;
     }
 
+    // Capacity-normalized betweenness: load ÷ capacity ("how close to saturation").
+    // Only when a per-edge capacity array of the right length was supplied.
+    if (config.edge_capacity.size() == static_cast<size_t>(m)) {
+        result.criticality.resize(m, 0.0);
+        for (EdgeID e = 0; e < m; ++e) {
+            double cap = config.edge_capacity[e];
+            result.criticality[e] = (cap > 0.0) ? result.edge_scores[e] / cap : 0.0;
+        }
+    }
+
     return result;
+}
+
+std::vector<double> capacity_weighted_importance(const BetweennessResult& betweenness,
+                                                 const std::vector<double>& capacity) {
+    const std::size_t m = betweenness.edge_scores.size();
+    if (capacity.size() != m) {
+        throw std::invalid_argument(
+            "capacity_weighted_importance: capacity length must equal edge_count");
+    }
+    std::vector<double> out(m, 0.0);
+    for (std::size_t e = 0; e < m; ++e) {
+        out[e] = betweenness.edge_scores[e] * capacity[e];
+    }
+    return out;
 }
 
 }  // namespace gravel

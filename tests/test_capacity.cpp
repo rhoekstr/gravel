@@ -2,6 +2,11 @@
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
 
 #include "gravel/geo/capacity.h"
+#include "gravel/core/array_graph.h"
+#include "gravel/analysis/betweenness.h"
+
+#include <stdexcept>
+#include <vector>
 
 using namespace gravel;
 using Catch::Matchers::WithinAbs;
@@ -66,4 +71,45 @@ TEST_CASE("Capacity: empty metadata yields empty result", "[capacity]") {
     EdgeMetadata empty;
     auto cap = estimate_capacity(empty);
     CHECK(cap.empty());
+}
+
+TEST_CASE("Capacity: criticality and weighted importance derive from betweenness", "[capacity]") {
+    std::vector<Edge> edges = {
+        {0, 1, 1.0}, {1, 2, 1.0}, {2, 3, 1.0}, {1, 3, 2.0}, {0, 2, 2.0}};
+    ArrayGraph g(4, edges);
+    const EdgeID m = g.edge_count();
+
+    std::vector<double> capacity(m);
+    for (EdgeID e = 0; e < m; ++e) capacity[e] = 100.0 * static_cast<double>(e + 1);
+
+    BetweennessConfig cfg;
+    cfg.edge_capacity = capacity;
+    auto b = edge_betweenness(g, cfg);
+
+    // criticality = betweenness / capacity
+    REQUIRE(b.criticality.size() == m);
+    for (EdgeID e = 0; e < m; ++e) {
+        double expected = capacity[e] > 0.0 ? b.edge_scores[e] / capacity[e] : 0.0;
+        CHECK_THAT(b.criticality[e], WithinAbs(expected, 1e-9));
+    }
+
+    // capacity_weighted_importance = betweenness * capacity
+    auto imp = capacity_weighted_importance(b, capacity);
+    REQUIRE(imp.size() == m);
+    for (EdgeID e = 0; e < m; ++e) {
+        CHECK_THAT(imp[e], WithinAbs(b.edge_scores[e] * capacity[e], 1e-9));
+    }
+}
+
+TEST_CASE("Capacity: criticality is skipped when no capacity supplied", "[capacity]") {
+    ArrayGraph g(3, std::vector<Edge>{{0, 1, 1.0}, {1, 2, 1.0}});
+    auto b = edge_betweenness(g);  // no edge_capacity
+    CHECK(b.criticality.empty());
+}
+
+TEST_CASE("Capacity: weighted importance rejects size mismatch", "[capacity]") {
+    BetweennessResult b;
+    b.edge_scores = {1.0, 2.0};
+    std::vector<double> cap = {1.0};  // wrong length
+    CHECK_THROWS_AS(capacity_weighted_importance(b, cap), std::invalid_argument);
 }
