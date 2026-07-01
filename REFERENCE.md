@@ -67,6 +67,7 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 30. [Inter-Region Fragility](#30-inter-region-fragility-gravelfragilityinter_region_fragilityh)
 31. [Python Interop & Export](#31-python-interop--export)
 32. [Parallelism & Reproducibility](#32-parallelism--reproducibility)
+33. [Research Depth: Capacity, Stochastic & Cascade](#33-research-depth-capacity-stochastic--cascade)
 
 ---
 
@@ -3414,3 +3415,60 @@ The heavy compute bindings (`build_ch`, `route_fragility`, `batch_fragility`,
 A long call no longer blocks the interpreter (Ctrl-C stays responsive), and you can drive
 several from a Python `ThreadPoolExecutor`. Note that `set_max_threads` follows OpenMP's
 per-thread semantics, so set it in the same thread that invokes the kernel.
+
+---
+
+## 33. Research Depth: Capacity, Stochastic & Cascade
+
+*Added in v2.4.0.* Modeling depth on top of the topological core. **Design invariant:** capacity
+and failure-probability are **inputs** to `gravel-fragility` (plain arrays); their derivation lives
+in `gravel-geo`/Python. Every constant (PCE, probability, tolerance α) is disclosed and sweepable —
+report covariates as curves/distributions, not single numbers.
+
+### 33.1 Capacity model (`gravel/geo/capacity.h`)
+
+| Symbol | Signature | Notes |
+|--------|-----------|-------|
+| `CapacityConfig` | `per_lane_capacity`, `default_lanes` (by highway class), `fallback_capacity`; static `hcm()` | HCM-style defaults; all overridable / sweepable. |
+| `estimate_capacity` | `(EdgeMetadata, CapacityConfig=hcm()) → vector<double>` | Per-edge PCE/hour = `lanes × per_lane(class)`; class-default lanes when the `lanes` tag is absent; CSR edge order. OSM builds. |
+
+### 33.2 Capacity-aware betweenness (`gravel/analysis/betweenness.h`)
+
+- `BetweennessConfig.edge_capacity` (optional, length `edge_count`) → populates
+  `BetweennessResult.criticality[e] = betweenness[e] / capacity[e]` (**saturation**).
+- `capacity_weighted_importance(betweenness, capacity) → vector<double>` = `betweenness × capacity`
+  (**consequence** — high-throughput corridors rank above low-capacity streets). Throws on length
+  mismatch.
+
+### 33.3 Stochastic fragility (`gravel/analysis/stochastic_fragility.h`)
+
+`stochastic_fragility(graph, ch, shortcut_index, edge_probabilities, config) → StochasticFragilityResult`.
+Each of `monte_carlo_runs` realizations fails edge `e` with probability `edge_probabilities[e]`
+(CSR order), then measures distance inflation + disconnection over probe O-D pairs.
+
+| `StochasticTarget` | Probe pairs |
+|--------------------|-------------|
+| `OD_DISTANCE_INFLATION` (default) | Random reachable pairs (`od_sample_count`). |
+| `LOCATION_ISOLATION` | `center` → sampled targets. |
+| `INTER_REGION` | Explicit `od_pairs` (e.g. region centroids). |
+
+Result: `mean`, `std_dev`, `p50`/`p90`/`p99` of per-run mean inflation, `mean_disconnected_fraction`,
+`exceedance` (aligned with `config.exceedance_thresholds`), and raw `run_values` / `run_disconnected`.
+Uses `BlockedCHQuery` (no CH rebuild); parallel over runs; seeded + ordered reduction
+(thread-count invariant). **Floodplain example:** `edges_in_polygon(graph, flood_zone)` → set flood
+edges' probability high, others low; feed the array in.
+
+### 33.4 Cascading failure — Motter–Lai (`gravel/analysis/cascade_fragility.h`, experimental)
+
+`cascade_fragility(graph, config) → CascadeFragilityResult` and
+`cascade_vs_alpha(graph, config, alphas) → [CascadeAlphaPoint]`.
+
+- Load = edge betweenness; `capacity = (1+α)·initial_load` (`BETWEENNESS_TOLERANCE`) or
+  `(1 + α·pce/mean_pce)·initial_load` (`PCE_WEIGHTED`, needs `edge_pce`).
+- Trigger via `trigger_edges` (or the highest-load edge if empty); recompute betweenness on the
+  degraded graph each round (failed edges masked with ∞ weight — edge indexing preserved); fail edges
+  whose load exceeds capacity; iterate to a fixed point. Zero-initial-load edges never overload.
+- Result: `cascade_size`, `cascade_fraction`, `iterations`, `failed_edges`.
+- **Experimental & costly** (betweenness per round): use sampled betweenness on large graphs, set
+  `BetweennessConfig.deterministic` for reproducibility, and report `cascade_vs_alpha` (which can be
+  non-monotone near the transition — a genuine property of the model), not a single α.

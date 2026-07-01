@@ -279,7 +279,12 @@ inputs** — never as a new simulated paradigm baked into the core. See Roadmap 
 
 ## Version History
 
-### v2.3.0 (June 2026) — Current
+### v2.4.0 (in review) — Phase 2A research depth
+- HCM capacity model + capacity-aware betweenness (criticality + weighted importance);
+  `stochastic_fragility` (distribution over per-edge failures, floodplain-ready);
+  `cascade_fragility` (Motter–Lai, experimental). Modeling constants are disclosed, sweepable inputs.
+
+### v2.3.0 (June 2026)
 - **Interop keystone (Phase 1).** Python surface gains `Graph.node_coordinates` / `has_coordinates`,
   `to_coo` / `from_coo`; per-edge OSM metadata via `load_osm_graph_with_metadata` → `EdgeMetadata`;
   GeoJSON/JSONL/Parquet export bindings + `HAS_ARROW` flag; and the `gravel.interop` NetworkX /
@@ -366,10 +371,13 @@ gave reproducibility a guarantee.
 - ✅ **Reproducible covariates:** `BetweennessConfig.deterministic` gives bit-identical, thread-count-
   invariant betweenness; Monte Carlo statistics were already deterministic (sort-before-aggregate).
 
-### Phase 2A — Research depth (capacity → stochastic → cascade)
+### Phase 2A — Research depth (capacity → stochastic → cascade) ✅ built for 2.4.0 (in review)
 
 Serves the dissertation and Gravel's network-fragility identity. Sequenced because each step feeds
-the next.
+the next. Implemented as `capacity` (HCM model + capacity-aware betweenness), `stochastic_fragility`
+(distribution over per-edge failures; floodplain-ready), and `cascade_fragility` (Motter–Lai,
+experimental). All modeling constants are disclosed, sweepable inputs; the DAG holds (capacity /
+probabilities enter fragility as arrays, derivation in geo/Python).
 
 - **Capacity-weighted edge importance.** Derive a per-edge Passenger-Car-Equivalent estimate from
   highway class × `lanes` (class-default fallbacks when `lanes` is unknown); weight

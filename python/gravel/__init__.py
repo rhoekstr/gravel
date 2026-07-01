@@ -225,7 +225,7 @@ if HAS_ARROW:
 # fails for a missing networkx/geopandas — see `pip install gravel-fragility[interop]`.
 from . import interop  # noqa: E402
 
-__version__ = "2.3.0"
+__version__ = "2.4.0"
 
 __all__ = [
     # Feature flags
