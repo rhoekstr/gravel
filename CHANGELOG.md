@@ -34,6 +34,12 @@ curves/distributions — never hidden constants. The DAG is intact: capacity/pro
   No demand matrix, no CH mutation. Reported as cascade-size-vs-α (which can be non-monotone near the
   transition — a real property of the model). Set `BetweennessConfig.deterministic` for reproducible
   cascades and prefer sampled betweenness on large graphs.
+- **Floodplain / hazard ingestion.** New `gravel.hazards` module turns a spatial hazard footprint into
+  the per-edge failure-probability array `stochastic_fragility` consumes: `hazard_edge_probabilities`
+  (geopandas-free core over `(Polygon, prob)` zones) and `flood_edge_probabilities` (FEMA NFHL
+  `GeoDataFrame` → probabilities), plus disclosed `NFHL_EVENT_CLOSURE` (design-flood scenario, default)
+  and `NFHL_ANNUAL_PROBABILITY` (annual-exceedance) tables. Derivation lives in Python; the DAG keeps
+  `gravel-fragility` hazard-agnostic. Reuses the shipped `edges_in_polygon`; no C++/ABI change.
 
 ### Notes
 - Capacity-weighted ranking is exposed as full-graph operations (criticality + weighted importance);

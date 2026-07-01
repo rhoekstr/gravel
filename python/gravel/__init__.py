@@ -220,10 +220,15 @@ if HAS_ARROW:
         write_fragility_parquet,
     )
 
-# NetworkX / GeoPandas adapters. The submodule imports cleanly without the
-# optional deps (they are lazy-imported inside each function), so this never
-# fails for a missing networkx/geopandas — see `pip install gravel-fragility[interop]`.
-from . import interop  # noqa: E402
+# Pure-Python submodules. Both import cleanly without the optional geo deps, which
+# are lazy-imported inside the functions that need them (`pip install
+# gravel-fragility[interop]`):
+#   interop  — NetworkX / GeoPandas adapters
+#   hazards  — hazard footprints -> per-edge failure probabilities for stochastic_fragility
+from . import (  # noqa: E402
+    hazards,
+    interop,
+)
 
 __version__ = "2.4.0"
 
@@ -292,9 +297,9 @@ __all__ = [
     # Closure risk
     "ClosureRiskTier", "ClosureRiskData", "classify_closure_risk",
     "seasonal_weight_multipliers",
-    # Export / interop
+    # Export / interop / hazards
     "HAS_ARROW", "route_to_geojson", "location_fragility_to_geojson",
-    "write_fragility_jsonl", "interop",
+    "write_fragility_jsonl", "interop", "hazards",
     # Parallelism
     "HAS_OPENMP", "max_threads", "set_max_threads",
 ]

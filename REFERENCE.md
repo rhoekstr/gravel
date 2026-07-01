@@ -3455,8 +3455,8 @@ Each of `monte_carlo_runs` realizations fails edge `e` with probability `edge_pr
 Result: `mean`, `std_dev`, `p50`/`p90`/`p99` of per-run mean inflation, `mean_disconnected_fraction`,
 `exceedance` (aligned with `config.exceedance_thresholds`), and raw `run_values` / `run_disconnected`.
 Uses `BlockedCHQuery` (no CH rebuild); parallel over runs; seeded + ordered reduction
-(thread-count invariant). **Floodplain example:** `edges_in_polygon(graph, flood_zone)` → set flood
-edges' probability high, others low; feed the array in.
+(thread-count invariant). The per-edge probability array is the hazard hook: derive it however you
+like (§33.5 turns a FEMA floodplain into one).
 
 ### 33.4 Cascading failure — Motter–Lai (`gravel/analysis/cascade_fragility.h`, experimental)
 
@@ -3472,3 +3472,35 @@ edges' probability high, others low; feed the array in.
 - **Experimental & costly** (betweenness per round): use sampled betweenness on large graphs, set
   `BetweennessConfig.deterministic` for reproducibility, and report `cascade_vs_alpha` (which can be
   non-monotone near the transition — a genuine property of the model), not a single α.
+
+### 33.5 Floodplain / hazard ingestion (`gravel.hazards`, Python)
+
+Turns a spatial hazard footprint into the per-edge probability array §33.3 consumes. Pure Python —
+the DAG keeps `gravel-fragility` hazard-agnostic, so derivation lives here; the spatial predicate
+reuses the shipped `edges_in_polygon`. Two layers:
+
+| Function | Input | Notes |
+|----------|-------|-------|
+| `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**. Returns `float64[edge_count]` in CSR order. |
+| `flood_edge_probabilities(graph, gdf, *, zone_field="FLD_ZONE", zone_probabilities=NFHL_EVENT_CLOSURE, baseline=0.0, default_probability=None)` | FEMA NFHL `GeoDataFrame` | Reprojects to WGS84, maps flood-zone codes → prob, explodes MultiPolygons, delegates to the core. Needs `[interop]`. |
+
+**Probability semantics (pick deliberately).** `prob[e]` is the chance edge `e` fails in one Monte
+Carlo run, so what a "run" means is your choice:
+- `NFHL_EVENT_CLOSURE` (default) — `P(road impassable | the design flood occurs)`; a run is one
+  design-flood realization. **Illustrative** closure rates (SFHA ≈ 0.9, V ≈ 0.95), not FEMA-published — sweep them.
+- `NFHL_ANNUAL_PROBABILITY` — the zone's annual exceedance (SFHA = 0.01, 0.2%-zone = 0.002); a run is
+  one "year." **Grounded** in the zone definitions.
+
+**Caveats:** both-endpoints rule (boundary-straddling edges excluded); interior rings/holes ignored
+(slightly over-inclusive); the two directed edges of a road share a probability but fail
+independently; cost is O(#rings × #nodes) — dissolve the layer by zone for national-scale runs.
+
+```python
+import geopandas as gpd, gravel
+from gravel import hazards
+g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
+flood = gpd.read_file("NFHL_37173_S_FLD_HAZ_AR.shp")     # FEMA county floodplain
+probs = hazards.flood_edge_probabilities(g, flood)        # design-flood scenario
+res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
+```
