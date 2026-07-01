@@ -66,6 +66,8 @@ from ._gravel import (
     CountyFragilityResult,
     # --- Fragility ---
     EdgeFragility,
+    # --- Edge geometry (2B) ---
+    EdgeGeometry,
     EdgeSampler,
     # --- Elevation ---
     ElevationData,
@@ -112,6 +114,9 @@ from ._gravel import (
     # --- Location fragility ---
     SelectionStrategy,
     ShortcutIndex,
+    # --- Graph simplification ---
+    SimplificationConfig,
+    SimplificationResult,
     # --- Snapping ---
     SnapQualityReport,
     # --- Stochastic fragility ---
@@ -178,6 +183,7 @@ from ._gravel import (
     scenario_fragility,
     seasonal_weight_multipliers,
     set_max_threads,
+    simplify_graph,
     snap_quality,
     stochastic_fragility,
     stratified_sample,
@@ -251,6 +257,8 @@ __all__ = [
     "ViaPathConfig", "BernsteinConfig",
     "FilterConfig", "FilteredFragilityResult", "filtered_route_fragility",
     "FragilityValidationReport", "validate_fragility", "validate_shortcut_interaction",
+    # Graph simplification + edge geometry
+    "SimplificationConfig", "SimplificationResult", "simplify_graph", "EdgeGeometry",
     # Network analysis
     "SubgraphResult", "extract_subgraph",
     "algebraic_connectivity", "BetweennessConfig", "BetweennessResult", "edge_betweenness",
