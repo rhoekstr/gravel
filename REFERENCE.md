@@ -69,6 +69,7 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 32. [Parallelism & Reproducibility](#32-parallelism--reproducibility)
 33. [Research Depth: Capacity, Stochastic & Cascade](#33-research-depth-capacity-stochastic--cascade)
 34. [Visualizing Results (data bridge)](#34-visualizing-results-data-bridge)
+35. [Edge geometry — real road shape](#35-edge-geometry--real-road-shape-gravelcoreedge_geometryh)
 
 ---
 
@@ -3539,6 +3540,33 @@ gdf.plot(column="failure_frequency", cmap="viridis", legend=True)  # colorblind-
 researcher's *accurate* snapshot — quantitative choropleth, colorblind-safe sequential colormap
 (avoid red→green), honest about uncertainty; the **dynamic/interactive** artifact is for comprehension
 and public reach — watch isolation propagate, WebGL scale, texture (dots/lines/grid) as an ordinal
-encoding. **Geometry caveat:** edges are straight node-to-node segments until real per-edge road
-geometry lands, so any map is *schematic* — over a floodplain it can misrepresent which roads sit in
-the hazard.
+encoding. **Geometry:** by default edges draw as straight node-to-node segments; pass real per-edge
+polylines (see §35) to `to_geodataframe` for a faithful map that follows the road — important over a
+floodplain, where a straight chord can misrepresent which roads sit in the hazard.
+
+## 35. Edge geometry — real road shape (`gravel/core/edge_geometry.h`)
+
+*Added in v2.5.0.* OSM loads one graph edge per way segment, so a raw graph already carries full road
+shape as chains of degree-2 nodes. Simplification collapses those chains for speed, which used to
+discard the shape. With `emit_geometry` it is preserved, so a *simplified* graph can still be drawn
+along the real road.
+
+| Symbol | What |
+|--------|------|
+| `SimplificationConfig.emit_geometry` (default `False`) | Record each edge's coordinate chain during degree-2 contraction. |
+| `SimplificationResult.edge_geometry` → `EdgeGeometry` | Ragged-CSR polylines, index-aligned to the simplified graph's edges (empty unless emitted). |
+| `EdgeGeometry.offsets` / `.points` (`(M,2)` [lat,lon]) / `.polyline(e)` / `.edge_count` / `.empty` | Access one edge's run or the whole buffer. |
+| `interop.to_geodataframe(graph, edge_geometry=…)` | Draw true `LineString`s; omit for straight chords. |
+
+Merged (contracted) edges carry the full chain; kept edges carry a 2-point segment. Requires graph
+coordinates. **Honored for the filter + degree-2 pipeline;** if CH-level pruning also runs the geometry
+is left empty (the pruned edge set would misalign) — threading it through pruning is a later follow-up.
+
+```python
+import gravel
+g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
+cfg = gravel.SimplificationConfig(); cfg.emit_geometry = True
+res = gravel.simplify_graph(g, None, None, cfg)
+gdf = gravel.interop.to_geodataframe(res.graph, edge_geometry=res.edge_geometry)
+gdf.plot()  # edges follow the real road, not straight lines
+```
