@@ -36,6 +36,7 @@
 
 #pragma once
 #include "gravel/core/array_graph.h"
+#include "gravel/core/edge_geometry.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/shortcut_index.h"
 #include <functional>
@@ -113,6 +114,15 @@ struct SimplificationConfig {
 
     /// Random seed for reproducible sampling.
     uint64_t seed = 42;
+
+    /// Emit per-edge polyline geometry (`SimplificationResult::edge_geometry`).
+    /// When true, degree-2 contraction records the coordinate chain each merged
+    /// edge collapses, so a simplified graph can still be drawn along the real
+    /// road shape. Off by default (opt-in memory). Only meaningful when the
+    /// graph has coordinates. Honored for the filter + degree-2 pipeline; if
+    /// CH-level pruning also runs the geometry is left empty (it would misalign
+    /// with the pruned edge set).
+    bool emit_geometry = false;
 };
 
 /// Result of graph simplification.
@@ -129,6 +139,11 @@ struct SimplificationResult {
 
     // Degradation metrics (populated if estimate_degradation was true)
     DegradationReport degradation;
+
+    /// Optional per-edge polyline geometry, CSR-aligned to `graph`'s edges.
+    /// Populated only when `SimplificationConfig::emit_geometry` was set (and
+    /// CH-level pruning did not run); empty otherwise.
+    EdgeGeometry edge_geometry;
 };
 
 /// Run the simplification pipeline.
@@ -152,10 +167,14 @@ SimplificationResult simplify_graph(
 /// @param bridge_endpoints      Set of node IDs that are bridge endpoints (never contracted).
 /// @param boundary_protection   Additional nodes to protect (e.g., region boundary nodes).
 ///                              The union of both sets is protected from contraction.
+/// @param emit_geometry         When true, populate `SimplificationResult::edge_geometry`
+///                              with each edge's coordinate chain (real shape for merged
+///                              edges, 2-point for kept edges). Requires graph coordinates.
 SimplificationResult contract_degree2(
     const ArrayGraph& graph,
     const std::unordered_set<NodeID>& bridge_endpoints = {},
-    const std::unordered_set<NodeID>& boundary_protection = {});
+    const std::unordered_set<NodeID>& boundary_protection = {},
+    bool emit_geometry = false);
 
 /// CH-level pruning. Requires pre-built CH.
 SimplificationResult prune_by_ch_level(

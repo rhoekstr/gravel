@@ -66,6 +66,12 @@ SimplificationResult simplify_graph(
     std::vector<NodeID> cumulative_new_to_orig;
     std::unordered_map<NodeID, NodeID> cumulative_orig_to_new;
 
+    // Per-edge polyline geometry from degree-2 contraction. Kept valid only while
+    // the edge order it was built against still matches `current`; CH-level
+    // pruning (below) rebuilds the edge set and invalidates it.
+    EdgeGeometry pipeline_geometry;
+    bool geometry_valid = false;
+
     // Initialize identity mapping
     cumulative_new_to_orig.resize(graph.node_count());
     for (NodeID v = 0; v < graph.node_count(); ++v) {
@@ -106,7 +112,13 @@ SimplificationResult simplify_graph(
             }
         }
 
-        auto stage = contract_degree2(*current, current_bridge_eps);
+        auto stage = contract_degree2(*current, current_bridge_eps, {},
+                                      config.emit_geometry);
+
+        if (config.emit_geometry) {
+            pipeline_geometry = std::move(stage.edge_geometry);
+            geometry_valid = true;
+        }
 
         DegradationReport::StageReport sr;
         sr.stage_name = "degree2_contraction";
@@ -125,6 +137,10 @@ SimplificationResult simplify_graph(
 
     // --- Stage 3: CH-level pruning ---
     if (ch && config.ch_level_keep_fraction < 1.0) {
+        // Pruning rebuilds the edge set; degree-2 geometry no longer aligns.
+        pipeline_geometry = {};
+        geometry_valid = false;
+
         // Need to map CH levels to current graph's nodes
         // Build a "virtual CH" with levels for current nodes
         // Each current node maps to an original node; use original CH levels
@@ -180,6 +196,11 @@ SimplificationResult simplify_graph(
     result.original_to_new = cumulative_orig_to_new;
     result.simplified_nodes = result.graph->node_count();
     result.simplified_edges = result.graph->edge_count();
+
+    if (geometry_valid &&
+        pipeline_geometry.edge_count() == result.graph->edge_count()) {
+        result.edge_geometry = std::move(pipeline_geometry);
+    }
 
     // --- Degradation estimation ---
     if (config.estimate_degradation && ch) {

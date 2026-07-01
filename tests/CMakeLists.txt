@@ -51,6 +51,7 @@ add_executable(gravel_tests
     test_capacity.cpp
     test_stochastic_fragility.cpp
     test_cascade_fragility.cpp
+    test_edge_geometry.cpp
 )
 
 if(GRAVEL_OSMIUM_ENABLED)
