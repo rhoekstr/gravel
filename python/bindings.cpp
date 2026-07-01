@@ -55,6 +55,7 @@
 #include "gravel/core/edge_metadata.h"
 #include "gravel/geo/capacity.h"
 #include "gravel/analysis/stochastic_fragility.h"
+#include "gravel/analysis/cascade_fragility.h"
 #include "gravel/io/geojson_output.h"
 #include "gravel/io/arrow_output.h"
 
@@ -917,6 +918,43 @@ PYBIND11_MODULE(_gravel, m) {
           "(edge fails w.p. edge_probabilities[e]). Monte Carlo over realizations; "
           "measures distance inflation + disconnection across probe O-D pairs. "
           "Feed floodplain / hazard-derived probabilities in as the array.",
+          py::call_guard<py::gil_scoped_release>());
+
+    // --- Cascading failure (Motter-Lai, experimental) ---
+    py::enum_<CascadeCapacity>(m, "CascadeCapacity")
+        .value("BETWEENNESS_TOLERANCE", CascadeCapacity::BETWEENNESS_TOLERANCE)
+        .value("PCE_WEIGHTED", CascadeCapacity::PCE_WEIGHTED);
+
+    py::class_<CascadeFragilityConfig>(m, "CascadeFragilityConfig")
+        .def(py::init<>())
+        .def_readwrite("alpha", &CascadeFragilityConfig::alpha)
+        .def_readwrite("trigger_edges", &CascadeFragilityConfig::trigger_edges)
+        .def_readwrite("capacity_source", &CascadeFragilityConfig::capacity_source)
+        .def_readwrite("edge_pce", &CascadeFragilityConfig::edge_pce)
+        .def_readwrite("betweenness_config", &CascadeFragilityConfig::betweenness_config)
+        .def_readwrite("max_iterations", &CascadeFragilityConfig::max_iterations);
+
+    py::class_<CascadeFragilityResult>(m, "CascadeFragilityResult")
+        .def_readonly("cascade_size", &CascadeFragilityResult::cascade_size)
+        .def_readonly("cascade_fraction", &CascadeFragilityResult::cascade_fraction)
+        .def_readonly("iterations", &CascadeFragilityResult::iterations)
+        .def_readonly("trigger_size", &CascadeFragilityResult::trigger_size)
+        .def_readonly("failed_edges", &CascadeFragilityResult::failed_edges);
+
+    py::class_<CascadeAlphaPoint>(m, "CascadeAlphaPoint")
+        .def_readonly("alpha", &CascadeAlphaPoint::alpha)
+        .def_readonly("cascade_fraction", &CascadeAlphaPoint::cascade_fraction)
+        .def_readonly("iterations", &CascadeAlphaPoint::iterations);
+
+    m.def("cascade_fragility", &cascade_fragility,
+          py::arg("graph"), py::arg("config") = CascadeFragilityConfig{},
+          "Motter-Lai cascading edge failure (experimental). Load = betweenness, "
+          "capacity = (1+alpha)*initial_load (or PCE-weighted); iterate to a fixed point.",
+          py::call_guard<py::gil_scoped_release>());
+
+    m.def("cascade_vs_alpha", &cascade_vs_alpha,
+          py::arg("graph"), py::arg("config"), py::arg("alphas"),
+          "Sweep alpha: cascade fraction + iteration count per tolerance value.",
           py::call_guard<py::gil_scoped_release>());
 
     // --- Uncertainty Quantification ---

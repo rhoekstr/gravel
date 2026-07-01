@@ -47,6 +47,11 @@ from ._gravel import (
     BorderEdgeResult,
     BorderEdgeSummary,
     BridgeResult,
+    # --- Cascading failure (Motter-Lai) ---
+    CascadeAlphaPoint,
+    CascadeCapacity,
+    CascadeFragilityConfig,
+    CascadeFragilityResult,
     CHBuildConfig,
     CHQuery,
     ClosureRiskData,
@@ -128,6 +133,8 @@ from ._gravel import (
     build_ch_with_config,
     build_reduced_geography_graph,  # geo adapter for RegionAssignment
     capacity_weighted_importance,
+    cascade_fragility,
+    cascade_vs_alpha,
     classify_closure_risk,
     coarsen_graph,
     county_fragility_index,
@@ -254,6 +261,9 @@ __all__ = [
     # Stochastic fragility
     "StochasticFragilityConfig", "StochasticFragilityResult", "StochasticTarget",
     "stochastic_fragility",
+    # Cascading failure (Motter-Lai, experimental)
+    "CascadeCapacity", "CascadeFragilityConfig", "CascadeFragilityResult",
+    "CascadeAlphaPoint", "cascade_fragility", "cascade_vs_alpha",
     # Edge sampling
     "SamplingStrategy", "SamplerConfig", "EdgeSampler",
     # Region assignment
