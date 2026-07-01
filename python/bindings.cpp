@@ -53,6 +53,7 @@
 #include "gravel/fragility/inter_region_fragility.h"
 #include "gravel/geo/geography_skeleton.h"
 #include "gravel/core/edge_metadata.h"
+#include "gravel/geo/capacity.h"
 #include "gravel/io/geojson_output.h"
 #include "gravel/io/arrow_output.h"
 
@@ -1213,6 +1214,24 @@ PYBIND11_MODULE(_gravel, m) {
        "Load an OSM .pbf, returning (Graph, EdgeMetadata). The metadata preserves per-edge "
        "OSM tags (highway, lanes, maxspeed, name, surface, bridge, tunnel, ref) in CSR edge "
        "order, aligned with Graph.to_coo().");
+
+    // --- Capacity model (HCM-style per-edge throughput from OSM metadata) ---
+    py::class_<CapacityConfig>(m, "CapacityConfig")
+        .def(py::init<>())
+        .def_readwrite("per_lane_capacity", &CapacityConfig::per_lane_capacity,
+                       "PCE/hour/lane by OSM highway class (overridable / sweepable).")
+        .def_readwrite("default_lanes", &CapacityConfig::default_lanes,
+                       "Assumed lane count by highway class when the `lanes` tag is absent.")
+        .def_readwrite("fallback_capacity", &CapacityConfig::fallback_capacity,
+                       "Capacity for unmapped highway classes.")
+        .def_static("hcm", &CapacityConfig::hcm,
+                    "Citable HCM-style defaults (motorway ~2200 down to service ~400 PCE/h/lane).");
+
+    m.def("estimate_capacity", &estimate_capacity,
+          py::arg("metadata"), py::arg("config") = CapacityConfig::hcm(),
+          "Per-edge capacity (PCE/hour) in CSR edge order (aligned with Graph.to_coo()): "
+          "lanes x per-lane-capacity(highway class). Feed the result into fragility ranking as "
+          "an edge_capacity array. The constants are a disclosed, sweepable assumption.");
 #endif
 
     // --- GeoJSON / tabular export ---

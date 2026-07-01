@@ -188,6 +188,7 @@ endif()
 # --- gravel-geo: OSM loading, snapping, elevation, edge confidence ---
 add_library(gravel-geo
     src/geo/elevation.cpp
+    src/geo/capacity.cpp
     src/geo/edge_confidence.cpp
     src/geo/region_assignment.cpp
     src/geo/geojson_loader.cpp
