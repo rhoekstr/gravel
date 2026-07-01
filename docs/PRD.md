@@ -13,13 +13,18 @@ analysis.
 Gravel is **published and in use** — PyPI (`gravel-fragility`) and conda-forge, currently **2.3.0**,
 Apache-2.0. It is deliberately **dual-purpose**:
 
-- a **dissertation covariate tool** — generating defensible network-fragility measures that correlate
-  with FEMA disaster outcomes for disaster-sociology research; and
+- a **network-fragility research tool** — generating defensible, reproducible measures of how isolated
+  a place becomes under infrastructure failure, for social-science and hazards research; and
 - a **workforce-planning resource** (Awry Labs) — ranking where infrastructure isolation risk is
   highest for planners and emergency managers.
 
+> **Scope note (2026-07):** Gravel began as a disaster-sociology dissertation covariate, but that tie
+> has ended — road fragility washed out under covariates in the post-disaster-crime analysis (a null
+> result). Gravel is now a **general** network-fragility tool with an academic/research core and a
+> public-sector audience, not a bespoke covariate generator for one study.
+
 That dual purpose is the lens for every prioritization call in this document: a change earns its
-place when it serves a defensible research covariate, an adopter's workflow, or (ideally) both.
+place when it serves a defensible research measure, an adopter's workflow, or (ideally) both.
 
 ## Problem Statement
 
@@ -373,7 +378,7 @@ gave reproducibility a guarantee.
 
 ### Phase 2A — Research depth (capacity → stochastic → cascade) ✅ built for 2.4.0 (in review)
 
-Serves the dissertation and Gravel's network-fragility identity. Sequenced because each step feeds
+Serves Gravel's network-fragility research identity. Sequenced because each step feeds
 the next. Implemented as `capacity` (HCM model + capacity-aware betweenness), `stochastic_fragility`
 (distribution over per-edge failures; floodplain-ready), and `cascade_fragility` (Motter–Lai,
 experimental). All modeling constants are disclosed, sweepable inputs; the DAG holds (capacity /
@@ -390,7 +395,7 @@ probabilities enter fragility as arrays, derivation in geo/Python).
 - **Stochastic edge failure** (promoted from prior "medium term"). Per-edge failure probabilities →
   Monte Carlo over realizations → a *distribution* of fragility (confidence intervals) rather than a
   point estimate. Embarrassingly parallel — the natural home for additional OpenMP if profiling
-  confirms a hotspot. Strong dissertation fit: gives a covariate with uncertainty bounds.
+  confirms a hotspot. Strong research fit: gives a measure with uncertainty bounds.
   - **Flagship hazard source — floodplain-weighted closure.** ✅ built for 2.4.0 (`gravel.hazards`).
     `flood_edge_probabilities` ingests FEMA NFHL floodplain polygons and maps flood-zone codes to
     per-edge closure probability (disclosed `NFHL_EVENT_CLOSURE` design-flood-scenario default and

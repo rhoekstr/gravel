@@ -30,7 +30,8 @@ A C++20 library (with Python bindings) that computes how vulnerable road/infrast
 to edge failures — *"how isolated does this place become when N% of its roads fail?"* Built on
 **contraction hierarchies** for fast shortest paths plus a Dijkstra / incremental-SSSP pipeline for
 edge-removal analysis. ~2s isolation fragility on a 200K-node county graph. Apache-2.0. Dual purpose:
-a dissertation covariate tool and a workforce-planning resource (Awry Labs).
+a network-fragility research tool and a workforce-planning resource (Awry Labs). (Originally a
+disaster-sociology dissertation covariate; that tie ended with a null result — it's a general tool now.)
 
 ## Architecture — where code lives
 
