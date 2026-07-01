@@ -383,6 +383,14 @@ the next.
   Monte Carlo over realizations → a *distribution* of fragility (confidence intervals) rather than a
   point estimate. Embarrassingly parallel — the natural home for additional OpenMP if profiling
   confirms a hotspot. Strong dissertation fit: gives a covariate with uncertainty bounds.
+  - **Flagship hazard source — floodplain-weighted closure.** Ingest FEMA National Flood Hazard Layer
+    (NFHL) floodplain polygons (100-yr / 500-yr SFHA) and statically weight road-edge closure by flood
+    exposure: edges within a flood zone get elevated closure probability (feeding stochastic fragility)
+    or are blocked outright (feeding the existing `scenario_fragility`). A concrete, dissertation-aligned
+    supported scenario — "how isolated does this place become when the floodplain roads close?" Reuses
+    the existing point-in-polygon / `edges_in_polygon` machinery; the flood-exposure → probability
+    mapping is the geo/Python derivation, fed into fragility as an input array (DAG-clean). Elevation
+    data can refine exposure. Generalizes to other hazard footprints (wildfire, landslide, storm surge).
 - **Cascading failure — Motter–Lai style (experimental).** Load = betweenness (already computed),
   capacity = (1+α)×initial load; remove an edge → redistribute → fail anything over capacity →
   iterate to a fixed point. Built on existing betweenness + `progressive_fragility` machinery; no
