@@ -398,6 +398,20 @@ the next.
   returning a Folium/matplotlib object via `GeoDataFrame.explore()`, plus a county-choropleth helper.
   Sits downstream of `to_geodataframe`; never in the C++ core.
 
+### Hardening & operational (surfaced during the 2.3.0 release)
+
+The 2.3.0 wheel build — blocked for hours by a gitlab.com outage that cascaded through Eigen 5.0 and
+cross-arch libomp — exposed that build-time dependency clones are a release liability. Follow-ups:
+
+- **Finish build network-independence.** Eigen is now vendored (`third_party/eigen`), but Spectra,
+  nlohmann/json, pybind11, and Catch2 still `FetchContent`-clone from github at build time. Vendor or
+  checksum-pin the rest so a release can never be blocked by an upstream host outage.
+- **conda-forge → 2.3.0.** The feedstock still targets 2.2.x; bump it to match the PyPI release.
+- **Refresh headline performance numbers.** The README/PRD benchmarks predate the macOS OpenMP fix
+  (measured serial on Mac). Re-benchmark and publish honest parallel numbers.
+- **Extend deterministic mode** to `kirchhoff_index` / `natural_connectivity` — H4 covered betweenness;
+  these still use stochastic estimation whose reduction order isn't pinned.
+
 ### Longer-horizon / research-track
 
 - Temporal fragility (degradation over construction schedules)
