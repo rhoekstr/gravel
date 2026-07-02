@@ -26,6 +26,12 @@ field is populated automatically; existing routing/fragility behavior and the pu
   its true `LineString`; without it, the previous straight-segment behavior is unchanged.
 - **Python exports.** `simplify_graph`, `SimplificationConfig`, `SimplificationResult`, and
   `EdgeGeometry` are now re-exported at the top level (`gravel.simplify_graph`, …).
+- **Static fragility maps (`gravel.viz` Tier 1).** `plot_fragility(graph, result, …)` renders the
+  per-edge failure trace as a static, colorblind-safe matplotlib choropleth — the researcher's
+  accurate artifact. Progressive survivors are greyed (not painted "failed first"); an optional
+  `hazard` layer draws the risk geometry (e.g. floodplain) underneath as the causal "why"; and
+  `edge_geometry` draws edges along the real road shape (2B). `failure_geoframe` gains an
+  `edge_geometry` argument to match. Needs the `[viz]` extra (adds matplotlib).
 
 ## [2.4.0] — 2026-07-01
 

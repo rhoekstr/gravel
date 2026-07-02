@@ -3512,16 +3512,27 @@ res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityC
 
 ## 34. Visualizing Results (data bridge)
 
-*Added in v2.4.0.* `gravel.viz` is the **data bridge**: it turns a fragility result into a per-edge
-column ready for `gdf.plot(...)`, folium, pydeck, or lonboard. Rendering helpers (static
-publication figures; interactive animated maps) arrive in a later release — this module gives you the
-frame. Pure Python; the GeoDataFrame path needs `[interop]`, the array helpers need only numpy.
+*Added in v2.4.0 (Tier 0); static rendering in v2.5.0 (Tier 1).* `gravel.viz` turns a fragility
+result into a per-edge column (**Tier 0, the data bridge**) and renders it as a static map
+(**Tier 1**). Interactive/animated maps (Tier 2) arrive later. Pure Python; the GeoDataFrame path
+needs `[interop]`, static rendering also needs `[viz]` (matplotlib), the array helpers need only numpy.
+
+**Tier 0 — data bridge**
 
 | Function | Result type | Column / return | Meaning |
 |----------|-------------|-----------------|---------|
 | `edge_failure_round(graph, result)` | `ProgressiveFragilityResult` (greedy) | `float64[edge_count]` | 1-based **removal step** per edge; `NaN` = survived. Animate by scrubbing rounds. |
 | `edge_failure_frequency(result)` | `StochasticFragilityResult` | `float64[edge_count]` | Empirical **P(fail)** per edge across MC runs. A *static* choropleth — draws have no order. |
-| `failure_geoframe(graph, result, *, metadata=None, crs="EPSG:4326")` | either | `GeoDataFrame` | Adds `failure_round` (progressive) or `failure_frequency` (stochastic); ready for `.plot()`. |
+| `failure_geoframe(graph, result, *, metadata=None, edge_geometry=None, crs="EPSG:4326")` | either | `GeoDataFrame` | Adds `failure_round` (progressive) or `failure_frequency` (stochastic); pass `edge_geometry` (§35) for real road shape. Ready for `.plot()`. |
+
+**Tier 1 — static map**
+
+`plot_fragility(graph, result, *, edge_geometry=None, hazard=None, hazard_column=None, ax=None,
+cmap="viridis", linewidth=0.8, legend=True, title=None, missing_color="lightgray", metadata=None,
+crs="EPSG:4326") → matplotlib.axes.Axes`. The researcher's *accurate* artifact: a quantitative,
+colorblind-safe choropleth of the per-edge failure trace. Progressive survivors (`NaN` round) are
+greyed, not painted "failed first". `hazard` draws risk geometry (e.g. a floodplain) as the base
+"why" layer; `edge_geometry` follows the real road.
 
 ```python
 import gravel
@@ -3532,6 +3543,11 @@ ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
 probs = hazards.flood_edge_probabilities(g, flood_gdf)
 res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
 
+# Tier 1: one call to a publication-ready static map, roads over the floodplain.
+ax = viz.plot_fragility(g, res, hazard=flood_gdf, title="Flood fragility — P(edge fails)")
+ax.figure.savefig("fragility.png", dpi=200, bbox_inches="tight")
+
+# Tier 0: or just the frame, to drive your own renderer.
 gdf = viz.failure_geoframe(g, res)                       # 'failure_frequency' column
 gdf.plot(column="failure_frequency", cmap="viridis", legend=True)  # colorblind-safe
 ```
