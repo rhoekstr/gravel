@@ -105,7 +105,7 @@ jobs:
           # + viz test deps so the NetworkX / GeoPandas adapters and the matplotlib /
           # lonboard renderers are actually exercised rather than self-skipping. OSM
           # tests still self-skip unless the build has libosmium (see @requires_* guards).
-          pip install pytest networkx geopandas shapely pyproj matplotlib lonboard
+          pip install pytest networkx geopandas shapely pyproj matplotlib lonboard "pyarrow>=16"
           pytest python/tests/
 
   # ============================================================
