@@ -3552,6 +3552,22 @@ gdf = viz.failure_geoframe(g, res)                       # 'failure_frequency' c
 gdf.plot(column="failure_frequency", cmap="viridis", legend=True)  # colorblind-safe
 ```
 
+**Tier 2 — interactive map**
+
+`interactive_map(graph, result, *, edge_geometry=None, hazard=None, cmap="viridis",
+width_min_pixels=1.5, missing_color=(200,200,200), metadata=None, crs="EPSG:4326") → lonboard.Map`.
+A GPU-rendered (WebGL) pan/zoom map of the per-edge failure trace that scales to county-size networks
+via GeoArrow transport — for exploration and public sharing. Display it in a notebook or export a
+standalone file with `m.to_html("map.html")`. `hazard` draws risk geometry as a translucent base
+layer; `edge_geometry` follows the real road. Needs the `[viz]` extra (lonboard). Backend selected by
+spike (lonboard over pydeck: ~2× smaller HTML and ~25× faster build at 40K edges; one-line
+GeoDataFrame ingestion; token-free basemap). Animated failure playback builds on this next.
+
+```python
+m = viz.interactive_map(g, res, hazard=flood_gdf)   # lonboard Map
+m.to_html("flood_fragility.html")                    # shareable, no server
+```
+
 **Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the
 researcher's *accurate* snapshot — quantitative choropleth, colorblind-safe sequential colormap
 (avoid red→green), honest about uncertainty; the **dynamic/interactive** artifact is for comprehension

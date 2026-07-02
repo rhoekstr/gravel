@@ -26,6 +26,14 @@ field is populated automatically; existing routing/fragility behavior and the pu
   its true `LineString`; without it, the previous straight-segment behavior is unchanged.
 - **Python exports.** `simplify_graph`, `SimplificationConfig`, `SimplificationResult`, and
   `EdgeGeometry` are now re-exported at the top level (`gravel.simplify_graph`, …).
+- **Interactive fragility maps (`gravel.viz` Tier 2).** `interactive_map(graph, result, …)` returns a
+  lonboard (WebGL) `Map` that renders the per-edge failure trace on a pan/zoom basemap, scales to
+  county-size networks via GeoArrow transport, and exports to standalone HTML (`m.to_html(...)`) for
+  sharing. Supports `edge_geometry` (real road shape) and an optional `hazard` base layer, same
+  colorblind-safe encoding as Tier 1. Backend chosen by spike (lonboard over pydeck: ~2× smaller HTML
+  and ~25× faster build at 40K edges, one-line GeoDataFrame ingestion, token-free basemap). Needs the
+  `[viz]` extra (now pins lonboard; matplotlib retained for Tier 1). CI now installs the interop/viz
+  extras so these renderers are actually exercised.
 - **Static fragility maps (`gravel.viz` Tier 1).** `plot_fragility(graph, result, …)` renders the
   per-edge failure trace as a static, colorblind-safe matplotlib choropleth — the researcher's
   accurate artifact. Progressive survivors are greyed (not painted "failed first"); an optional
