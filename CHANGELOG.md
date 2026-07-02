@@ -4,6 +4,29 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] — Unreleased
+
+**Phase 2B — real edge geometry.** Foundation for faithful maps: a simplified graph can now be drawn
+along the true road shape instead of straight chords. OSM loads one edge per way segment, so full
+geometry already exists as degree-2 node chains; previously it was lost when those chains were
+contracted. Degree-2 contraction now records the collapsed polyline by default. Additive — the new
+field is populated automatically; existing routing/fragility behavior and the public ABI are unchanged.
+
+### Added
+- **`EdgeGeometry`** (`gravel-core`, `gravel/core/edge_geometry.h`). Ragged-CSR per-edge polyline
+  (`offsets` + `points`), index-aligned to a graph's edge order, with `points_for(edge)`,
+  `edge_count()`, and `empty()`. Pure data — populated by simplification, consumed by the geo/Python
+  layers, no cross-DAG dependency.
+- **`SimplificationConfig.emit_geometry`** (**default `true`**). `simplify_graph` / `contract_degree2`
+  record each edge's coordinate chain — the real shape for merged degree-2 chains, a 2-point segment
+  for kept edges — in `SimplificationResult.edge_geometry`. Set `false` to skip it. Automatically
+  skipped when the graph has no coordinates. Honored for the filter + degree-2 pipeline; left empty if
+  CH-level pruning also runs (it would misalign the edge set).
+- **`interop.to_geodataframe(..., edge_geometry=...)`.** Given an `EdgeGeometry`, each edge is drawn as
+  its true `LineString`; without it, the previous straight-segment behavior is unchanged.
+- **Python exports.** `simplify_graph`, `SimplificationConfig`, `SimplificationResult`, and
+  `EdgeGeometry` are now re-exported at the top level (`gravel.simplify_graph`, …).
+
 ## [2.4.0] — 2026-07-01
 
 **Phase 2A — research depth.** Adds modeling depth on top of the topological core, all as

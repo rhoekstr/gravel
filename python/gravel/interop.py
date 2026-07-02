@@ -205,14 +205,15 @@ def to_geodataframe(
     *,
     metadata: Any | None = None,
     edge_values: dict[str, Any] | None = None,
+    edge_geometry: Any | None = None,
     crs: str = "EPSG:4326",
 ) -> gpd.GeoDataFrame:
     """Convert a Gravel ``Graph`` to an edge ``GeoDataFrame`` of LineStrings.
 
     Each row is a directed edge with ``source``, ``target``, ``weight`` columns,
     any non-empty :class:`gravel.EdgeMetadata` tag columns, and any arrays passed
-    via ``edge_values``. The geometry is a straight segment between the two
-    nodes' coordinates (see the module docstring's geometry caveat).
+    via ``edge_values``. By default the geometry is a straight segment between the
+    two nodes' coordinates; pass ``edge_geometry`` to draw the real road shape.
 
     Parameters
     ----------
@@ -224,6 +225,10 @@ def to_geodataframe(
         Optional mapping of ``column_name -> array-like`` (length ``edge_count``,
         in CSR order) to attach as columns — e.g. betweenness or fragility
         scores.
+    edge_geometry:
+        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with
+        ``emit_geometry=True``), CSR-aligned to ``graph``'s edges. When given,
+        each edge is drawn along its true polyline instead of a straight chord.
     crs:
         Coordinate reference system for the result (default WGS84).
 
@@ -247,11 +252,24 @@ def to_geodataframe(
     lat = coords[:, 0]
     lon = coords[:, 1]
 
-    # shapely/GeoJSON use (x=lon, y=lat); build (E, 2, 2) endpoint coordinates.
-    src_xy = np.stack([lon[sources], lat[sources]], axis=1)
-    tgt_xy = np.stack([lon[targets], lat[targets]], axis=1)
-    line_coords = np.stack([src_xy, tgt_xy], axis=1)
-    geometry = shapely.linestrings(line_coords)
+    # shapely/GeoJSON use (x=lon, y=lat).
+    if edge_geometry is not None and not edge_geometry.empty:
+        if edge_geometry.edge_count != edge_count:
+            raise ValueError(
+                f"edge_geometry describes {edge_geometry.edge_count} edges but the "
+                f"graph has {edge_count} edges."
+            )
+        pts = edge_geometry.points            # (M, 2) [lat, lon]
+        offs = edge_geometry.offsets          # (edge_count + 1,)
+        xy = np.column_stack([pts[:, 1], pts[:, 0]])            # -> (x=lon, y=lat)
+        indices = np.repeat(np.arange(edge_count), np.diff(offs))
+        geometry = shapely.linestrings(xy, indices=indices)
+    else:
+        # Straight segment between endpoints (E, 2, 2).
+        src_xy = np.stack([lon[sources], lat[sources]], axis=1)
+        tgt_xy = np.stack([lon[targets], lat[targets]], axis=1)
+        line_coords = np.stack([src_xy, tgt_xy], axis=1)
+        geometry = shapely.linestrings(line_coords)
 
     data: dict[str, Any] = {
         "source": sources,

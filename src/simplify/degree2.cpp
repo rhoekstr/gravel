@@ -11,9 +11,15 @@ namespace gravel {
 SimplificationResult contract_degree2(
     const ArrayGraph& graph,
     const std::unordered_set<NodeID>& bridge_endpoints,
-    const std::unordered_set<NodeID>& boundary_protection) {
+    const std::unordered_set<NodeID>& boundary_protection,
+    bool emit_geometry) {
 
     NodeID n = graph.node_count();
+
+    auto coord_of = [&](NodeID v) { return graph.node_coordinate(v).value_or(Coord{}); };
+
+    // Geometry is meaningless without coordinates; skip it even if requested.
+    emit_geometry = emit_geometry && !graph.raw_coords().empty();
 
     // Step 1: Build undirected neighbor sets to find degree-2 nodes.
     // For directed graphs, undirected degree = number of distinct neighbors
@@ -44,6 +50,7 @@ SimplificationResult contract_degree2(
     struct MergedEdge {
         NodeID from, to;
         Weight weight;
+        std::vector<Coord> points;  // polyline from→to (empty unless emit_geometry)
     };
     std::vector<MergedEdge> merged_edges;
 
@@ -96,8 +103,12 @@ SimplificationResult contract_degree2(
             NodeID prev = junction;
             NodeID cur = first_d2;
 
+            std::vector<Coord> chain_pts;
+            if (emit_geometry) chain_pts.push_back(coord_of(junction));
+
             while (contractible[cur]) {
                 visited[cur] = true;
+                if (emit_geometry) chain_pts.push_back(coord_of(cur));
 
                 // Find weight of edge prev → cur
                 auto targets = graph.outgoing_targets(prev);
@@ -140,10 +151,16 @@ SimplificationResult contract_degree2(
             }
 
             NodeID other_junction = cur;
+            if (emit_geometry) chain_pts.push_back(coord_of(other_junction));
             if (junction != other_junction) {
-                merged_edges.push_back({junction, other_junction, total_weight_fwd});
+                std::vector<Coord> rev_pts;
+                if (emit_geometry && total_weight_rev > 0)
+                    rev_pts.assign(chain_pts.rbegin(), chain_pts.rend());
+                merged_edges.push_back(
+                    {junction, other_junction, total_weight_fwd, std::move(chain_pts)});
                 if (total_weight_rev > 0) {
-                    merged_edges.push_back({other_junction, junction, total_weight_rev});
+                    merged_edges.push_back(
+                        {other_junction, junction, total_weight_rev, std::move(rev_pts)});
                 }
             }
         }
@@ -174,6 +191,7 @@ SimplificationResult contract_degree2(
 
     // Collect edges: original non-chain edges + merged edges
     std::vector<Edge> new_edges;
+    std::vector<std::vector<Coord>> new_edge_pts;  // parallel to new_edges (emit_geometry only)
 
     // Original edges between non-contractible nodes
     for (NodeID u = 0; u < n; ++u) {
@@ -189,15 +207,17 @@ SimplificationResult contract_degree2(
             auto it_v = old_to_new.find(v);
             if (it_v == old_to_new.end()) continue;
             new_edges.push_back({it_u->second, it_v->second, weights[i]});
+            if (emit_geometry) new_edge_pts.push_back({coord_of(u), coord_of(v)});
         }
     }
 
     // Merged edges from chain contraction
-    for (const auto& me : merged_edges) {
+    for (auto& me : merged_edges) {
         auto it_from = old_to_new.find(me.from);
         auto it_to = old_to_new.find(me.to);
         if (it_from != old_to_new.end() && it_to != old_to_new.end()) {
             new_edges.push_back({it_from->second, it_to->second, me.weight});
+            if (emit_geometry) new_edge_pts.push_back(std::move(me.points));
         }
     }
 
@@ -209,11 +229,15 @@ SimplificationResult contract_degree2(
 
     std::vector<NodeID> tgt(new_edges.size());
     std::vector<Weight> wgt(new_edges.size());
+    std::vector<std::vector<Coord>> ordered_pts;
+    if (emit_geometry) ordered_pts.resize(new_edges.size());
     auto pos = offsets;
-    for (const auto& e : new_edges) {
+    for (size_t k = 0; k < new_edges.size(); ++k) {
+        const auto& e = new_edges[k];
         uint32_t idx = pos[e.source]++;
         tgt[idx] = e.target;
         wgt[idx] = e.weight;
+        if (emit_geometry) ordered_pts[idx] = std::move(new_edge_pts[k]);
     }
 
     // Preserve coordinates
@@ -229,6 +253,20 @@ SimplificationResult contract_degree2(
     result.original_to_new = old_to_new;
     result.simplified_nodes = new_n;
     result.simplified_edges = result.graph->edge_count();
+
+    if (emit_geometry) {
+        EdgeGeometry geom;
+        geom.offsets.assign(ordered_pts.size() + 1, 0);
+        for (size_t e = 0; e < ordered_pts.size(); ++e) {
+            geom.offsets[e + 1] =
+                geom.offsets[e] + static_cast<uint32_t>(ordered_pts[e].size());
+        }
+        geom.points.reserve(geom.offsets.back());
+        for (auto& p : ordered_pts) {
+            geom.points.insert(geom.points.end(), p.begin(), p.end());
+        }
+        result.edge_geometry = std::move(geom);
+    }
 
     return result;
 }

@@ -795,6 +795,33 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readonly("all_bridges_preserved", &DegradationReport::all_bridges_preserved)
         .def_readonly("stages", &DegradationReport::stages);
 
+    py::class_<EdgeGeometry>(m, "EdgeGeometry")
+        .def_property_readonly("offsets", [](const EdgeGeometry& g) -> py::array_t<uint32_t> {
+            py::array_t<uint32_t> arr(static_cast<py::ssize_t>(g.offsets.size()));
+            auto a = arr.mutable_unchecked<1>();
+            for (py::ssize_t i = 0; i < a.shape(0); ++i) a(i) = g.offsets[i];
+            return arr;
+        }, "Prefix-sum offsets into points; size edge_count+1 (empty when no geometry).")
+        .def_property_readonly("points", [](const EdgeGeometry& g) -> py::array_t<double> {
+            const auto m = static_cast<py::ssize_t>(g.points.size());
+            py::array_t<double> arr({m, py::ssize_t{2}});
+            auto a = arr.mutable_unchecked<2>();
+            for (py::ssize_t i = 0; i < m; ++i) { a(i, 0) = g.points[i].lat; a(i, 1) = g.points[i].lon; }
+            return arr;
+        }, "All polyline vertices as an (M, 2) array of [lat, lon].")
+        .def_property_readonly("edge_count", [](const EdgeGeometry& g) { return g.edge_count(); })
+        .def_property_readonly("empty", [](const EdgeGeometry& g) { return g.empty(); })
+        .def("__len__", [](const EdgeGeometry& g) { return g.edge_count(); })
+        .def("polyline", [](const EdgeGeometry& g, uint32_t e) -> py::array_t<double> {
+            if (e >= g.edge_count()) throw py::index_error("edge index out of range");
+            auto span = g.points_for(e);
+            const auto k = static_cast<py::ssize_t>(span.size());
+            py::array_t<double> arr({k, py::ssize_t{2}});
+            auto a = arr.mutable_unchecked<2>();
+            for (py::ssize_t i = 0; i < k; ++i) { a(i, 0) = span[i].lat; a(i, 1) = span[i].lon; }
+            return arr;
+        }, py::arg("edge"), "Edge e's polyline as a (k, 2) array of [lat, lon].");
+
     py::class_<SimplificationConfig>(m, "SimplificationConfig")
         .def(py::init<>())
         .def_readwrite("contract_degree2", &SimplificationConfig::contract_degree2)
@@ -802,7 +829,8 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readwrite("preserve_bridges", &SimplificationConfig::preserve_bridges)
         .def_readwrite("estimate_degradation", &SimplificationConfig::estimate_degradation)
         .def_readwrite("degradation_samples", &SimplificationConfig::degradation_samples)
-        .def_readwrite("seed", &SimplificationConfig::seed);
+        .def_readwrite("seed", &SimplificationConfig::seed)
+        .def_readwrite("emit_geometry", &SimplificationConfig::emit_geometry);
 
     py::class_<SimplificationResult>(m, "SimplificationResult")
         .def_readonly("graph", &SimplificationResult::graph)
@@ -812,6 +840,7 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readonly("simplified_nodes", &SimplificationResult::simplified_nodes)
         .def_readonly("simplified_edges", &SimplificationResult::simplified_edges)
         .def_readonly("degradation", &SimplificationResult::degradation)
+        .def_readonly("edge_geometry", &SimplificationResult::edge_geometry)
         .def("__repr__", [](const SimplificationResult& r) {
             return "SimplificationResult(nodes=" + std::to_string(r.original_nodes)
                    + " -> " + std::to_string(r.simplified_nodes)
