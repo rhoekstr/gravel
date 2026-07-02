@@ -413,9 +413,10 @@ probabilities enter fragility as arrays, derivation in geo/Python).
 
 ### Phase 2B — Adoption polish
 
-- **Persist edge polyline geometry.** Store the intermediate OSM way geometry per edge so maps render
-  real road shapes instead of straight node-to-node segments. Prerequisite for honest cartography.
-  *(geo layer, optional, memory cost noted)*
+- ✅ **Persist edge polyline geometry (built for 2.5.0).** Degree-2 contraction records each collapsed
+  chain's polyline (`EdgeGeometry`, `SimplificationConfig.emit_geometry`, default on); `to_geodataframe`
+  draws real road shapes instead of straight chords. Type in `gravel-core` (pure data), populated by
+  `gravel-simplify`. *(opt-out; auto-skipped without coordinates)*
 - **Visualization** (`gravel.viz`, `gravel[viz]` extra, pure Python; downstream of `to_geodataframe`,
   never in the C++ core). Staged:
   - ✅ **Tier 0 (data bridge, shipped 2.4.0).** Results expose a per-edge failure trace
@@ -425,8 +426,8 @@ probabilities enter fragility as arrays, derivation in geo/Python).
     principle): **static** = the researcher's *accurate* artifact (quantitative choropleth,
     colorblind-safe sequential colormap, honest about uncertainty; matplotlib/geopandas); **dynamic**
     = comprehension + public reach (watch isolation propagate; pydeck/lonboard WebGL; dots/lines/grid
-    texture as an ordinal encoding). Not aimed at B&W journal figures. Geo-viz credibility is coupled
-    to the 2B edge-geometry work above — label maps schematic until it lands.
+    texture as an ordinal encoding). Not aimed at B&W journal figures. Geo-viz now draws real road
+    shape via the 2B edge-geometry above (pass `edge_geometry` to `to_geodataframe`).
 
 ### Hardening & operational (surfaced during the 2.3.0 release)
 
@@ -450,6 +451,13 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
 
 ### Longer-horizon / research-track
 
+- **Customizable Contraction Hierarchies (CCH).** Metric-independent structure (nested-dissection
+  order + triangulated shortcuts) built once, then fast weight *customization* — an edge removal
+  becomes setting its weight to ∞ and re-customizing the affected triangles, exact and non-degrading.
+  The principled route to editable/dynamic networks and cheap repeated re-routing, and the only clean
+  way to relax the "static-topology CH" non-goal below. Preferred over hand-rolled incremental CH
+  updates (intricate, quality-eroding); today `BlockedCHQuery` already covers fixed-topology edge
+  blocking without a rebuild, so CCH is warranted only if a true editable-network use case emerges.
 - Temporal fragility (degradation over construction schedules)
 - International road-network support (non-TIGER boundaries)
 - ML-assisted edge-importance ranking
