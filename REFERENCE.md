@@ -3574,12 +3574,25 @@ failed_color=(180,180,180), width_min_pixels=1.5, interval_ms=400, metadata=None
 removed by then recede to grey while the still-active network stays `active_color` (survivors never
 grey). Only the color array updates per frame (data sent once via GeoArrow), so it stays smooth at
 scale. Requires a **greedy** `ProgressiveFragilityResult` (stochastic has no failure order — use
-`interactive_map`). Notebook-interactive; ipywidgets ships with lonboard. A self-contained *animated*
-HTML export (bake frames + JS scrubber, or GIF/MP4) is a planned follow-up.
+`interactive_map`). Notebook-interactive; ipywidgets ships with lonboard. For a shareable file with no
+kernel, see `animate_failure_html` below.
 
 ```python
 prog = gravel.progressive_fragility(g, ch, idx, cfg)  # greedy strategy
 viz.animate_failure(g, prog)                           # display in a notebook, press play
+```
+
+`animate_failure_html(graph, result, path, *, edge_geometry=None, hazard=None,
+active_color=(31,119,180), failed_color=(180,180,180), width_min_pixels=1.5, interval_ms=400,
+deckgl_version="9", metadata=None, crs="EPSG:4326") → str`. Writes a **self-contained animated HTML**
+file — deck.gl (from a CDN) plays/scrubs the removal sequence entirely client-side, no kernel or
+server. Geometry is embedded once and each frame only re-evaluates the color accessor
+(`updateTriggers` keyed to the round). Same progressive-only requirement and `edge_geometry` / `hazard`
+support. Needs only geopandas (`[interop]`). Geometry is embedded as JSON, so a county-scale network
+makes a large file — a deliberate share/export artifact, not a live analysis view.
+
+```python
+viz.animate_failure_html(g, prog, "failure.html")   # open in any browser, press play
 ```
 
 **Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the

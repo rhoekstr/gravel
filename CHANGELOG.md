@@ -31,7 +31,16 @@ field is populated automatically; existing routing/fragility behavior and the pu
   order — edges removed by round *k* recede to grey while the active network stays highlighted
   (survivors never grey). Only the color array updates per frame (data sent once via GeoArrow), so it
   stays smooth at scale. Requires a greedy `ProgressiveFragilityResult`; notebook-interactive
-  (ipywidgets ships with lonboard). Self-contained animated-HTML export is a planned follow-up.
+  (ipywidgets ships with lonboard).
+- **Self-contained animated HTML (`gravel.viz` Tier 2).** `animate_failure_html(graph, result, path, …)`
+  writes a standalone HTML file that plays/scrubs the removal sequence with deck.gl entirely
+  client-side — no kernel or server. Geometry is embedded once; each frame only re-evaluates the color
+  accessor (`updateTriggers` keyed to the round). Supports `edge_geometry` and `hazard`; needs only
+  geopandas. Verified end-to-end in a headless browser (render + scrub + no console errors).
+- **Fix:** `viz.edge_failure_round` (and everything built on it) mis-sized its output on graphs with
+  **parallel edges** (e.g. multiple degree-2 chains contracted between the same two junctions),
+  raising `IndexError`. It now keys a per-`(u,v)` queue so each parallel edge gets its own round and
+  lengths stay aligned to `edge_count`.
 - **Interactive fragility maps (`gravel.viz` Tier 2).** `interactive_map(graph, result, …)` returns a
   lonboard (WebGL) `Map` that renders the per-edge failure trace on a pan/zoom basemap, scales to
   county-size networks via GeoArrow transport, and exports to standalone HTML (`m.to_html(...)`) for
