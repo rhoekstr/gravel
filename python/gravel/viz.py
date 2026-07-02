@@ -1,10 +1,12 @@
-"""gravel.viz — turn fragility results into plot-ready GeoDataFrames (the data bridge).
+"""gravel.viz — fragility results as plot-ready GeoDataFrames and static maps.
 
-This is Tier 0 of Gravel's visualization support: it converts a fragility result into a
-per-edge column you can hand straight to ``gdf.plot(...)``, folium, pydeck, or lonboard.
-The *rendering* helpers — static publication-quality figures for researchers, and
-interactive animated maps for exploration and public communication — land in a later
-release. Today this module gives you the frame; you bring the renderer.
+**Tier 0 (data bridge):** convert a fragility result into a per-edge column you can hand
+straight to ``gdf.plot(...)``, folium, pydeck, or lonboard — :func:`failure_geoframe`,
+:func:`edge_failure_round`, :func:`edge_failure_frequency`.
+
+**Tier 1 (static rendering):** :func:`plot_fragility` draws the researcher's *accurate*
+artifact — a quantitative, colorblind-safe choropleth of the per-edge failure trace, with an
+optional hazard "why" layer underneath. Interactive/animated maps (Tier 2) land later.
 
 Two per-edge failure traces are supported, matching the two models that produce an
 edge-level outcome:
@@ -17,13 +19,14 @@ edge-level outcome:
   This is a *static* choropleth (per-edge P(fail)), not an animation: independent draws have
   no intrinsic order, and a single realization is one draw, not "the" answer.
 
-Geometry caveat (inherited from :func:`gravel.interop.to_geodataframe`): edges are drawn as
-straight segments between node coordinates, so a map is *schematic* until real per-edge road
-geometry lands. Over a floodplain that can misrepresent which roads sit in the hazard —
-read the picture accordingly.
+Geometry: by default edges draw as straight node-to-node segments; pass ``edge_geometry`` (from
+``simplify_graph(..., emit_geometry=True)``) to :func:`failure_geoframe` / :func:`plot_fragility`
+for a faithful map that follows the real road — important over a floodplain, where a straight
+chord can misrepresent which roads sit in the hazard.
 
-The GeoDataFrame path needs geopandas (``pip install gravel-fragility[interop]``); the raw
-per-edge array helpers need only numpy.
+The GeoDataFrame path needs geopandas (``pip install gravel-fragility[interop]``); static
+rendering also needs matplotlib (``gravel-fragility[viz]``); the raw per-edge array helpers need
+only numpy.
 """
 
 from __future__ import annotations
@@ -74,11 +77,24 @@ def edge_failure_frequency(result: StochasticFragilityResult) -> np.ndarray:
     return np.asarray(result.edge_failure_frequency, dtype=np.float64)
 
 
+def _failure_column(graph: Graph, result: Any) -> tuple[str, np.ndarray]:
+    """Resolve ``(column_name, per-edge values)`` for a progressive/stochastic result."""
+    if isinstance(result, ProgressiveFragilityResult):
+        return "failure_round", edge_failure_round(graph, result)
+    if isinstance(result, StochasticFragilityResult):
+        return "failure_frequency", edge_failure_frequency(result)
+    raise TypeError(
+        "expected a ProgressiveFragilityResult or StochasticFragilityResult, "
+        f"got {type(result).__name__}"
+    )
+
+
 def failure_geoframe(
     graph: Graph,
     result: Any,
     *,
     metadata: Any | None = None,
+    edge_geometry: Any | None = None,
     crs: str = "EPSG:4326",
 ) -> gpd.GeoDataFrame:
     """Build an edge ``GeoDataFrame`` carrying the result's per-edge failure trace.
@@ -93,6 +109,13 @@ def failure_geoframe(
     The frame is ready for ``gdf.plot(column=..., cmap="viridis")`` (use a colorblind-safe
     sequential colormap; avoid red→green). Needs geopandas.
 
+    Parameters
+    ----------
+    edge_geometry:
+        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with
+        ``emit_geometry=True``, CSR-aligned to ``graph``). When given, edges are drawn along
+        their true road shape instead of straight chords.
+
     Raises
     ------
     TypeError
@@ -102,14 +125,100 @@ def failure_geoframe(
     """
     from . import interop  # lazy: pulls geopandas only when a frame is requested
 
-    if isinstance(result, ProgressiveFragilityResult):
-        column, values = "failure_round", edge_failure_round(graph, result)
-    elif isinstance(result, StochasticFragilityResult):
-        column, values = "failure_frequency", edge_failure_frequency(result)
-    else:
-        raise TypeError(
-            "failure_geoframe expects a ProgressiveFragilityResult or "
-            f"StochasticFragilityResult, got {type(result).__name__}"
-        )
+    column, values = _failure_column(graph, result)
+    return interop.to_geodataframe(
+        graph,
+        metadata=metadata,
+        edge_values={column: values},
+        edge_geometry=edge_geometry,
+        crs=crs,
+    )
 
-    return interop.to_geodataframe(graph, metadata=metadata, edge_values={column: values}, crs=crs)
+
+def plot_fragility(
+    graph: Graph,
+    result: Any,
+    *,
+    edge_geometry: Any | None = None,
+    hazard: Any | None = None,
+    hazard_column: str | None = None,
+    ax: Any | None = None,
+    cmap: str = "viridis",
+    linewidth: float = 0.8,
+    legend: bool = True,
+    title: str | None = None,
+    missing_color: str = "lightgray",
+    metadata: Any | None = None,
+    crs: str = "EPSG:4326",
+) -> Any:
+    """Render a static fragility map (Tier 1) and return the matplotlib ``Axes``.
+
+    Edges are colored by the result's per-edge failure trace — ``failure_round`` for a greedy
+    :class:`ProgressiveFragilityResult`, ``failure_frequency`` for a
+    :class:`StochasticFragilityResult`. This is the *researcher's accurate artifact*: a
+    quantitative choropleth on a colorblind-safe sequential colormap (default ``viridis``;
+    avoid red→green). Progressive survivors (``NaN`` round) are drawn in ``missing_color`` so a
+    colormap does not paint them as "failed first".
+
+    Parameters
+    ----------
+    edge_geometry:
+        Optional :class:`gravel.EdgeGeometry`; when given, edges follow the real road shape.
+    hazard:
+        Optional geopandas ``GeoDataFrame`` of risk geometry (e.g. a floodplain) drawn as the
+        base "why" layer under the network — the causal input behind the failure pattern.
+    hazard_column:
+        Optional column of ``hazard`` to shade severity by (sequential ``OrRd``); a uniform
+        translucent fill is used when omitted.
+    ax:
+        Existing matplotlib ``Axes`` to draw on; a new figure is created when ``None``.
+    cmap, linewidth, legend, title, missing_color:
+        Standard styling knobs passed through to the edge plot.
+
+    Returns
+    -------
+    matplotlib.axes.Axes
+
+    Raises
+    ------
+    ImportError
+        If matplotlib is not installed (``pip install gravel-fragility[viz]``).
+    """
+    try:
+        import matplotlib.pyplot as plt
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise ImportError(
+            "plot_fragility needs matplotlib: pip install gravel-fragility[viz]"
+        ) from exc
+
+    column, _ = _failure_column(graph, result)
+    gdf = failure_geoframe(
+        graph, result, metadata=metadata, edge_geometry=edge_geometry, crs=crs
+    )
+
+    if ax is None:
+        _, ax = plt.subplots(figsize=(9, 9))
+
+    # Base "why" layer: the hazard geometry that drives the failure pattern.
+    if hazard is not None:
+        if hazard_column is not None:
+            hazard.plot(ax=ax, column=hazard_column, cmap="OrRd", alpha=0.35, zorder=1)
+        else:
+            hazard.plot(ax=ax, color="#d9a441", alpha=0.25, edgecolor="none", zorder=1)
+
+    plot_kwargs: dict[str, Any] = {
+        "ax": ax,
+        "column": column,
+        "cmap": cmap,
+        "linewidth": linewidth,
+        "legend": legend,
+        "zorder": 2,
+    }
+    if column == "failure_round":
+        # Survivors are NaN; grey them rather than mapping to the "failed first" end.
+        plot_kwargs["missing_kwds"] = {"color": missing_color, "linewidth": linewidth}
+    gdf.plot(**plot_kwargs)
+
+    if title:
+        ax.set_title(title)
+    return ax
