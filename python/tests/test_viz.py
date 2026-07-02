@@ -418,3 +418,24 @@ def test_failure_geoframe_row_order_matches_csr():
     src, tgt, _ = g.to_coo()
     assert list(gdf["source"]) == list(src)
     assert list(gdf["target"]) == list(tgt)
+
+
+def test_edge_failure_round_handles_parallel_edges():
+    # Regression: graphs with parallel edges (same (u,v) more than once) once mis-sized
+    # edge_failure_round and raised IndexError. Build a path whose middle link is
+    # triple-parallel, run greedy removal, and confirm the output stays aligned and
+    # each removed edge gets its own unique round (per-(u,v) queue, not a shared index).
+    import numpy as np
+
+    und = [(0, 1)] + [(1, 2), (1, 2), (1, 2)] + [(2, 3)]
+    edges = und + [(b, a) for a, b in und]
+    s = np.array([a for a, b in edges], np.uint32)
+    t = np.array([b for a, b in edges], np.uint32)
+    coords = np.array([[0, 0], [0, 0.33], [0, 0.66], [0, 1.0]], float)  # within greedy box
+    g = gravel.Graph.from_coo(4, s, t, np.ones(len(edges)), coords)
+
+    rounds = viz.edge_failure_round(g, _progressive_greedy(g))  # must not raise
+    assert rounds.shape == (g.edge_count,)
+    finite = rounds[~np.isnan(rounds)]
+    assert len(set(finite.tolist())) == len(finite)  # every round unique
+    assert sorted(finite.tolist()) == [float(i) for i in range(1, len(finite) + 1)]

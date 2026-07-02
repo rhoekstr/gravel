@@ -65,41 +65,8 @@ SimplificationResult contract_degree2(
     };
     std::vector<MergedEdge> merged_edges;
 
-    // For each contractible node, trace the chain it belongs to
-    for (NodeID start = 0; start < n; ++start) {
-        if (!contractible[start] || visited[start]) continue;
-
-        // Walk backward to find the junction at the start of this chain
-        NodeID chain_start = start;
-        {
-            NodeID prev = INVALID_NODE;
-            NodeID cur = start;
-            while (contractible[cur]) {
-                visited[cur] = true;
-                auto& nbrs = neighbors[cur];
-                NodeID next = INVALID_NODE;
-                for (NodeID nb : nbrs) {
-                    if (nb != prev) { next = nb; break; }
-                }
-                if (next == INVALID_NODE) break;
-                prev = cur;
-                cur = next;
-                if (contractible[cur] && visited[cur]) break;  // cycle of degree-2 nodes
-            }
-            chain_start = cur;
-        }
-
-        // Now walk forward from chain_start through the chain
-        // Reset visited for chain nodes (we'll re-walk them)
-        for (NodeID v = 0; v < n; ++v) {
-            // Only reset nodes visited in the backward walk
-            // Actually, let's just re-trace from chain_start
-        }
-    }
-
-    // Simpler approach: iterate junctions, trace chains from each junction
+    // Iterate junctions, tracing each contractible chain out to the next junction.
     std::fill(visited.begin(), visited.end(), false);
-    merged_edges.clear();
 
     for (NodeID junction = 0; junction < n; ++junction) {
         if (contractible[junction]) continue;  // not a junction

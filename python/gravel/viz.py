@@ -159,7 +159,7 @@ def plot_fragility(
     linewidth: float = 0.8,
     legend: bool = True,
     title: str | None = None,
-    missing_color: str = "lightgray",
+    missing_color: str = "#b4b4b4",  # muted grey (180,180,180), consistent across tiers
     metadata: Any | None = None,
     crs: str = "EPSG:4326",
 ) -> Any:
@@ -262,7 +262,7 @@ def interactive_map(
     hazard: Any | None = None,
     cmap: str = "viridis",
     width_min_pixels: float = 1.5,
-    missing_color: tuple[int, int, int] = (200, 200, 200),
+    missing_color: tuple[int, int, int] = (180, 180, 180),
     metadata: Any | None = None,
     crs: str = "EPSG:4326",
 ) -> Any:
@@ -378,7 +378,7 @@ def animate_failure(
         from lonboard import Map, PathLayer, PolygonLayer
     except ImportError as exc:  # pragma: no cover - environment dependent
         raise ImportError(
-            "animate_failure needs lonboard: pip install gravel-fragility[viz]"
+            "animate_failure needs lonboard + ipywidgets: pip install gravel-fragility[viz]"
         ) from exc
 
     gdf = failure_geoframe(

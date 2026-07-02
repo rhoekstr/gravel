@@ -803,10 +803,10 @@ PYBIND11_MODULE(_gravel, m) {
             return arr;
         }, "Prefix-sum offsets into points; size edge_count+1 (empty when no geometry).")
         .def_property_readonly("points", [](const EdgeGeometry& g) -> py::array_t<double> {
-            const auto m = static_cast<py::ssize_t>(g.points.size());
-            py::array_t<double> arr({m, py::ssize_t{2}});
+            const auto npts = static_cast<py::ssize_t>(g.points.size());
+            py::array_t<double> arr({npts, py::ssize_t{2}});
             auto a = arr.mutable_unchecked<2>();
-            for (py::ssize_t i = 0; i < m; ++i) { a(i, 0) = g.points[i].lat; a(i, 1) = g.points[i].lon; }
+            for (py::ssize_t i = 0; i < npts; ++i) { a(i, 0) = g.points[i].lat; a(i, 1) = g.points[i].lon; }
             return arr;
         }, "All polyline vertices as an (M, 2) array of [lat, lon].")
         .def_property_readonly("edge_count", [](const EdgeGeometry& g) { return g.edge_count(); })
