@@ -101,10 +101,11 @@ jobs:
       - name: Run Python tests
         if: hashFiles('python/tests/**') != ''
         run: |
-          # numpy is a core dependency (installed with the package). networkx
-          # additionally exercises the to/from_networkx adapters; geopandas/OSM
-          # tests self-skip when their deps aren't present (see @requires_* guards).
-          pip install pytest networkx
+          # numpy is a core dependency (installed with the package). Install the interop
+          # + viz test deps so the NetworkX / GeoPandas adapters and the matplotlib /
+          # lonboard renderers are actually exercised rather than self-skipping. OSM
+          # tests still self-skip unless the build has libosmium (see @requires_* guards).
+          pip install pytest networkx geopandas shapely pyproj matplotlib lonboard
           pytest python/tests/
 
   # ============================================================
