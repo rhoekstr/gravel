@@ -1,6 +1,7 @@
 #include "gravel/simplify/simplify.h"
 #include <algorithm>
 #include <memory>
+#include <optional>
 #include <utility>
 #include <unordered_map>
 #include <unordered_set>
@@ -20,6 +21,16 @@ SimplificationResult contract_degree2(
 
     // Geometry is meaningless without coordinates; skip it even if requested.
     emit_geometry = emit_geometry && !graph.raw_coords().empty();
+
+    // Directed weight of edge a→b if it exists, else nullopt. Existence — not a positive
+    // weight sum — decides whether a merged direction is real: a one-way chain must not
+    // synthesize a reverse edge, and a legitimately zero-weight edge must still survive.
+    auto edge_weight = [&](NodeID a, NodeID b) -> std::optional<Weight> {
+        auto t = graph.outgoing_targets(a);
+        auto w = graph.outgoing_weights(a);
+        for (size_t i = 0; i < t.size(); ++i) if (t[i] == b) return w[i];
+        return std::nullopt;
+    };
 
     // Step 1: Build undirected neighbor sets to find degree-2 nodes.
     // For directed graphs, undirected degree = number of distinct neighbors
@@ -97,9 +108,13 @@ SimplificationResult contract_degree2(
         for (NodeID first_d2 : neighbors[junction]) {
             if (!contractible[first_d2] || visited[first_d2]) continue;
 
-            // Trace chain: junction → first_d2 → ... → other_junction
+            // Trace chain: junction → first_d2 → ... → other_junction. Track existence of
+            // every fragment in each direction; a direction is emitted only if the through
+            // path actually exists (no phantom edges from one-way or mixed-direction chains).
             Weight total_weight_fwd = 0.0;
             Weight total_weight_rev = 0.0;
+            bool fwd_exists = true;
+            bool rev_exists = true;
             NodeID prev = junction;
             NodeID cur = first_d2;
 
@@ -110,19 +125,8 @@ SimplificationResult contract_degree2(
                 visited[cur] = true;
                 if (emit_geometry) chain_pts.push_back(coord_of(cur));
 
-                // Find weight of edge prev → cur
-                auto targets = graph.outgoing_targets(prev);
-                auto weights = graph.outgoing_weights(prev);
-                for (size_t i = 0; i < targets.size(); ++i) {
-                    if (targets[i] == cur) { total_weight_fwd += weights[i]; break; }
-                }
-
-                // Find weight of edge cur → prev (reverse)
-                auto rev_targets = graph.outgoing_targets(cur);
-                auto rev_weights = graph.outgoing_weights(cur);
-                for (size_t i = 0; i < rev_targets.size(); ++i) {
-                    if (rev_targets[i] == prev) { total_weight_rev += rev_weights[i]; break; }
-                }
+                if (auto w = edge_weight(prev, cur)) total_weight_fwd += *w; else fwd_exists = false;
+                if (auto w = edge_weight(cur, prev)) total_weight_rev += *w; else rev_exists = false;
 
                 // Move to next node in chain
                 NodeID next = INVALID_NODE;
@@ -135,30 +139,21 @@ SimplificationResult contract_degree2(
                 cur = next;
             }
 
-            // cur is now the other junction at the end of the chain
-            // Add weight of last edge (prev → cur)
-            {
-                auto targets = graph.outgoing_targets(prev);
-                auto weights = graph.outgoing_weights(prev);
-                for (size_t i = 0; i < targets.size(); ++i) {
-                    if (targets[i] == cur) { total_weight_fwd += weights[i]; break; }
-                }
-                auto rev_targets = graph.outgoing_targets(cur);
-                auto rev_weights = graph.outgoing_weights(cur);
-                for (size_t i = 0; i < rev_targets.size(); ++i) {
-                    if (rev_targets[i] == prev) { total_weight_rev += rev_weights[i]; break; }
-                }
-            }
+            // Final fragment: prev → other_junction (cur).
+            if (auto w = edge_weight(prev, cur)) total_weight_fwd += *w; else fwd_exists = false;
+            if (auto w = edge_weight(cur, prev)) total_weight_rev += *w; else rev_exists = false;
 
             NodeID other_junction = cur;
             if (emit_geometry) chain_pts.push_back(coord_of(other_junction));
             if (junction != other_junction) {
-                std::vector<Coord> rev_pts;
-                if (emit_geometry && total_weight_rev > 0)
-                    rev_pts.assign(chain_pts.rbegin(), chain_pts.rend());
-                merged_edges.push_back(
-                    {junction, other_junction, total_weight_fwd, std::move(chain_pts)});
-                if (total_weight_rev > 0) {
+                if (fwd_exists) {
+                    std::vector<Coord> fwd_pts = emit_geometry ? chain_pts : std::vector<Coord>{};
+                    merged_edges.push_back(
+                        {junction, other_junction, total_weight_fwd, std::move(fwd_pts)});
+                }
+                if (rev_exists) {
+                    std::vector<Coord> rev_pts;
+                    if (emit_geometry) rev_pts.assign(chain_pts.rbegin(), chain_pts.rend());
                     merged_edges.push_back(
                         {other_junction, junction, total_weight_rev, std::move(rev_pts)});
                 }

@@ -3,9 +3,13 @@
 ///
 /// Reduces graph size through three composable, independently optional stages:
 ///
-/// 1. **Degree-2 contraction** [graph-agnostic, lossless]:
-///    Merges chains of degree-2 nodes into single edges. Preserves all shortest-path
-///    distances exactly. Typical reduction: ~25-35% of nodes.
+/// 1. **Degree-2 contraction** [graph-agnostic]:
+///    Merges chains of degree-2 nodes into single edges, preserving shortest-path distances
+///    between the surviving junctions. Directed one-way chains keep only the direction(s) that
+///    actually connect end to end. **Limitation:** an isolated degree-2 cycle (a ring with no
+///    junction, or a lollipop loop back to a single junction) has no anchor and is dropped
+///    rather than contracted — such components do not affect junction-to-junction routing.
+///    Typical reduction: ~25-35% of nodes.
 ///
 /// 2. **Edge category filtering** [generic predicate]:
 ///    Removes edges that don't pass a user-defined filter. OSM road class filtering
@@ -86,8 +90,9 @@ struct DegradationReport {
 /// edge filtering → degree-2 contraction → CH-level pruning.
 struct SimplificationConfig {
     /// Stage 1: Degree-2 chain contraction.
-    /// Merges chains of degree-2 nodes into single edges.
-    /// Error: exactly 0% (lossless). Works on any graph topology.
+    /// Merges chains of degree-2 nodes into single edges, preserving junction-to-junction
+    /// shortest-path distances (per direction). Isolated degree-2 cycles/lollipops have no
+    /// junction anchor and are dropped (they carry no junction-to-junction route).
     bool contract_degree2 = true;
 
     /// Stage 2: Edge category filter.
