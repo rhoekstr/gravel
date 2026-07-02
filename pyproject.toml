@@ -61,7 +61,10 @@ interop = [
 ]
 viz = [
     "matplotlib>=3.7",
-    "plotly>=5.20",
+    "lonboard>=0.16",
+    # lonboard uses arro3 internally, but its from_geopandas path routes through
+    # geopandas/pandas Arrow, which needs pyarrow (>=16 for numpy-2 compatibility).
+    "pyarrow>=16",
     "geopandas>=0.14",
     "shapely>=2.0",
     "pyproj>=3.6",
