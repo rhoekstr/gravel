@@ -26,6 +26,9 @@ requires_matplotlib = pytest.mark.skipif(matplotlib is None, reason="matplotlib 
 if matplotlib is not None:
     matplotlib.use("Agg")  # headless backend for tests
 
+lonboard = _maybe_import("lonboard")
+requires_lonboard = pytest.mark.skipif(lonboard is None, reason="lonboard not installed")
+
 
 def _square_graph():
     coords = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]], dtype=np.float64)
@@ -255,3 +258,48 @@ def test_plot_fragility_rejects_other_type():
     g = _square_graph()
     with pytest.raises(TypeError):
         viz.plot_fragility(g, object())
+
+
+# --- Tier 2: interactive lonboard map (interactive_map) ---
+
+
+@requires_geopandas
+@requires_matplotlib
+@requires_lonboard
+def test_interactive_map_returns_lonboard_map():
+    g = _coord_grid(6)
+    m = viz.interactive_map(g, _stochastic(g))
+    assert type(m).__name__ == "Map"
+    assert len(m.layers) == 1  # edge PathLayer only
+
+
+@requires_geopandas
+@requires_matplotlib
+@requires_lonboard
+def test_interactive_map_hazard_adds_base_layer():
+    from shapely.geometry import Polygon
+
+    g = _coord_grid(6)
+    haz = geopandas.GeoDataFrame(
+        {"x": [1]}, geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])], crs="EPSG:4326"
+    )
+    m = viz.interactive_map(g, _stochastic(g), hazard=haz)
+    assert len(m.layers) == 2  # hazard polygon + edges
+
+
+@requires_geopandas
+@requires_matplotlib
+@requires_lonboard
+def test_interactive_map_progressive_html_export(tmp_path):
+    g = _coord_grid(6)
+    m = viz.interactive_map(g, _progressive_greedy(g))  # failure_round path
+    out = tmp_path / "map.html"
+    m.to_html(str(out))
+    assert out.exists() and out.stat().st_size > 0
+
+
+@requires_lonboard
+def test_interactive_map_rejects_other_type():
+    g = _square_graph()
+    with pytest.raises(TypeError):
+        viz.interactive_map(g, object())

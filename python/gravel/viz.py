@@ -5,8 +5,12 @@ straight to ``gdf.plot(...)``, folium, pydeck, or lonboard — :func:`failure_ge
 :func:`edge_failure_round`, :func:`edge_failure_frequency`.
 
 **Tier 1 (static rendering):** :func:`plot_fragility` draws the researcher's *accurate*
-artifact — a quantitative, colorblind-safe choropleth of the per-edge failure trace, with an
-optional hazard "why" layer underneath. Interactive/animated maps (Tier 2) land later.
+artifact — a quantitative, colorblind-safe matplotlib choropleth of the per-edge failure trace,
+with an optional hazard "why" layer underneath.
+
+**Tier 2 (interactive):** :func:`interactive_map` returns a lonboard (WebGL) ``Map`` that scales
+to county-size networks and exports to standalone HTML — for exploration and public sharing.
+Animated failure playback builds on this next.
 
 Two per-edge failure traces are supported, matching the two models that produce an
 edge-level outcome:
@@ -222,3 +226,80 @@ def plot_fragility(
     if title:
         ax.set_title(title)
     return ax
+
+
+def _cmap_rgb(values: np.ndarray, cmap: str, missing_color) -> np.ndarray:
+    """Map per-edge values to an (N, 3) uint8 RGB array; non-finite → ``missing_color``."""
+    from lonboard.colormap import apply_continuous_cmap
+    from matplotlib import colormaps, colors
+
+    finite = np.isfinite(values)
+    if finite.any():
+        lo = float(np.min(values[finite]))
+        hi = float(np.max(values[finite]))
+        norm = colors.Normalize(vmin=lo, vmax=hi if hi > lo else lo + 1.0)
+        scaled = np.where(finite, norm(np.where(finite, values, lo)), 0.0)
+    else:
+        scaled = np.zeros_like(values)
+    rgb = apply_continuous_cmap(scaled, colormaps[cmap])
+    rgb[~finite] = list(missing_color)  # survivors / undefined → grey
+    return rgb
+
+
+def interactive_map(
+    graph: Graph,
+    result: Any,
+    *,
+    edge_geometry: Any | None = None,
+    hazard: Any | None = None,
+    cmap: str = "viridis",
+    width_min_pixels: float = 1.5,
+    missing_color: tuple[int, int, int] = (200, 200, 200),
+    metadata: Any | None = None,
+    crs: str = "EPSG:4326",
+) -> Any:
+    """Interactive WebGL fragility map (Tier 2) — returns a lonboard ``Map``.
+
+    Renders the per-edge failure trace (``failure_round`` for greedy progressive,
+    ``failure_frequency`` for stochastic) as GPU-drawn paths on a pan/zoom basemap. Scales to
+    county-size networks via GeoArrow transport. Display it in a notebook, or call
+    ``m.to_html("map.html")`` for a shareable standalone file.
+
+    Parameters mirror :func:`plot_fragility`: ``edge_geometry`` draws real road shape, ``hazard``
+    (a geopandas ``GeoDataFrame``) is drawn as a translucent base "why" layer, ``cmap`` is a
+    colorblind-safe sequential colormap, and non-failing edges use ``missing_color``.
+
+    Returns
+    -------
+    lonboard.Map
+
+    Raises
+    ------
+    ImportError
+        If lonboard is not installed (``pip install gravel-fragility[viz]``).
+    """
+    try:
+        from lonboard import Map, PathLayer, PolygonLayer
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise ImportError(
+            "interactive_map needs lonboard: pip install gravel-fragility[viz]"
+        ) from exc
+
+    column, _ = _failure_column(graph, result)
+    gdf = failure_geoframe(
+        graph, result, metadata=metadata, edge_geometry=edge_geometry, crs=crs
+    )
+    rgb = _cmap_rgb(np.asarray(gdf[column], dtype=float), cmap, missing_color)
+
+    layers = []
+    if hazard is not None:  # translucent base "why" layer, drawn underneath
+        layers.append(
+            PolygonLayer.from_geopandas(
+                hazard, get_fill_color=[217, 164, 65, 70], get_line_color=[217, 164, 65, 160]
+            )
+        )
+    edges = PathLayer.from_geopandas(gdf, width_min_pixels=width_min_pixels)
+    edges.get_color = rgb
+    layers.append(edges)
+
+    return Map(layers)

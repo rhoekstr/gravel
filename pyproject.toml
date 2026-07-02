@@ -61,7 +61,7 @@ interop = [
 ]
 viz = [
     "matplotlib>=3.7",
-    "plotly>=5.20",
+    "lonboard>=0.16",
     "geopandas>=0.14",
     "shapely>=2.0",
     "pyproj>=3.6",
