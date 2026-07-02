@@ -3568,6 +3568,20 @@ m = viz.interactive_map(g, res, hazard=flood_gdf)   # lonboard Map
 m.to_html("flood_fragility.html")                    # shareable, no server
 ```
 
+`animate_failure(graph, result, *, edge_geometry=None, hazard=None, active_color=(31,119,180),
+failed_color=(180,180,180), width_min_pixels=1.5, interval_ms=400, metadata=None, crs="EPSG:4326")
+→ ipywidgets.VBox`. Play/slider **animation** of the progressive removal order: at round *k*, edges
+removed by then recede to grey while the still-active network stays `active_color` (survivors never
+grey). Only the color array updates per frame (data sent once via GeoArrow), so it stays smooth at
+scale. Requires a **greedy** `ProgressiveFragilityResult` (stochastic has no failure order — use
+`interactive_map`). Notebook-interactive; ipywidgets ships with lonboard. A self-contained *animated*
+HTML export (bake frames + JS scrubber, or GIF/MP4) is a planned follow-up.
+
+```python
+prog = gravel.progressive_fragility(g, ch, idx, cfg)  # greedy strategy
+viz.animate_failure(g, prog)                           # display in a notebook, press play
+```
+
 **Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the
 researcher's *accurate* snapshot — quantitative choropleth, colorblind-safe sequential colormap
 (avoid red→green), honest about uncertainty; the **dynamic/interactive** artifact is for comprehension

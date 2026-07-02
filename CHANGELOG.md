@@ -26,6 +26,12 @@ field is populated automatically; existing routing/fragility behavior and the pu
   its true `LineString`; without it, the previous straight-segment behavior is unchanged.
 - **Python exports.** `simplify_graph`, `SimplificationConfig`, `SimplificationResult`, and
   `EdgeGeometry` are now re-exported at the top level (`gravel.simplify_graph`, …).
+- **Animated failure playback (`gravel.viz` Tier 2).** `animate_failure(graph, progressive_result, …)`
+  returns a Play/slider ipywidgets widget over a lonboard map that scrubs the progressive removal
+  order — edges removed by round *k* recede to grey while the active network stays highlighted
+  (survivors never grey). Only the color array updates per frame (data sent once via GeoArrow), so it
+  stays smooth at scale. Requires a greedy `ProgressiveFragilityResult`; notebook-interactive
+  (ipywidgets ships with lonboard). Self-contained animated-HTML export is a planned follow-up.
 - **Interactive fragility maps (`gravel.viz` Tier 2).** `interactive_map(graph, result, …)` returns a
   lonboard (WebGL) `Map` that renders the per-edge failure trace on a pan/zoom basemap, scales to
   county-size networks via GeoArrow transport, and exports to standalone HTML (`m.to_html(...)`) for

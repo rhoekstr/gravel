@@ -303,3 +303,42 @@ def test_interactive_map_rejects_other_type():
     g = _square_graph()
     with pytest.raises(TypeError):
         viz.interactive_map(g, object())
+
+
+# --- Tier 2: animation (animate_failure) ---
+
+
+def test_failure_colors_binary_and_monotonic():
+    # Pure animation core — no optional deps, so this runs everywhere.
+    fr = np.array([1.0, 2.0, 3.0, np.nan])  # last edge survives
+    grey = (180, 180, 180)
+
+    c0 = viz._failure_colors(fr, 0)
+    assert (c0 == c0[0]).all()  # nothing failed at round 0
+
+    c2 = viz._failure_colors(fr, 2)
+    assert tuple(c2[0]) == grey and tuple(c2[1]) == grey  # failed by round 2
+    assert tuple(c2[2]) != grey and tuple(c2[3]) != grey  # not-yet + survivor stay active
+
+    grey_counts = [
+        int(np.sum(np.all(viz._failure_colors(fr, k) == grey, axis=1))) for k in range(5)
+    ]
+    assert grey_counts == sorted(grey_counts)  # monotonic non-decreasing
+    assert grey_counts[-1] == 3  # all finite edges eventually grey; survivor never
+
+
+@requires_geopandas
+@requires_lonboard
+def test_animate_failure_returns_widget():
+    import ipywidgets
+
+    g = _coord_grid(6)
+    w = viz.animate_failure(g, _progressive_greedy(g))
+    assert isinstance(w, ipywidgets.VBox)
+
+
+def test_animate_failure_rejects_stochastic():
+    # The progressive-only guard runs before any optional import.
+    g = _coord_grid(5)
+    with pytest.raises(TypeError):
+        viz.animate_failure(g, _stochastic(g))
