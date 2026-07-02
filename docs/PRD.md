@@ -99,14 +99,14 @@ accessors (`Graph.to_coo` / `from_coo`), per-edge OSM metadata in Python
 (`load_osm_graph_with_metadata` → `EdgeMetadata`), GeoJSON/JSONL/Parquet export bindings, and
 NetworkX/GeoPandas adapters (`gravel.interop`).
 
-Remaining, and shaping the rest of the roadmap:
+The two limitations that shaped the roadmap are now resolved:
 
-- **OSM capacity-relevant tags are exposed but not yet modeled.** `highway`, `lanes`, `maxspeed`
-  now survive to Python as `EdgeMetadata`, but Gravel does not derive a capacity/PCE estimate or use
-  it in ranking. That derivation is Phase 2A (capacity-as-input — see Roadmap).
-- **No per-edge geometry.** Edges store endpoints and a weight, not the intermediate OSM way
-  polyline — so `to_geodataframe` renders straight node-to-node segments. Persisting real geometry
-  is Phase 2B.
+- **OSM capacity-relevant tags → modeled.** *Resolved in 2.4.0 (Phase 2A):* `estimate_capacity`
+  derives per-edge PCE from `highway`/`lanes`, feeding capacity-aware betweenness (criticality +
+  weighted importance).
+- **Per-edge geometry.** *Resolved in 2.5.0 (Phase 2B):* degree-2 contraction preserves each edge's
+  OSM polyline (`SimplificationConfig.emit_geometry`, default on), and
+  `to_geodataframe(edge_geometry=…)` draws the real road shape instead of straight chords.
 
 ## Architecture Overview
 
@@ -285,7 +285,7 @@ inputs** — never as a new simulated paradigm baked into the core. See Roadmap 
 
 ## Version History
 
-### v2.4.0 (in review) — Phase 2A research depth
+### v2.4.0 (2026-07-01) — Phase 2A research depth
 - HCM capacity model + capacity-aware betweenness (criticality + weighted importance);
   `stochastic_fragility` (distribution over per-edge failures, floodplain-ready);
   `cascade_fragility` (Motter–Lai, experimental). Modeling constants are disclosed, sweepable inputs.
@@ -377,7 +377,7 @@ gave reproducibility a guarantee.
 - ✅ **Reproducible covariates:** `BetweennessConfig.deterministic` gives bit-identical, thread-count-
   invariant betweenness; Monte Carlo statistics were already deterministic (sort-before-aggregate).
 
-### Phase 2A — Research depth (capacity → stochastic → cascade) ✅ built for 2.4.0 (in review)
+### Phase 2A — Research depth (capacity → stochastic → cascade) ✅ shipped in 2.4.0
 
 Serves Gravel's network-fragility research identity. Sequenced because each step feeds
 the next. Implemented as `capacity` (HCM model + capacity-aware betweenness), `stochastic_fragility`
@@ -422,12 +422,13 @@ probabilities enter fragility as arrays, derivation in geo/Python).
   - ✅ **Tier 0 (data bridge, shipped 2.4.0).** Results expose a per-edge failure trace
     (`edge_failure_round` from progressive greedy removal order; `edge_failure_frequency` from
     stochastic MC) and `failure_geoframe` returns a plot-ready `GeoDataFrame`. Zero new deps.
-  - **Tier 1 + 2 (2.5.0 — comprehensive visual update).** Two audiences, two modes (durable design
-    principle): **static** = the researcher's *accurate* artifact (quantitative choropleth,
+  - ✅ **Tier 1 + 2 (built for 2.5.0).** Two audiences, two modes (durable design principle):
+    **static** = the researcher's *accurate* artifact (`plot_fragility` — quantitative choropleth,
     colorblind-safe sequential colormap, honest about uncertainty; matplotlib/geopandas); **dynamic**
-    = comprehension + public reach (watch isolation propagate; pydeck/lonboard WebGL; dots/lines/grid
-    texture as an ordinal encoding). Not aimed at B&W journal figures. Geo-viz now draws real road
-    shape via the 2B edge-geometry above (pass `edge_geometry` to `to_geodataframe`).
+    = comprehension + public reach (`interactive_map` + `animate_failure` on lonboard WebGL, plus a
+    self-contained deck.gl `animate_failure_html`; texture as an ordinal encoding). Not aimed at B&W
+    journal figures. Geo-viz draws real road shape via the 2B edge-geometry above (pass
+    `edge_geometry` to `to_geodataframe`). Backend chosen by spike (lonboard over pydeck).
 
 ### Hardening & operational (surfaced during the 2.3.0 release)
 

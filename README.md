@@ -124,6 +124,8 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 - **Tiled analysis** — spatial fragility fields for visualization
 - **Region assignment** — node-to-polygon mapping (point-in-polygon)
 - **Graph coarsening** — collapse regions into meta-nodes
+- **Research depth (2.4.0)** — capacity-aware importance (HCM PCE from OSM tags), stochastic fragility (Monte Carlo over per-edge failure probabilities, e.g. floodplain / FEMA-NFHL hazards), and experimental Motter–Lai cascading failure — all as disclosed, sweepable inputs
+- **Visualization (2.5.0)** — real per-edge road geometry plus static (`plot_fragility`), interactive (`interactive_map`), and animated (`animate_failure`, self-contained deck.gl HTML) maps via `gravel-fragility[viz]`
 
 ### Performance
 
