@@ -420,22 +420,41 @@ def test_failure_geoframe_row_order_matches_csr():
     assert list(gdf["target"]) == list(tgt)
 
 
-def test_edge_failure_round_handles_parallel_edges():
-    # Regression: graphs with parallel edges (same (u,v) more than once) once mis-sized
-    # edge_failure_round and raised IndexError. Build a path whose middle link is
-    # triple-parallel, run greedy removal, and confirm the output stays aligned and
-    # each removed edge gets its own unique round (per-(u,v) queue, not a shared index).
-    import numpy as np
+class _FakeProgressive:
+    """Minimal stand-in: edge_failure_round only reads .removal_sequence."""
 
-    und = [(0, 1)] + [(1, 2), (1, 2), (1, 2)] + [(2, 3)]
-    edges = und + [(b, a) for a, b in und]
-    s = np.array([a for a, b in edges], np.uint32)
-    t = np.array([b for a, b in edges], np.uint32)
-    coords = np.array([[0, 0], [0, 0.33], [0, 0.66], [0, 1.0]], float)  # within greedy box
-    g = gravel.Graph.from_coo(4, s, t, np.ones(len(edges)), coords)
+    def __init__(self, removal_sequence):
+        self.removal_sequence = removal_sequence
 
-    rounds = viz.edge_failure_round(g, _progressive_greedy(g))  # must not raise
-    assert rounds.shape == (g.edge_count,)
-    finite = rounds[~np.isnan(rounds)]
-    assert len(set(finite.tolist())) == len(finite)  # every round unique
-    assert sorted(finite.tolist()) == [float(i) for i in range(1, len(finite) + 1)]
+
+def test_edge_failure_round_parallel_edges_get_distinct_rounds():
+    # Regression for the per-(u,v) queue: three parallel 1->2 edges plus one 0->1 edge.
+    # Removing (1,2) twice must consume two DIFFERENT parallel edges — not overwrite one
+    # index (mis-attribution) or pop an empty queue (IndexError). (CSR reorders by source,
+    # so resolve the parallel indices from to_coo rather than assuming input order.)
+    s = np.array([1, 1, 1, 0], np.uint32)
+    t = np.array([2, 2, 2, 1], np.uint32)
+    g = gravel.Graph.from_coo(3, s, t, np.ones(4))
+
+    src, tgt, _ = g.to_coo()
+    parallel = [e for e in range(g.edge_count) if src[e] == 1 and tgt[e] == 2]
+    other = [e for e in range(g.edge_count) if e not in parallel]
+    assert len(parallel) == 3
+
+    rounds = viz.edge_failure_round(g, _FakeProgressive([(1, 2), (1, 2)]))
+    got = [rounds[e] for e in parallel if not np.isnan(rounds[e])]
+    assert sorted(got) == [1.0, 2.0]  # two distinct parallel edges, two distinct rounds
+    assert sum(np.isnan(rounds[e]) for e in parallel) == 1  # third parallel untouched
+    assert all(np.isnan(rounds[e]) for e in other)  # unrelated edges untouched
+
+
+def test_edge_failure_round_unknown_pair_is_ignored():
+    # A removal whose (u,v) isn't in the graph (e.g. wrong graph passed) must be skipped,
+    # never raise — the `if q:` guard covers the missing-bucket case.
+    s = np.array([0], np.uint32)
+    t = np.array([1], np.uint32)
+    g = gravel.Graph.from_coo(2, s, t, np.ones(1))
+    rounds = viz.edge_failure_round(g, _FakeProgressive([(7, 9), (0, 1)]))
+    # (7,9) is step 1 but ignored (not in graph); (0,1) is step 2 and lands. No raise.
+    assert rounds[0] == 2.0
+    assert rounds.shape == (1,)
