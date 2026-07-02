@@ -342,3 +342,68 @@ def test_animate_failure_rejects_stochastic():
     g = _coord_grid(5)
     with pytest.raises(TypeError):
         viz.animate_failure(g, _stochastic(g))
+
+
+# --- Tier 2: self-contained animated HTML (animate_failure_html) ---
+
+
+@requires_geopandas
+def test_animate_failure_html_writes_selfcontained(tmp_path):
+    g = _coord_grid(6)
+    out = tmp_path / "anim.html"
+    p = viz.animate_failure_html(g, _progressive_greedy(g), str(out))
+    assert p == str(out) and out.exists()
+    html = out.read_text()
+    assert "unpkg.com/deck.gl@" in html  # standalone deck.gl from CDN
+    assert "PathLayer" in html and "getColor" in html
+    assert 'id="round"' in html and 'id="play"' in html  # scrubber + play controls
+    assert html.count('"path"') == g.edge_count  # one embedded edge per graph edge
+    assert "const MAXROUND" in html
+
+
+@requires_geopandas
+def test_animate_failure_html_embeds_real_geometry(tmp_path):
+    # Theta graph -> simplify (bent polylines) -> the HTML embeds >2-point paths.
+    und = [(0, 2), (2, 1), (0, 3), (3, 1), (0, 4), (4, 1)]
+    edges = und + [(b, a) for a, b in und]
+    s = np.array([a for a, b in edges], np.uint32)
+    t = np.array([b for a, b in edges], np.uint32)
+    coords = np.array([[0, 0], [2, 0], [1, 1], [1, 0], [1, -1]], float)
+    tg = gravel.Graph.from_coo(5, s, t, np.ones(len(edges)), coords)
+    cfg = gravel.SimplificationConfig()
+    cfg.estimate_degradation = False
+    sres = gravel.simplify_graph(tg, None, None, cfg)
+    # A progressive run on the simplified graph, drawn along real geometry.
+    ch = gravel.build_ch(sres.graph)
+    idx = gravel.ShortcutIndex(ch)
+    pcfg = gravel.ProgressiveFragilityConfig()
+    box = gravel.Polygon()
+    box.vertices = [
+        gravel.Coord(-1, -2), gravel.Coord(-1, 2),
+        gravel.Coord(3, 2), gravel.Coord(3, -2),
+    ]
+    bc = pcfg.base_config
+    bc.boundary = box
+    bc.od_sample_count = 4
+    pcfg.base_config = bc
+    pcfg.selection_strategy = gravel.SelectionStrategy.GREEDY_BETWEENNESS
+    pcfg.k_max = 2
+    prog = gravel.progressive_fragility(sres.graph, ch, idx, pcfg)
+
+    out = tmp_path / "geom.html"
+    viz.animate_failure_html(
+        sres.graph, prog, str(out), edge_geometry=sres.edge_geometry
+    )
+    html = out.read_text()
+    import json
+    import re
+
+    edges_json = re.search(r"const EDGES = (\[.*?\]);", html, re.S).group(1)
+    embedded = json.loads(edges_json)
+    assert any(len(e["path"]) > 2 for e in embedded)  # real bent shape, not chords
+
+
+def test_animate_failure_html_rejects_stochastic(tmp_path):
+    g = _coord_grid(5)
+    with pytest.raises(TypeError):
+        viz.animate_failure_html(g, _stochastic(g), str(tmp_path / "x.html"))

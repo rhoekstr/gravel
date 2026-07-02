@@ -48,12 +48,6 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ._gravel import Graph
 
 
-def _edge_index_map(graph: Graph) -> dict[tuple[int, int], int]:
-    """Map each directed CSR edge ``(u, v)`` to its edge index."""
-    sources, targets, _ = graph.to_coo()
-    return {(int(u), int(v)): e for e, (u, v) in enumerate(zip(sources, targets, strict=True))}
-
-
 def edge_failure_round(graph: Graph, result: ProgressiveFragilityResult) -> np.ndarray:
     """Per-edge removal step from a greedy ``progressive_fragility`` result.
 
@@ -61,15 +55,27 @@ def edge_failure_round(graph: Graph, result: ProgressiveFragilityResult) -> np.n
     the 1-based step at which edge ``e`` was removed, or ``NaN`` if it was never removed.
     ``NaN`` (not 0) marks survivors so a colormap does not paint them as "failed first".
 
+    Parallel edges (e.g. several degree-2 chains contracted between the same two junctions)
+    share an ``(u, v)`` key; each successive removal of that pair consumes the next such edge,
+    so counts and lengths stay aligned to ``edge_count``.
+
     The removal sequence is only populated for greedy strategies; for a Monte-Carlo
     progressive run it is empty and every edge comes back ``NaN``.
     """
-    edge_index = _edge_index_map(graph)
-    rounds = np.full(len(edge_index), np.nan, dtype=np.float64)
+    from collections import defaultdict, deque
+
+    sources, targets, _ = graph.to_coo()
+    edge_count = len(sources)
+    # (u, v) -> queue of edge indices, so parallel edges each get their own round.
+    buckets: dict[tuple[int, int], deque] = defaultdict(deque)
+    for e, (u, v) in enumerate(zip(sources, targets, strict=True)):
+        buckets[(int(u), int(v))].append(e)
+
+    rounds = np.full(edge_count, np.nan, dtype=np.float64)
     for step, (u, v) in enumerate(result.removal_sequence, start=1):
-        e = edge_index.get((int(u), int(v)))
-        if e is not None:
-            rounds[e] = float(step)
+        q = buckets.get((int(u), int(v)))
+        if q:
+            rounds[q.popleft()] = float(step)
     return rounds
 
 
@@ -406,3 +412,172 @@ def animate_failure(
 
     slider.observe(_on_round, names="value")
     return widgets.VBox([widgets.HBox([play, slider]), m])
+
+
+_DECK_HTML_TEMPLATE = """<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Gravel — failure animation</title>
+<script src="https://unpkg.com/deck.gl@__DECKVER__/dist.min.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+  #deck-canvas { width: 100vw; height: 100vh; background: #0b0b0f; }
+  #controls { position: fixed; left: 12px; bottom: 12px; z-index: 1; display: flex;
+    gap: 10px; align-items: center; background: rgba(20,20,28,.85); color: #eee;
+    padding: 10px 14px; border-radius: 8px; }
+  #controls button { cursor: pointer; }
+  #round { width: 300px; }
+</style>
+</head>
+<body>
+<canvas id="deck-canvas"></canvas>
+<div id="controls">
+  <button id="play">&#9654; play</button>
+  <input id="round" type="range" min="0" max="__MAXROUND__" value="0" step="1">
+  <span id="label">round 0 / __MAXROUND__</span>
+</div>
+<script>
+const EDGES = __EDGES__;
+const HAZARD = __HAZARD__;
+const ACTIVE = __ACTIVE__;
+const FAILED = __FAILED__;
+const MAXROUND = __MAXROUND__;
+const INTERVAL = __INTERVAL__;
+const WIDTH = __WIDTH__;
+const VIEW = __VIEW__;
+let current = 0, timer = null;
+
+function makeLayers(round) {
+  const layers = [];
+  if (HAZARD) {
+    layers.push(new deck.GeoJsonLayer({
+      id: 'hazard', data: HAZARD, filled: true, stroked: true, lineWidthMinPixels: 1,
+      getFillColor: [217, 164, 65, 70], getLineColor: [217, 164, 65, 160]
+    }));
+  }
+  layers.push(new deck.PathLayer({
+    id: 'edges', data: EDGES, getPath: d => d.path,
+    getColor: d => (d.round !== null && d.round <= round) ? FAILED : ACTIVE,
+    widthMinPixels: WIDTH, capRounded: true, jointRounded: true,
+    updateTriggers: { getColor: round }
+  }));
+  return layers;
+}
+
+const deckgl = new deck.Deck({
+  canvas: document.getElementById('deck-canvas'),
+  initialViewState: VIEW, controller: true, layers: makeLayers(0)
+});
+
+const slider = document.getElementById('round');
+const label = document.getElementById('label');
+const playBtn = document.getElementById('play');
+
+function setRound(r) {
+  current = r;
+  slider.value = r;
+  label.textContent = 'round ' + r + ' / ' + MAXROUND;
+  deckgl.setProps({ layers: makeLayers(r) });
+}
+slider.addEventListener('input', () => setRound(+slider.value));
+playBtn.addEventListener('click', () => {
+  if (timer) { clearInterval(timer); timer = null; playBtn.innerHTML = '&#9654; play'; return; }
+  playBtn.innerHTML = '&#10073;&#10073; pause';
+  timer = setInterval(() => setRound(current + 1 > MAXROUND ? 0 : current + 1), INTERVAL);
+});
+</script>
+</body>
+</html>
+"""
+
+
+def animate_failure_html(
+    graph: Graph,
+    result: Any,
+    path: str,
+    *,
+    edge_geometry: Any | None = None,
+    hazard: Any | None = None,
+    active_color: tuple[int, int, int] = (31, 119, 180),
+    failed_color: tuple[int, int, int] = (180, 180, 180),
+    width_min_pixels: float = 1.5,
+    interval_ms: int = 400,
+    deckgl_version: str = "9",
+    metadata: Any | None = None,
+    crs: str = "EPSG:4326",
+) -> str:
+    """Write a **self-contained animated HTML** of the progressive removal order and return ``path``.
+
+    Unlike :func:`animate_failure` (a notebook widget needing a live kernel), this bakes a
+    standalone file: deck.gl (loaded from a CDN) plays/scrubs the failure sequence entirely
+    client-side — at round *k*, edges removed by then turn ``failed_color`` while the active
+    network stays ``active_color`` (survivors never change). Geometry is embedded once and each
+    frame only re-evaluates the color accessor (``updateTriggers`` keyed to the round), so it
+    stays responsive. Open the file in any browser and press play — no server, no kernel.
+
+    Requires a **greedy** :class:`ProgressiveFragilityResult`. ``edge_geometry`` embeds real road
+    shape; ``hazard`` (a geopandas ``GeoDataFrame``) is drawn as a translucent base layer.
+
+    Note: geometry is embedded as JSON, so a county-scale network makes a large HTML file — this
+    is a deliberate share/export artifact, not a live analysis view.
+
+    Returns
+    -------
+    str
+        The ``path`` written.
+
+    Raises
+    ------
+    TypeError
+        If ``result`` is not a progressive fragility result.
+    ImportError
+        If geopandas is not installed (``pip install gravel-fragility[interop]``).
+    """
+    import json
+    import math
+    from pathlib import Path as _Path
+
+    if not isinstance(result, ProgressiveFragilityResult):
+        raise TypeError(
+            "animate_failure_html needs a ProgressiveFragilityResult from a greedy "
+            "progressive_fragility run; stochastic results have no failure order — "
+            "use interactive_map for their static P(fail) map."
+        )
+
+    gdf = failure_geoframe(
+        graph, result, metadata=metadata, edge_geometry=edge_geometry, crs=crs
+    )
+    edges = []
+    for geom, r in zip(gdf.geometry, gdf["failure_round"], strict=True):
+        rnd = None if (r is None or (isinstance(r, float) and math.isnan(r))) else int(r)
+        edges.append({"path": [[float(x), float(y)] for x, y in geom.coords], "round": rnd})
+
+    rounds = [e["round"] for e in edges if e["round"] is not None]
+    max_round = max(rounds) if rounds else 0
+
+    minx, miny, maxx, maxy = (float(v) for v in gdf.total_bounds)
+    span = max(maxx - minx, maxy - miny) or 1e-3
+    zoom = max(1.0, min(18.0, math.log2(360.0 / span) - 1.0))
+    view = {
+        "longitude": (minx + maxx) / 2, "latitude": (miny + maxy) / 2,
+        "zoom": zoom, "pitch": 0, "bearing": 0,
+    }
+    hazard_json = "null"
+    if hazard is not None:
+        hazard_json = hazard.to_crs(crs).to_json()
+
+    html = (
+        _DECK_HTML_TEMPLATE
+        .replace("__DECKVER__", str(deckgl_version))
+        .replace("__EDGES__", json.dumps(edges))
+        .replace("__HAZARD__", hazard_json)
+        .replace("__ACTIVE__", json.dumps(list(active_color)))
+        .replace("__FAILED__", json.dumps(list(failed_color)))
+        .replace("__MAXROUND__", str(max_round))
+        .replace("__INTERVAL__", str(int(interval_ms)))
+        .replace("__WIDTH__", json.dumps(width_min_pixels))
+        .replace("__VIEW__", json.dumps(view))
+    )
+    _Path(path).write_text(html, encoding="utf-8")
+    return path
