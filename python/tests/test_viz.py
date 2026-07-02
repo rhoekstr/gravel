@@ -21,6 +21,11 @@ def _maybe_import(name):
 geopandas = _maybe_import("geopandas")
 requires_geopandas = pytest.mark.skipif(geopandas is None, reason="geopandas not installed")
 
+matplotlib = _maybe_import("matplotlib")
+requires_matplotlib = pytest.mark.skipif(matplotlib is None, reason="matplotlib not installed")
+if matplotlib is not None:
+    matplotlib.use("Agg")  # headless backend for tests
+
 
 def _square_graph():
     coords = np.array([[0.0, 0.0], [0.0, 1.0], [1.0, 0.0], [1.0, 1.0]], dtype=np.float64)
@@ -175,3 +180,78 @@ def test_failure_geoframe_rejects_other_types():
     g = _square_graph()
     with pytest.raises(TypeError):
         viz.failure_geoframe(g, "not a fragility result")
+
+
+# --- Tier 1: static rendering (plot_fragility) ---
+
+
+def _stochastic(g):
+    ch = gravel.build_ch(g)
+    idx = gravel.ShortcutIndex(ch)
+    sc = gravel.StochasticFragilityConfig()
+    sc.monte_carlo_runs = 30
+    sc.seed = 1
+    sc.od_sample_count = 10
+    return gravel.stochastic_fragility(g, ch, idx, [0.15] * g.edge_count, sc)
+
+
+@requires_geopandas
+@requires_matplotlib
+def test_plot_fragility_stochastic_returns_axes():
+    g = _coord_grid(5)
+    ax = viz.plot_fragility(g, _stochastic(g), title="P(fail)")
+    assert hasattr(ax, "collections")
+    assert len(ax.collections) >= 1  # the edge LineCollection
+    assert ax.get_title() == "P(fail)"
+
+
+@requires_geopandas
+@requires_matplotlib
+def test_plot_fragility_progressive_greyed_survivors():
+    g = _coord_grid(5)
+    ax = viz.plot_fragility(g, _progressive_greedy(g))
+    assert len(ax.collections) >= 1  # failure_round path with missing_kwds
+
+
+@requires_geopandas
+@requires_matplotlib
+def test_plot_fragility_hazard_overlay_adds_layer():
+    from shapely.geometry import Polygon
+
+    g = _coord_grid(5)
+    plain = viz.plot_fragility(g, _stochastic(g))
+    haz = geopandas.GeoDataFrame(
+        {"sev": [1.0]},
+        geometry=[Polygon([(0, 0), (1, 0), (1, 1), (0, 1)])],
+        crs="EPSG:4326",
+    )
+    with_haz = viz.plot_fragility(g, _stochastic(g), hazard=haz, hazard_column="sev")
+    assert len(with_haz.collections) > len(plain.collections)
+
+
+@requires_geopandas
+@requires_matplotlib
+def test_plot_fragility_uses_edge_geometry():
+    # Theta graph -> simplify (real polylines) -> stochastic -> render along real shape.
+    und = [(0, 2), (2, 1), (0, 3), (3, 1), (0, 4), (4, 1)]
+    edges = und + [(b, a) for a, b in und]
+    s = np.array([a for a, b in edges], np.uint32)
+    t = np.array([b for a, b in edges], np.uint32)
+    coords = np.array([[0, 0], [2, 0], [1, 1], [1, 0], [1, -1]], float)
+    tg = gravel.Graph.from_coo(5, s, t, np.ones(len(edges)), coords)
+    cfg = gravel.SimplificationConfig()
+    cfg.estimate_degradation = False
+    sres = gravel.simplify_graph(tg, None, None, cfg)
+
+    res = _stochastic(sres.graph)
+    gdf = viz.failure_geoframe(sres.graph, res, edge_geometry=sres.edge_geometry)
+    assert any(len(line.coords) > 2 for line in gdf.geometry)  # bent, not chords
+    ax = viz.plot_fragility(sres.graph, res, edge_geometry=sres.edge_geometry)
+    assert len(ax.collections) >= 1
+
+
+@requires_matplotlib
+def test_plot_fragility_rejects_other_type():
+    g = _square_graph()
+    with pytest.raises(TypeError):
+        viz.plot_fragility(g, object())
