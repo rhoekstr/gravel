@@ -20,12 +20,12 @@ Edge ordering
 the i-th metadata value lines up with the i-th edge returned by ``to_coo()``.
 The adapters here rely on that alignment.
 
-Geometry caveat
----------------
-Gravel stores edge endpoints, not the intermediate OSM way polyline, so
-:func:`to_geodataframe` draws each edge as a straight segment between its two
-nodes. Persisting full edge geometry is planned for a later release; until then,
-treat the geometry as topological, not cartographic.
+Geometry
+--------
+By default :func:`to_geodataframe` draws each edge as a straight segment between its
+two nodes. Pass ``edge_geometry`` — a :class:`gravel.EdgeGeometry` produced by
+``simplify_graph`` with ``emit_geometry`` set on its :class:`gravel.SimplificationConfig` —
+to draw each edge along its real OSM way polyline instead.
 """
 
 from __future__ import annotations
@@ -226,8 +226,8 @@ def to_geodataframe(
         in CSR order) to attach as columns — e.g. betweenness or fragility
         scores.
     edge_geometry:
-        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with
-        ``emit_geometry=True``), CSR-aligned to ``graph``'s edges. When given,
+        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with ``emit_geometry``
+        set on its ``SimplificationConfig``), CSR-aligned to ``graph``'s edges. When given,
         each edge is drawn along its true polyline instead of a straight chord.
     crs:
         Coordinate reference system for the result (default WGS84).

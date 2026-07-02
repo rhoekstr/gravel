@@ -37,10 +37,6 @@ field is populated automatically; existing routing/fragility behavior and the pu
   client-side — no kernel or server. Geometry is embedded once; each frame only re-evaluates the color
   accessor (`updateTriggers` keyed to the round). Supports `edge_geometry` and `hazard`; needs only
   geopandas. Verified end-to-end in a headless browser (render + scrub + no console errors).
-- **Fix:** `viz.edge_failure_round` (and everything built on it) mis-sized its output on graphs with
-  **parallel edges** (e.g. multiple degree-2 chains contracted between the same two junctions),
-  raising `IndexError`. It now keys a per-`(u,v)` queue so each parallel edge gets its own round and
-  lengths stay aligned to `edge_count`.
 - **Interactive fragility maps (`gravel.viz` Tier 2).** `interactive_map(graph, result, …)` returns a
   lonboard (WebGL) `Map` that renders the per-edge failure trace on a pan/zoom basemap, scales to
   county-size networks via GeoArrow transport, and exports to standalone HTML (`m.to_html(...)`) for
@@ -55,6 +51,26 @@ field is populated automatically; existing routing/fragility behavior and the pu
   `hazard` layer draws the risk geometry (e.g. floodplain) underneath as the causal "why"; and
   `edge_geometry` draws edges along the real road shape (2B). `failure_geoframe` gains an
   `edge_geometry` argument to match. Needs the `[viz]` extra (adds matplotlib).
+
+### Changed
+- **`SimplificationConfig.emit_geometry` defaults to `true`** — new simplified graphs carry per-edge
+  geometry out of the box (a few MB per county). Internal fragility paths that discard it
+  (`location_fragility`, per-county analysis, the `simplify` CLI) opt out, so the ~2 s
+  county-fragility hot path pays nothing.
+- Corrected the degree-2 contraction docs: it is not unconditionally "lossless" — an isolated
+  degree-2 cycle (a ring with no junction, or a lollipop loop) has no anchor and is dropped. It
+  carries no junction-to-junction route, so routing/fragility on the surviving graph is unaffected.
+
+### Fixed
+- **Phantom one-way edges in degree-2 contraction.** A merged direction was emitted from a positive
+  weight *sum* rather than actual edge *existence*, so contracting a one-way chain could synthesize a
+  nonexistent (usually zero-weight) reverse edge — distorting routing and fragility on simplified
+  graphs (~396 such edges on the Swain fixture). Contraction now tracks per-direction existence and
+  emits a direction only when the through-path exists. *(Pre-existing; surfaced by the 2B geometry
+  work, which drew the phantoms on maps.)*
+- **`viz.edge_failure_round` on parallel edges.** Graphs with parallel edges (e.g. several degree-2
+  chains contracted between the same two junctions) mis-sized the output and raised `IndexError`; it
+  now keys a per-`(u, v)` queue so each parallel edge gets its own round, aligned to `edge_count`.
 
 ## [2.4.0] — 2026-07-01
 

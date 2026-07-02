@@ -24,10 +24,11 @@ edge-level outcome:
   This is a *static* choropleth (per-edge P(fail)), not an animation: independent draws have
   no intrinsic order, and a single realization is one draw, not "the" answer.
 
-Geometry: by default edges draw as straight node-to-node segments; pass ``edge_geometry`` (from
-``simplify_graph(..., emit_geometry=True)``) to :func:`failure_geoframe` / :func:`plot_fragility`
-for a faithful map that follows the real road — important over a floodplain, where a straight
-chord can misrepresent which roads sit in the hazard.
+Geometry: by default edges draw as straight node-to-node segments; pass ``edge_geometry`` (a
+:class:`gravel.EdgeGeometry` from ``simplify_graph`` with ``emit_geometry`` set on its
+``SimplificationConfig``) to :func:`failure_geoframe` / :func:`plot_fragility` for a faithful
+map that follows the real road — important over a floodplain, where a straight chord can
+misrepresent which roads sit in the hazard.
 
 The GeoDataFrame path needs geopandas (``pip install gravel-fragility[interop]``); static
 rendering also needs matplotlib (``gravel-fragility[viz]``); the raw per-edge array helpers need
@@ -123,9 +124,9 @@ def failure_geoframe(
     Parameters
     ----------
     edge_geometry:
-        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with
-        ``emit_geometry=True``, CSR-aligned to ``graph``). When given, edges are drawn along
-        their true road shape instead of straight chords.
+        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with ``emit_geometry``
+        set on its ``SimplificationConfig``), CSR-aligned to ``graph``. When given, edges are
+        drawn along their true road shape instead of straight chords.
 
     Raises
     ------

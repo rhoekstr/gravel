@@ -3332,13 +3332,13 @@ lazy-imported inside the function that needs it.
 |----------|-----------|-------|
 | `to_networkx` | `(graph, *, metadata=None, directed=True, include_coordinates=True)` | `DiGraph`/`Graph` with `weight` edge attrs; metadata tags become edge attrs; coords become `lat`/`lon`/`x`/`y` node attrs. |
 | `from_networkx` | `(graph, *, weight="weight")` | Dense-relabels nodes; preserves `lat`/`lon` node attrs as coordinates; undirected graphs become bidirectional. |
-| `to_geodataframe` | `(graph, *, metadata=None, edge_values=None, crs="EPSG:4326")` | Edge `GeoDataFrame` of `LineString`s; `edge_values` attaches arbitrary per-edge arrays (e.g. betweenness). Requires coordinates. |
+| `to_geodataframe` | `(graph, *, metadata=None, edge_values=None, edge_geometry=None, crs="EPSG:4326")` | Edge `GeoDataFrame` of `LineString`s; `edge_values` attaches arbitrary per-edge arrays (e.g. betweenness); `edge_geometry` (an `EdgeGeometry`) draws real road polylines instead of straight chords. Requires coordinates. |
 | `from_geodataframe` | `(gdf, *, weight=None, directed=False, precision=7)` | Snaps `LineString` endpoints to nodes (coordinate rounding); `weight=None` uses great-circle meters. |
 
-> **Geometry caveat.** Gravel stores edge endpoints, not the intermediate OSM way
-> polyline, so `to_geodataframe` draws each edge as a straight node-to-node segment.
-> Persisting full edge geometry is planned for a later release; treat the geometry as
-> topological, not cartographic.
+> **Geometry.** By default `to_geodataframe` draws each edge as a straight node-to-node
+> segment. Pass `edge_geometry` — an `EdgeGeometry` from `simplify_graph` with
+> `emit_geometry` set on its `SimplificationConfig` (§35) — to draw each edge along its real
+> OSM way polyline.
 
 ```python
 from gravel import interop

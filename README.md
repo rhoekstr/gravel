@@ -191,7 +191,7 @@ The Great Plains grid-states score lowest — flat land with rectangular road ne
 
 **Runtime:**
 - C++20 compiler (GCC 11+, Clang 14+, MSVC 2022+)
-- CMake 3.20+
+- CMake 3.24+
 - Python 3.10+ (for bindings)
 
 **Optional:**
@@ -222,7 +222,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.2.3}
+  version = {2.4.0}
 }
 ```
 
