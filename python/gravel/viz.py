@@ -9,8 +9,9 @@ artifact — a quantitative, colorblind-safe matplotlib choropleth of the per-ed
 with an optional hazard "why" layer underneath.
 
 **Tier 2 (interactive):** :func:`interactive_map` returns a lonboard (WebGL) ``Map`` that scales
-to county-size networks and exports to standalone HTML — for exploration and public sharing.
-Animated failure playback builds on this next.
+to county-size networks and exports to standalone HTML; :func:`animate_failure` returns a
+Play/slider widget that scrubs the progressive removal order (failed edges recede to grey) — both
+for exploration and public sharing.
 
 Two per-edge failure traces are supported, matching the two models that produce an
 edge-level outcome:
@@ -303,3 +304,105 @@ def interactive_map(
     layers.append(edges)
 
     return Map(layers)
+
+
+def _failure_colors(
+    failure_round: np.ndarray,
+    k: int,
+    *,
+    active_color=(31, 119, 180),
+    failed_color=(180, 180, 180),
+) -> np.ndarray:
+    """Binary per-edge (N, 3) uint8 colors for animation round ``k``.
+
+    Edges whose ``failure_round <= k`` are ``failed_color`` (grey, receding); everything else
+    — including survivors (``NaN``) — is ``active_color``. Pure function (the animation's core).
+    """
+    fr = np.asarray(failure_round, dtype=float)
+    failed = np.isfinite(fr) & (fr <= k)
+    rgb = np.tile(np.array(active_color, dtype=np.uint8), (fr.shape[0], 1))
+    rgb[failed] = failed_color
+    return rgb
+
+
+def animate_failure(
+    graph: Graph,
+    result: Any,
+    *,
+    edge_geometry: Any | None = None,
+    hazard: Any | None = None,
+    active_color: tuple[int, int, int] = (31, 119, 180),
+    failed_color: tuple[int, int, int] = (180, 180, 180),
+    width_min_pixels: float = 1.5,
+    interval_ms: int = 400,
+    metadata: Any | None = None,
+    crs: str = "EPSG:4326",
+) -> Any:
+    """Animated failure playback (Tier 2) — returns an ipywidgets widget over a lonboard map.
+
+    Scrubs the **progressive removal order**: at round *k*, edges removed by then go grey
+    (receding) while the still-active network stays ``active_color``; survivors never grey. Each
+    frame only updates the color array (data is sent once via GeoArrow), so it stays smooth at
+    county scale. Display the returned widget in a notebook and press play, or drag the slider.
+
+    Requires a **greedy** :class:`ProgressiveFragilityResult` — stochastic results have no failure
+    order (use :func:`interactive_map` for their static P(fail) choropleth).
+
+    Returns
+    -------
+    ipywidgets.VBox
+        Play/slider controls above an interactive lonboard ``Map``.
+
+    Raises
+    ------
+    TypeError
+        If ``result`` is not a progressive fragility result.
+    ImportError
+        If lonboard / ipywidgets are not installed (``pip install gravel-fragility[viz]``).
+    """
+    if not isinstance(result, ProgressiveFragilityResult):
+        raise TypeError(
+            "animate_failure needs a ProgressiveFragilityResult from a greedy "
+            "progressive_fragility run; stochastic results have no failure order — "
+            "use interactive_map for their static P(fail) map."
+        )
+    try:
+        import ipywidgets as widgets
+        from lonboard import Map, PathLayer, PolygonLayer
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise ImportError(
+            "animate_failure needs lonboard: pip install gravel-fragility[viz]"
+        ) from exc
+
+    gdf = failure_geoframe(
+        graph, result, metadata=metadata, edge_geometry=edge_geometry, crs=crs
+    )
+    fr = np.asarray(gdf["failure_round"], dtype=float)
+    finite = np.isfinite(fr)
+    max_round = int(np.max(fr[finite])) if finite.any() else 0
+
+    layers = []
+    if hazard is not None:
+        layers.append(
+            PolygonLayer.from_geopandas(
+                hazard, get_fill_color=[217, 164, 65, 70], get_line_color=[217, 164, 65, 160]
+            )
+        )
+    edges = PathLayer.from_geopandas(gdf, width_min_pixels=width_min_pixels)
+    edges.get_color = _failure_colors(
+        fr, 0, active_color=active_color, failed_color=failed_color
+    )
+    layers.append(edges)
+    m = Map(layers)
+
+    slider = widgets.IntSlider(min=0, max=max_round, value=0, description="round")
+    play = widgets.Play(min=0, max=max_round, value=0, interval=interval_ms)
+    widgets.jslink((play, "value"), (slider, "value"))
+
+    def _on_round(change):
+        edges.get_color = _failure_colors(
+            fr, change["new"], active_color=active_color, failed_color=failed_color
+        )
+
+    slider.observe(_on_round, names="value")
+    return widgets.VBox([widgets.HBox([play, slider]), m])
