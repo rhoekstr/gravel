@@ -242,7 +242,8 @@ LocationFragilityResult location_fragility(
     SimplificationResult simplified;
     bool use_simplified = (sub.graph->node_count() > 500);
     if (use_simplified) {
-        simplified = contract_degree2(*sub.graph);
+        // emit_geometry=false: geometry is unused here (routing only), skip the cost.
+        simplified = contract_degree2(*sub.graph, {}, {}, false);
         if (!simplified.graph || simplified.graph->node_count() < 10)
             use_simplified = false;
     }

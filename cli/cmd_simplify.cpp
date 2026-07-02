@@ -54,6 +54,10 @@ int cmd_simplify(int argc, char* argv[]) {
         config.seed = std::stoull(args.get("seed"));
     }
 
+    // save_graph does not persist edge geometry, so building it here would be
+    // wasted work — the topology/weights are all this command emits.
+    config.emit_geometry = false;
+
     auto result = gravel::simplify_graph(
         *graph, has_ch ? &ch : nullptr, idx.get(), config);
 

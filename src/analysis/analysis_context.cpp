@@ -33,7 +33,9 @@ AnalysisContext build_analysis_context(
     // Step 2: Simplify (degree-2 contraction, lossless)
     if (config.simplify && ctx.raw_subgraph.graph->node_count() > 100) {
         auto t2 = Clock::now();
-        auto simplified = contract_degree2(*ctx.raw_subgraph.graph);
+        // emit_geometry=false: this path only routes on the simplified graph and
+        // discards the polylines, so don't pay to build them (hot per-county path).
+        auto simplified = contract_degree2(*ctx.raw_subgraph.graph, {}, {}, false);
         auto t3 = Clock::now();
         ctx.stats.simplification_seconds = std::chrono::duration<double>(t3 - t2).count();
 
