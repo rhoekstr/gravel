@@ -23,7 +23,10 @@ def _maybe_import(name):
 
 geopandas = _maybe_import("geopandas")
 requires_geopandas = pytest.mark.skipif(geopandas is None, reason="geopandas not installed")
-requires_osm = pytest.mark.skipif(not gravel.HAS_OSM, reason="OSM support not built")
+requires_osm = pytest.mark.skipif(
+    not gravel.HAS_OSM or not SWAIN_PBF.exists(),
+    reason="OSM support not built or Swain fixture absent (e.g. sdist without tests/data)",
+)
 
 
 def _theta_graph():
@@ -118,3 +121,17 @@ def test_swain_real_geometry():
     gdf = gravel.interop.to_geodataframe(res.graph, edge_geometry=geom)
     assert len(gdf) == res.simplified_edges
     assert gdf.geometry.is_valid.all()
+
+
+def test_ch_pruning_clears_geometry():
+    # CH-level pruning rebuilds the edge set; degree-2 geometry would misalign, so the
+    # pipeline drops it. Assert: present without pruning, empty with pruning (never stale).
+    g = _theta_graph()
+    ch = gravel.build_ch(g)
+    idx = gravel.ShortcutIndex(ch)
+    cfg = gravel.SimplificationConfig()
+    cfg.emit_geometry = True
+    cfg.estimate_degradation = False
+    assert not gravel.simplify_graph(g, None, None, cfg).edge_geometry.empty
+    cfg.ch_level_keep_fraction = 0.5
+    assert gravel.simplify_graph(g, ch, idx, cfg).edge_geometry.empty

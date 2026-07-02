@@ -28,7 +28,10 @@ geopandas = _maybe_import("geopandas")
 
 requires_networkx = pytest.mark.skipif(networkx is None, reason="networkx not installed")
 requires_geopandas = pytest.mark.skipif(geopandas is None, reason="geopandas not installed")
-requires_osm = pytest.mark.skipif(not gravel.HAS_OSM, reason="OSM support not built")
+requires_osm = pytest.mark.skipif(
+    not gravel.HAS_OSM or not SWAIN_PBF.exists(),
+    reason="OSM support not built or Swain fixture absent (e.g. sdist without tests/data)",
+)
 
 
 # --------------------------------------------------------------------------

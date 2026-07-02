@@ -407,3 +407,14 @@ def test_animate_failure_html_rejects_stochastic(tmp_path):
     g = _coord_grid(5)
     with pytest.raises(TypeError):
         viz.animate_failure_html(g, _stochastic(g), str(tmp_path / "x.html"))
+
+
+@requires_geopandas
+def test_failure_geoframe_row_order_matches_csr():
+    # The GeoDataFrame rows must be in CSR (to_coo) order, or positional per-edge
+    # colors line up with the wrong edges and every render is silently mislabeled.
+    g = _coord_grid(6)
+    gdf = viz.failure_geoframe(g, _stochastic(g))
+    src, tgt, _ = g.to_coo()
+    assert list(gdf["source"]) == list(src)
+    assert list(gdf["target"]) == list(tgt)
