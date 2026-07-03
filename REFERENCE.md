@@ -872,11 +872,14 @@ Defined in `gravel/simplify/simplify.h` and `gravel/simplify/edge_labels.h`.
 
 Three composable, independently optional stages that reduce graph size:
 
-### Stage 1: Degree-2 Contraction (Lossless)
+### Stage 1: Degree-2 Contraction (lossless for junction-to-junction routes)
 
-Merges chains of degree-2 nodes into single edges. Preserves all shortest-path distances exactly.
+Merges chains of degree-2 nodes into single edges. Preserves all shortest-path distances between
+surviving junctions exactly. *Caveat:* an isolated degree-2 cycle (a ring with no junction, or a
+lollipop loop) has no anchor and is dropped rather than contracted — it carries no
+junction-to-junction route, so routing/fragility on the surviving graph is unaffected.
 **Typical reduction:** 25-35% of nodes.
-**Error:** Exactly 0%.
+**Error:** 0% on junction-to-junction routes.
 
 ### Stage 2: Edge Category Filtering
 
@@ -893,7 +896,7 @@ Removes structurally unimportant nodes based on contraction hierarchy levels. Br
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `contract_degree2` | `bool` | `true` | Enable degree-2 chain contraction (lossless). |
+| `contract_degree2` | `bool` | `true` | Enable degree-2 chain contraction (lossless for junction-to-junction routes; isolated cycles/lollipops are dropped). |
 | `edge_filter` | `function<bool(uint32_t)>` | `nullptr` | Predicate: given CSR edge index, return true to KEEP. Runs on original graph indices. |
 | `ch_level_keep_fraction` | `double` | `1.0` | Fraction of nodes to keep by CH level. 1.0 = disabled, 0.5 = top 50%, 0.3 = top 30%. |
 | `preserve_bridges` | `bool` | `true` | Never prune bridge endpoints regardless of CH level. |
@@ -1430,7 +1433,7 @@ Reduce graph size with configurable stages and degradation estimation.
 gravel simplify --graph <.gravel.meta> [options]
 
 Stages:
-    --contract-degree2          Merge degree-2 chains (lossless, default: on)
+    --contract-degree2          Merge degree-2 chains (lossless for junction routes, default: on)
     --no-degree2                Disable degree-2 contraction
     --ch <.gravel.ch>          Required for CH pruning and degradation
     --ch-keep-fraction <F>      Keep top F by CH level (e.g., 0.7 = top 70%)
@@ -2732,7 +2735,7 @@ County fragility analysis involves several expensive setup steps: subgraph extra
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `boundary` | `Polygon` | (required) | Analysis polygon. Same as `CountyFragilityConfig::boundary`. |
-| `simplify` | `bool` | `true` | Apply degree-2 contraction before analysis. Reduces node count by ~70–90% with zero loss of routing accuracy. |
+| `simplify` | `bool` | `true` | Apply degree-2 contraction before analysis. Reduces node count by ~70–90% with zero loss of junction-to-junction routing accuracy (isolated cycles/lollipops, which carry no such route, are dropped). |
 
 ---
 
@@ -3332,13 +3335,13 @@ lazy-imported inside the function that needs it.
 |----------|-----------|-------|
 | `to_networkx` | `(graph, *, metadata=None, directed=True, include_coordinates=True)` | `DiGraph`/`Graph` with `weight` edge attrs; metadata tags become edge attrs; coords become `lat`/`lon`/`x`/`y` node attrs. |
 | `from_networkx` | `(graph, *, weight="weight")` | Dense-relabels nodes; preserves `lat`/`lon` node attrs as coordinates; undirected graphs become bidirectional. |
-| `to_geodataframe` | `(graph, *, metadata=None, edge_values=None, crs="EPSG:4326")` | Edge `GeoDataFrame` of `LineString`s; `edge_values` attaches arbitrary per-edge arrays (e.g. betweenness). Requires coordinates. |
+| `to_geodataframe` | `(graph, *, metadata=None, edge_values=None, edge_geometry=None, crs="EPSG:4326")` | Edge `GeoDataFrame` of `LineString`s; `edge_values` attaches arbitrary per-edge arrays (e.g. betweenness); `edge_geometry` (an `EdgeGeometry`) draws real road polylines instead of straight chords. Requires coordinates. |
 | `from_geodataframe` | `(gdf, *, weight=None, directed=False, precision=7)` | Snaps `LineString` endpoints to nodes (coordinate rounding); `weight=None` uses great-circle meters. |
 
-> **Geometry caveat.** Gravel stores edge endpoints, not the intermediate OSM way
-> polyline, so `to_geodataframe` draws each edge as a straight node-to-node segment.
-> Persisting full edge geometry is planned for a later release; treat the geometry as
-> topological, not cartographic.
+> **Geometry.** By default `to_geodataframe` draws each edge as a straight node-to-node
+> segment. Pass `edge_geometry` — an `EdgeGeometry` from `simplify_graph` with
+> `emit_geometry` set on its `SimplificationConfig` (§35) — to draw each edge along its real
+> OSM way polyline.
 
 ```python
 from gravel import interop
@@ -3484,8 +3487,15 @@ reuses the shipped `edges_in_polygon`. Two layers:
 
 | Function | Input | Notes |
 |----------|-------|-------|
-| `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**. Returns `float64[edge_count]` in CSR order. |
+| `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**; edges outside every zone get `baseline`. Returns `float64[edge_count]` in CSR order. **Engine-backed** (C++, per-zone bbox pre-filter + per-node PIP caching): ~228 ms for 101,760 edges × 250 zones. |
 | `flood_edge_probabilities(graph, gdf, *, zone_field="FLD_ZONE", zone_probabilities=NFHL_EVENT_CLOSURE, baseline=0.0, default_probability=None)` | FEMA NFHL `GeoDataFrame` | Reprojects to WGS84, maps flood-zone codes → prob, explodes MultiPolygons, delegates to the core. Needs `[interop]`. |
+| `fetch_nfhl_flood_zones(bbox, *, endpoint=NFHL_ENDPOINT, layer=28, timeout=60, page_size=100)` | `(min_lon, min_lat, max_lon, max_lat)` | Fetches real FEMA NFHL flood polygons (paginated ArcGIS query, stdlib HTTP) → a `FLD_ZONE` `GeoDataFrame` (EPSG:4326). Needs `[interop]`. |
+
+**Configuring the endpoint.** `NFHL_ENDPOINT` defaults to FEMA's public service
+(`…/arcgis/rest/services/public/NFHL/MapServer`); override with the `GRAVEL_NFHL_ENDPOINT`
+environment variable or the `endpoint=` argument (mirror / self-hosted copy). NFHL rejects large
+GeoJSON pages with HTTP 500, so `fetch_nfhl_flood_zones` pages small and halves on a 500.
+`nfhl_zone_color(zone)` gives an RGBA severity ramp for drawing the risk layer.
 
 **Probability semantics (pick deliberately).** `prob[e]` is the chance edge `e` fails in one Monte
 Carlo run, so what a "run" means is your choice:
@@ -3503,7 +3513,7 @@ import geopandas as gpd, gravel
 from gravel import hazards
 g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
 ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
-flood = gpd.read_file("NFHL_37173_S_FLD_HAZ_AR.shp")     # FEMA county floodplain
+flood = hazards.fetch_nfhl_flood_zones((-82.60, 35.55, -82.52, 35.64))  # live FEMA NFHL
 probs = hazards.flood_edge_probabilities(g, flood)        # design-flood scenario
 res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
 ```
@@ -3569,17 +3579,63 @@ m.to_html("flood_fragility.html")                    # shareable, no server
 ```
 
 `animate_failure(graph, result, *, edge_geometry=None, hazard=None, active_color=(31,119,180),
-failed_color=(180,180,180), width_min_pixels=1.5, interval_ms=400, metadata=None, crs="EPSG:4326")
-→ ipywidgets.VBox`. Play/slider **animation** of the progressive removal order: at round *k*, edges
-removed by then recede to grey while the still-active network stays `active_color` (survivors never
-grey). Only the color array updates per frame (data sent once via GeoArrow), so it stays smooth at
-scale. Requires a **greedy** `ProgressiveFragilityResult` (stochastic has no failure order — use
-`interactive_map`). Notebook-interactive; ipywidgets ships with lonboard. A self-contained *animated*
-HTML export (bake frames + JS scrubber, or GIF/MP4) is a planned follow-up.
+failed_color=(232,27,27), stranded_color=(240,190,20), show_stranded=True, width_min_pixels=1.5,
+interval_ms=400, metadata=None, crs="EPSG:4326") → ipywidgets.VBox`. Play/slider **animation** of the
+progressive removal order: at round *k*, directly-blocked edges turn `failed_color` (red), edges cut
+off from the main network turn `stranded_color` (yellow, when `show_stranded`), and the still-active
+network stays `active_color` (blue). Only the color array updates per frame (data sent once via
+GeoArrow), so it stays smooth at scale. Requires a **greedy** `ProgressiveFragilityResult` (stochastic
+has no failure order — use `interactive_map`). Notebook-interactive; ipywidgets ships with lonboard.
+For a shareable file with no kernel, see `animate_failure_html` below.
 
 ```python
 prog = gravel.progressive_fragility(g, ch, idx, cfg)  # greedy strategy
 viz.animate_failure(g, prog)                           # display in a notebook, press play
+```
+
+`animate_failure_html(graph, result, path, *, edge_geometry=None, hazard=None,
+active_color=(31,119,180), failed_color=(232,27,27), stranded_color=(240,190,20), show_stranded=True,
+width_min_pixels=1.5, interval_ms=400, geometry_tolerance=0.0, deckgl_version="9", metadata=None,
+crs="EPSG:4326") → str`. Writes a **self-contained animated HTML** file — deck.gl (from a CDN)
+plays/scrubs the removal sequence entirely client-side, no kernel or server. Same three-state coloring
+as `animate_failure`. Geometry is embedded once and each frame only re-evaluates the color accessor
+(`updateTriggers` keyed to the round). Same progressive-only requirement and `edge_geometry` / `hazard`
+support. `geometry_tolerance` > 0 downscales the embedded polylines in the engine (Douglas–Peucker,
+degrees) to shrink the file — `~0.0001–0.0002` trims a county map from tens of MB to a few. Needs only
+geopandas (`[interop]`). Geometry is embedded as JSON, so a full-resolution county-scale network makes
+a large file — a deliberate share/export artifact, not a live analysis view.
+
+```python
+viz.animate_failure_html(g, prog, "failure.html")   # open in any browser, press play
+```
+
+**Hazard-driven scenarios & the dashboard (v2.5.0).** A removal *order* need not come from a greedy
+run — `failure_sequence_from_probabilities(probs, *, limit=None, stages=None, seed=0,
+exposure_order=False)` turns a per-edge hazard probability (e.g. `flood_edge_probabilities`) into a
+`failure_round` array: a seeded stochastic realization by default (worst-exposure ordered), or
+deterministic exposure order. Every renderer above (`failure_geoframe`, `plot_fragility`,
+`interactive_map`, `animate_failure`, `animate_failure_html`) accepts that array wherever it accepts a
+progressive result. `dashboard_html(graph, result_or_failure_round, path, *, edge_geometry=None,
+hazard=None, hazard_zone_field=None, geometry_tolerance=0.0, …)` (same `geometry_tolerance` downscale
+knob as `animate_failure_html`) writes a self-contained **two-panel** file — a deck.gl map
+(optionally a severity-colored hazard base layer via `hazard_zone_field="FLD_ZONE"`) above a synced
+chart of **% of trips severed vs stage** — driven by one play/slider. `connectivity_curve(graph,
+failure_round)` is that metric (`1 − Σ(component_size²)/n²` by union-find per stage).
+
+**Three-state coloring (default).** The animated renderers color each edge **red** when directly
+blocked (`FAILED_COLOR`), **yellow** when intact but cut off from the main network
+(`STRANDED_COLOR`), else **blue** (`ACTIVE_COLOR`). `disconnection_rounds(graph, failure_round)`
+computes the per-edge stranded round; disable with `show_stranded=False`, or override any of the three
+colors. This makes the network amplification visible — few blocked crossings can strand a large dry
+area (which the severed-% curve already counts).
+
+```python
+from gravel import hazards, viz
+flood = hazards.fetch_nfhl_flood_zones(bbox)              # real FEMA NFHL
+probs = hazards.flood_edge_probabilities(sg, flood)
+order = viz.failure_sequence_from_probabilities(probs, seed=1, limit=1000, stages=50)
+viz.dashboard_html(sg, order, "flood_dashboard.html",
+                   edge_geometry=sres.edge_geometry, hazard=flood, hazard_zone_field="FLD_ZONE")
 ```
 
 **Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the

@@ -23,7 +23,10 @@ def _maybe_import(name):
 
 geopandas = _maybe_import("geopandas")
 requires_geopandas = pytest.mark.skipif(geopandas is None, reason="geopandas not installed")
-requires_osm = pytest.mark.skipif(not gravel.HAS_OSM, reason="OSM support not built")
+requires_osm = pytest.mark.skipif(
+    not gravel.HAS_OSM or not SWAIN_PBF.exists(),
+    reason="OSM support not built or Swain fixture absent (e.g. sdist without tests/data)",
+)
 
 
 def _theta_graph():
@@ -118,3 +121,42 @@ def test_swain_real_geometry():
     gdf = gravel.interop.to_geodataframe(res.graph, edge_geometry=geom)
     assert len(gdf) == res.simplified_edges
     assert gdf.geometry.is_valid.all()
+
+
+def test_ch_pruning_clears_geometry():
+    # CH-level pruning rebuilds the edge set; degree-2 geometry would misalign, so the
+    # pipeline drops it. Assert: present without pruning, empty with pruning (never stale).
+    g = _theta_graph()
+    ch = gravel.build_ch(g)
+    idx = gravel.ShortcutIndex(ch)
+    cfg = gravel.SimplificationConfig()
+    cfg.emit_geometry = True
+    cfg.estimate_degradation = False
+    assert not gravel.simplify_graph(g, None, None, cfg).edge_geometry.empty
+    cfg.ch_level_keep_fraction = 0.5
+    assert gravel.simplify_graph(g, ch, idx, cfg).edge_geometry.empty
+
+
+def test_simplify_edge_geometry_reduces_points():
+    # Theta graph -> 3-point bent merged edges; Douglas-Peucker with a large tolerance drops the
+    # off-chord midpoints down to straight 2-point edges; tolerance 0 leaves it unchanged.
+    from gravel import _gravel
+
+    res = _simplify(_theta_graph(), emit_geometry=True)
+    geom = res.edge_geometry
+    before = geom.points.shape[0]
+
+    collapsed = _gravel.simplify_edge_geometry(geom, 5.0)
+    assert collapsed.edge_count == geom.edge_count
+    assert collapsed.points.shape[0] < before
+    assert all(len(collapsed.polyline(e)) == 2 for e in range(collapsed.edge_count))
+
+    # Retention path: a tolerance below the off-chord midpoint distance (1.0 on the bent chains)
+    # keeps those bends while still dropping the one collinear midpoint — so it lands strictly
+    # between full collapse and the untouched geometry, and at least one polyline keeps its 3rd point.
+    retained = _gravel.simplify_edge_geometry(geom, 0.5)
+    assert collapsed.points.shape[0] < retained.points.shape[0] < before
+    assert any(len(retained.polyline(e)) == 3 for e in range(retained.edge_count))
+
+    unchanged = _gravel.simplify_edge_geometry(geom, 0.0)
+    assert unchanged.points.shape[0] == before

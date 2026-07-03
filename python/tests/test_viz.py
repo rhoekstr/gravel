@@ -311,20 +311,53 @@ def test_interactive_map_rejects_other_type():
 def test_failure_colors_binary_and_monotonic():
     # Pure animation core — no optional deps, so this runs everywhere.
     fr = np.array([1.0, 2.0, 3.0, np.nan])  # last edge survives
-    grey = (180, 180, 180)
+    red = tuple(viz.FAILED_COLOR)
 
     c0 = viz._failure_colors(fr, 0)
     assert (c0 == c0[0]).all()  # nothing failed at round 0
 
     c2 = viz._failure_colors(fr, 2)
-    assert tuple(c2[0]) == grey and tuple(c2[1]) == grey  # failed by round 2
-    assert tuple(c2[2]) != grey and tuple(c2[3]) != grey  # not-yet + survivor stay active
+    assert tuple(c2[0]) == red and tuple(c2[1]) == red  # blocked by round 2 -> red
+    assert tuple(c2[2]) != red and tuple(c2[3]) != red  # not-yet + survivor stay active
 
-    grey_counts = [
-        int(np.sum(np.all(viz._failure_colors(fr, k) == grey, axis=1))) for k in range(5)
+    red_counts = [
+        int(np.sum(np.all(viz._failure_colors(fr, k) == red, axis=1))) for k in range(5)
     ]
-    assert grey_counts == sorted(grey_counts)  # monotonic non-decreasing
-    assert grey_counts[-1] == 3  # all finite edges eventually grey; survivor never
+    assert red_counts == sorted(red_counts)  # monotonic non-decreasing
+    assert red_counts[-1] == 3  # all finite edges eventually red; survivor never
+
+
+def test_failure_colors_three_state():
+    fr = np.array([1.0, np.nan, np.nan])       # edge 0 blocked at 1
+    sr = np.array([np.nan, 2.0, np.nan])       # edge 1 stranded at 2
+    red, yellow, blue = (tuple(viz.FAILED_COLOR), tuple(viz.STRANDED_COLOR),
+                         tuple(viz.ACTIVE_COLOR))
+    c = viz._failure_colors(fr, 2, strand_round=sr)
+    assert tuple(c[0]) == red      # blocked
+    assert tuple(c[1]) == yellow   # stranded
+    assert tuple(c[2]) == blue     # active
+    # blocked wins over stranded when both apply to the same edge
+    c2 = viz._failure_colors(np.array([1.0]), 1, strand_round=np.array([1.0]))
+    assert tuple(c2[0]) == red
+
+
+def test_disconnection_rounds_strands_cutoff():
+    # Path 0-1-2-3-4; block both 2<->3 edges at round 1 -> {3,4} stranded from main {0,1,2}.
+    s = np.array([0, 1, 1, 2, 2, 3, 3, 4], np.uint32)
+    t = np.array([1, 0, 2, 1, 3, 2, 4, 3], np.uint32)
+    g = gravel.Graph.from_coo(5, s, t, np.ones(8))
+    s2, t2, _ = g.to_coo()
+    fr = np.full(8, np.nan)
+    for e in range(8):
+        if {int(s2[e]), int(t2[e])} == {2, 3}:
+            fr[e] = 1.0
+    strand = viz.disconnection_rounds(g, fr)
+    for e in range(8):
+        pair = {int(s2[e]), int(t2[e])}
+        if pair == {3, 4}:
+            assert strand[e] == 1.0        # intact but cut off
+        else:
+            assert np.isnan(strand[e])     # blocked (2-3) or still in main
 
 
 @requires_geopandas
@@ -342,3 +375,219 @@ def test_animate_failure_rejects_stochastic():
     g = _coord_grid(5)
     with pytest.raises(TypeError):
         viz.animate_failure(g, _stochastic(g))
+
+
+# --- Tier 2: self-contained animated HTML (animate_failure_html) ---
+
+
+@requires_geopandas
+def test_animate_failure_html_writes_selfcontained(tmp_path):
+    g = _coord_grid(6)
+    out = tmp_path / "anim.html"
+    p = viz.animate_failure_html(g, _progressive_greedy(g), str(out))
+    assert p == str(out) and out.exists()
+    html = out.read_text()
+    assert "unpkg.com/deck.gl@" in html  # standalone deck.gl from CDN
+    assert "PathLayer" in html and "getColor" in html
+    assert 'id="round"' in html and 'id="play"' in html  # scrubber + play controls
+    assert html.count('"path"') == g.edge_count  # one embedded edge per graph edge
+    assert "const MAXROUND" in html
+
+
+@requires_geopandas
+def test_animate_failure_html_embeds_real_geometry(tmp_path):
+    # Theta graph -> simplify (bent polylines) -> the HTML embeds >2-point paths.
+    und = [(0, 2), (2, 1), (0, 3), (3, 1), (0, 4), (4, 1)]
+    edges = und + [(b, a) for a, b in und]
+    s = np.array([a for a, b in edges], np.uint32)
+    t = np.array([b for a, b in edges], np.uint32)
+    coords = np.array([[0, 0], [2, 0], [1, 1], [1, 0], [1, -1]], float)
+    tg = gravel.Graph.from_coo(5, s, t, np.ones(len(edges)), coords)
+    cfg = gravel.SimplificationConfig()
+    cfg.estimate_degradation = False
+    sres = gravel.simplify_graph(tg, None, None, cfg)
+    # A progressive run on the simplified graph, drawn along real geometry.
+    ch = gravel.build_ch(sres.graph)
+    idx = gravel.ShortcutIndex(ch)
+    pcfg = gravel.ProgressiveFragilityConfig()
+    box = gravel.Polygon()
+    box.vertices = [
+        gravel.Coord(-1, -2), gravel.Coord(-1, 2),
+        gravel.Coord(3, 2), gravel.Coord(3, -2),
+    ]
+    bc = pcfg.base_config
+    bc.boundary = box
+    bc.od_sample_count = 4
+    pcfg.base_config = bc
+    pcfg.selection_strategy = gravel.SelectionStrategy.GREEDY_BETWEENNESS
+    pcfg.k_max = 2
+    prog = gravel.progressive_fragility(sres.graph, ch, idx, pcfg)
+
+    out = tmp_path / "geom.html"
+    viz.animate_failure_html(
+        sres.graph, prog, str(out), edge_geometry=sres.edge_geometry
+    )
+    html = out.read_text()
+    import json
+    import re
+
+    edges_json = re.search(r"const EDGES = (\[.*?\]);", html, re.S).group(1)
+    embedded = json.loads(edges_json)
+    assert any(len(e["path"]) > 2 for e in embedded)  # real bent shape, not chords
+
+
+def test_animate_failure_html_rejects_stochastic(tmp_path):
+    g = _coord_grid(5)
+    with pytest.raises(TypeError):
+        viz.animate_failure_html(g, _stochastic(g), str(tmp_path / "x.html"))
+
+
+@requires_geopandas
+def test_failure_geoframe_row_order_matches_csr():
+    # The GeoDataFrame rows must be in CSR (to_coo) order, or positional per-edge
+    # colors line up with the wrong edges and every render is silently mislabeled.
+    g = _coord_grid(6)
+    gdf = viz.failure_geoframe(g, _stochastic(g))
+    src, tgt, _ = g.to_coo()
+    assert list(gdf["source"]) == list(src)
+    assert list(gdf["target"]) == list(tgt)
+
+
+class _FakeProgressive:
+    """Minimal stand-in: edge_failure_round only reads .removal_sequence."""
+
+    def __init__(self, removal_sequence):
+        self.removal_sequence = removal_sequence
+
+
+def test_edge_failure_round_parallel_edges_get_distinct_rounds():
+    # Regression for the per-(u,v) queue: three parallel 1->2 edges plus one 0->1 edge.
+    # Removing (1,2) twice must consume two DIFFERENT parallel edges — not overwrite one
+    # index (mis-attribution) or pop an empty queue (IndexError). (CSR reorders by source,
+    # so resolve the parallel indices from to_coo rather than assuming input order.)
+    s = np.array([1, 1, 1, 0], np.uint32)
+    t = np.array([2, 2, 2, 1], np.uint32)
+    g = gravel.Graph.from_coo(3, s, t, np.ones(4))
+
+    src, tgt, _ = g.to_coo()
+    parallel = [e for e in range(g.edge_count) if src[e] == 1 and tgt[e] == 2]
+    other = [e for e in range(g.edge_count) if e not in parallel]
+    assert len(parallel) == 3
+
+    rounds = viz.edge_failure_round(g, _FakeProgressive([(1, 2), (1, 2)]))
+    got = [rounds[e] for e in parallel if not np.isnan(rounds[e])]
+    assert sorted(got) == [1.0, 2.0]  # two distinct parallel edges, two distinct rounds
+    assert sum(np.isnan(rounds[e]) for e in parallel) == 1  # third parallel untouched
+    assert all(np.isnan(rounds[e]) for e in other)  # unrelated edges untouched
+
+
+def test_edge_failure_round_unknown_pair_is_ignored():
+    # A removal whose (u,v) isn't in the graph (e.g. wrong graph passed) must be skipped,
+    # never raise — the `if q:` guard covers the missing-bucket case.
+    s = np.array([0], np.uint32)
+    t = np.array([1], np.uint32)
+    g = gravel.Graph.from_coo(2, s, t, np.ones(1))
+    rounds = viz.edge_failure_round(g, _FakeProgressive([(7, 9), (0, 1)]))
+    # (7,9) is step 1 but ignored (not in graph); (0,1) is step 2 and lands. No raise.
+    assert rounds[0] == 2.0
+    assert rounds.shape == (1,)
+
+
+# --- F2: hazard-ordered sequence + renderers accepting a failure_round array ---
+
+
+def test_failure_sequence_exposure_order():
+    probs = np.array([0.0, 0.9, 0.3, 0.6])
+    fr = viz.failure_sequence_from_probabilities(probs, exposure_order=True)
+    assert np.isnan(fr[0])                       # zero probability -> never removed
+    assert fr[1] == 1.0 and fr[3] == 2.0 and fr[2] == 3.0  # worst-exposure first
+
+
+def test_failure_sequence_limit_and_stages():
+    probs = np.linspace(0.05, 1.0, 20)
+    fr = viz.failure_sequence_from_probabilities(probs, exposure_order=True, limit=10, stages=5)
+    finite = fr[~np.isnan(fr)]
+    assert len(finite) == 10                     # limit honored
+    assert set(finite.tolist()) <= set(range(1, 6)) and finite.max() == 5  # bucketed
+
+
+def test_failure_sequence_stochastic_reproducible():
+    probs = np.full(60, 0.5)
+    a = viz.failure_sequence_from_probabilities(probs, seed=7)
+    b = viz.failure_sequence_from_probabilities(probs, seed=7)
+    c = viz.failure_sequence_from_probabilities(probs, seed=8)
+
+    def fill(x):
+        return np.nan_to_num(x, nan=-1.0)
+
+    assert np.array_equal(fill(a), fill(b))      # same seed -> identical realization
+    assert not np.array_equal(fill(a), fill(c))  # different seed -> different draw
+
+
+@requires_geopandas
+def test_failure_geoframe_accepts_array():
+    g = _coord_grid(5)
+    fr = np.full(g.edge_count, np.nan)
+    fr[0], fr[1] = 1.0, 2.0
+    gdf = viz.failure_geoframe(g, fr)
+    assert "failure_round" in gdf.columns and len(gdf) == g.edge_count
+
+
+@requires_geopandas
+def test_failure_round_array_length_mismatch_raises():
+    g = _coord_grid(4)
+    with pytest.raises(ValueError):
+        viz.failure_geoframe(g, np.zeros(g.edge_count + 3))
+
+
+@requires_geopandas
+def test_animate_failure_html_accepts_failure_round_array(tmp_path):
+    g = _coord_grid(5)
+    probs = np.random.default_rng(0).random(g.edge_count)
+    fr = viz.failure_sequence_from_probabilities(probs, seed=1, limit=8, stages=4)
+    out = tmp_path / "flood.html"
+    viz.animate_failure_html(g, fr, str(out))
+    assert out.exists() and "unpkg.com/deck.gl@" in out.read_text()
+
+
+# --- F3: connectivity_curve + dashboard_html ---
+
+
+def test_connectivity_curve_severs_a_component():
+    # Path 0-1-2 (bidirectional); remove both 1<->2 edges at stage 1 -> node 2 isolated.
+    s = np.array([0, 1, 1, 2], np.uint32)
+    t = np.array([1, 0, 2, 1], np.uint32)
+    g = gravel.Graph.from_coo(3, s, t, np.ones(4))
+    s2, t2, _ = g.to_coo()
+    fr = np.full(4, np.nan)
+    for e in range(4):
+        if {int(s2[e]), int(t2[e])} == {1, 2}:
+            fr[e] = 1.0
+    curve = viz.connectivity_curve(g, fr)
+    assert curve[0] == 0.0                       # fully connected
+    assert abs(curve[1] - (1 - 5 / 9)) < 1e-9    # {0,1} + {2}: 1 - (4+1)/9
+    assert curve == sorted(curve)                # non-decreasing
+
+
+@requires_geopandas
+def test_dashboard_html_writes_map_and_chart(tmp_path):
+    g = _coord_grid(6)
+    probs = np.random.default_rng(0).random(g.edge_count)
+    fr = viz.failure_sequence_from_probabilities(probs, seed=1, limit=30, stages=10)
+    out = tmp_path / "dash.html"
+    viz.dashboard_html(g, fr, str(out))
+    html = out.read_text()
+    assert "unpkg.com/deck.gl@" in html          # map
+    assert "CURVE = " in html and "<svg" in html  # synced impact chart
+    assert "of trips severed" in html
+    import json
+    import re
+    curve = json.loads(re.search(r"CURVE = (\[.*?\])", html, re.S).group(1))
+    assert len(curve) == 11 and curve == sorted(curve)  # stages+1, monotonic
+
+
+@requires_geopandas
+def test_dashboard_html_rejects_stochastic(tmp_path):
+    g = _coord_grid(5)
+    with pytest.raises(TypeError):
+        viz.dashboard_html(g, _stochastic(g), str(tmp_path / "x.html"))

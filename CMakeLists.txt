@@ -87,6 +87,8 @@ add_library(gravel-core
     src/core/graph_serialization.cpp
     src/core/hilbert_order.cpp
     src/core/subgraph.cpp
+    src/core/edge_geometry.cpp
+    src/core/graph_build.cpp
     src/core/priority_queue.cpp
     src/core/four_heap.cpp
     src/core/dijkstra.cpp
@@ -155,6 +157,7 @@ add_library(gravel-fragility
     src/analysis/progressive_fragility.cpp
     src/analysis/progressive_fragility_mc.cpp
     src/analysis/progressive_fragility_greedy.cpp
+    src/analysis/network_disruption.cpp
     src/analysis/analysis_context.cpp
     src/fragility/inter_region_fragility.cpp
     src/validation/synthetic_graphs.cpp

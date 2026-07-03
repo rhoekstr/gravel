@@ -5,6 +5,10 @@ Usage:
     python scripts/visualize_results.py [--input CSV] [--geojson PATH] [--output-dir DIR]
 
 Defaults to the sample data in data/sample-results/ if no --input is given.
+
+Requires plotly (a standalone reporting script, not part of any package extra):
+    pip install plotly
+For the maintained in-library renderers, see ``gravel.viz`` (``gravel-fragility[viz]``).
 """
 
 import argparse
@@ -12,9 +16,15 @@ import csv
 import json
 from pathlib import Path
 
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+try:
+    import plotly.express as px
+    import plotly.graph_objects as go
+    from plotly.subplots import make_subplots
+except ImportError as exc:  # pragma: no cover - standalone script
+    raise SystemExit(
+        "this script needs plotly: pip install plotly "
+        "(or use gravel.viz from the [viz] extra)"
+    ) from exc
 
 SCRIPT_DIR = Path(__file__).parent
 PROJECT_DIR = SCRIPT_DIR.parent

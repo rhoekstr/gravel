@@ -124,6 +124,8 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 - **Tiled analysis** — spatial fragility fields for visualization
 - **Region assignment** — node-to-polygon mapping (point-in-polygon)
 - **Graph coarsening** — collapse regions into meta-nodes
+- **Research depth (2.4.0)** — capacity-aware importance (HCM PCE from OSM tags), stochastic fragility (Monte Carlo over per-edge failure probabilities, e.g. floodplain / FEMA-NFHL hazards), and experimental Motter–Lai cascading failure — all as disclosed, sweepable inputs
+- **Visualization (2.5.0)** — real per-edge road geometry plus static (`plot_fragility`), interactive (`interactive_map`), and animated (`animate_failure`, self-contained deck.gl HTML) maps via `gravel-fragility[viz]`
 
 ### Performance
 
@@ -191,7 +193,7 @@ The Great Plains grid-states score lowest — flat land with rectangular road ne
 
 **Runtime:**
 - C++20 compiler (GCC 11+, Clang 14+, MSVC 2022+)
-- CMake 3.20+
+- CMake 3.24+
 - Python 3.10+ (for bindings)
 
 **Optional:**
@@ -222,7 +224,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.2.3}
+  version = {2.5.0}
 }
 ```
 

@@ -4,7 +4,7 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.5.0] — Unreleased
+## [2.5.0] — 2026-07-03
 
 **Phase 2B — real edge geometry.** Foundation for faithful maps: a simplified graph can now be drawn
 along the true road shape instead of straight chords. OSM loads one edge per way segment, so full
@@ -28,10 +28,14 @@ field is populated automatically; existing routing/fragility behavior and the pu
   `EdgeGeometry` are now re-exported at the top level (`gravel.simplify_graph`, …).
 - **Animated failure playback (`gravel.viz` Tier 2).** `animate_failure(graph, progressive_result, …)`
   returns a Play/slider ipywidgets widget over a lonboard map that scrubs the progressive removal
-  order — edges removed by round *k* recede to grey while the active network stays highlighted
-  (survivors never grey). Only the color array updates per frame (data sent once via GeoArrow), so it
-  stays smooth at scale. Requires a greedy `ProgressiveFragilityResult`; notebook-interactive
-  (ipywidgets ships with lonboard). Self-contained animated-HTML export is a planned follow-up.
+  order (see "Three-state failure coloring" below for the per-round encoding). Only the color array
+  updates per frame (data sent once via GeoArrow), so it stays smooth at scale. Requires a greedy
+  `ProgressiveFragilityResult`; notebook-interactive (ipywidgets ships with lonboard).
+- **Self-contained animated HTML (`gravel.viz` Tier 2).** `animate_failure_html(graph, result, path, …)`
+  writes a standalone HTML file that plays/scrubs the removal sequence with deck.gl entirely
+  client-side — no kernel or server. Geometry is embedded once; each frame only re-evaluates the color
+  accessor (`updateTriggers` keyed to the round). Supports `edge_geometry` and `hazard`; needs only
+  geopandas. Verified end-to-end in a headless browser (render + scrub + no console errors).
 - **Interactive fragility maps (`gravel.viz` Tier 2).** `interactive_map(graph, result, …)` returns a
   lonboard (WebGL) `Map` that renders the per-edge failure trace on a pan/zoom basemap, scales to
   county-size networks via GeoArrow transport, and exports to standalone HTML (`m.to_html(...)`) for
@@ -46,6 +50,76 @@ field is populated automatically; existing routing/fragility behavior and the pu
   `hazard` layer draws the risk geometry (e.g. floodplain) underneath as the causal "why"; and
   `edge_geometry` draws edges along the real road shape (2B). `failure_geoframe` gains an
   `edge_geometry` argument to match. Needs the `[viz]` extra (adds matplotlib).
+- **FEMA NFHL flood-data access.** `hazards.fetch_nfhl_flood_zones(bbox)` pulls real flood-hazard
+  polygons from FEMA's National Flood Hazard Layer (paginated ArcGIS query, stdlib HTTP → a
+  `FLD_ZONE`-tagged `GeoDataFrame` for `flood_edge_probabilities`). Endpoint is configurable via
+  the `endpoint=` argument or the `GRAVEL_NFHL_ENDPOINT` environment variable
+  (`hazards.NFHL_ENDPOINT`). `hazards.nfhl_zone_color` gives a severity color ramp for drawing the
+  risk layer.
+- **Hazard-ordered removal sequences.** `viz.failure_sequence_from_probabilities(probs, …)` turns a
+  per-edge hazard probability (e.g. from `flood_edge_probabilities`) into an animatable
+  `failure_round` — a seeded stochastic realization by default (worst-exposure ordered), or
+  deterministic exposure order. `failure_geoframe` / `plot_fragility` / `interactive_map` /
+  `animate_failure` / `animate_failure_html` now accept a `failure_round` array anywhere they took a
+  progressive result, so a flood scenario is a first-class animation input.
+- **Fragility dashboard.** `viz.dashboard_html(graph, result_or_failure_round, path, …)` writes a
+  self-contained two-panel HTML — a deck.gl map (real geometry, optional severity-colored hazard
+  base layer via `hazard_zone_field`) above a synced chart of **% of trips severed vs stage** — with
+  play/slider driving both. `viz.connectivity_curve` exposes that per-stage metric
+  (`1 − Σ(component_size²)/n²`, union-find). Example: `examples/python/08_asheville_flood_dashboard.py`
+  (FEMA NFHL → flood order → dashboard).
+- **Three-state failure coloring.** The animated renderers (`animate_failure`, `animate_failure_html`,
+  `dashboard_html`) now distinguish **blocked** roads (directly failed — red, `FAILED_COLOR`) from
+  **stranded** roads (intact but cut off from the main network — yellow, `STRANDED_COLOR`), over the
+  still-connected network (blue, `ACTIVE_COLOR`). `viz.disconnection_rounds(graph, failure_round)`
+  computes the per-edge round at which an edge becomes stranded (union-find per stage); on by default
+  via `show_stranded=True`. This surfaces the network amplification the severed-% chart measures — a
+  handful of blocked crossings isolating a much larger dry area.
+
+### Changed
+- **Default animation colors.** Failed/blocked edges now render **red** (was grey) and the new
+  stranded state renders **yellow** across the animated renderers (`ACTIVE_COLOR` / `FAILED_COLOR` /
+  `STRANDED_COLOR` are overridable). The static `plot_fragility` choropleth is unchanged.
+- **Connectivity/disconnection moved to the C++ engine.** The severed-fraction curve and per-edge
+  stranded rounds are now computed by a single C++ kernel, `network_disruption(graph, failure_round)`
+  (`gravel-fragility`, `analysis/`, one reverse-incremental union-find). `viz.connectivity_curve` and
+  `viz.disconnection_rounds` are now thin wrappers over it (same signatures) — milliseconds on
+  county-scale graphs, keeping `viz` a thin layer over the engine.
+- **Five more hot kernels moved to the C++ engine.** Following the connectivity move, the remaining
+  Python analysis hotspots now compute in C++, with the Python names kept as thin wrappers (identical
+  signatures, ABI unchanged):
+  - **`hazard_edge_probabilities`** (`gravel-fragility`, `scenario_fragility.h`) — multi-zone
+    point-in-polygon with per-polygon bbox pre-filter, both-endpoints rule, max-wins, and per-node
+    PIP caching. This was the dominant Python cost: **101,760 edges × 250 zones now in ~228 ms**
+    (previously the multi-second-to-minutes hotspot on national runs).
+  - **`edge_failure_round`** (`gravel-fragility`, `analysis/`) — maps a flat removal sequence to
+    per-edge rounds via a per-`(u, v)` queue (parallel-edge safe).
+  - **`failure_sequence_from_probabilities`** (`gravel-fragility`, `analysis/`) — engine-side RNG (`mt19937_64`,
+    seeded, thread-count invariant) for the seeded stochastic realization; deterministic
+    worst-exposure order otherwise.
+  - **`from_geodataframe` node snapping** (`graph_from_endpoints`, `gravel-core`) — coordinate
+    quantization + node dedup in C++; `interop` extracts endpoints (shapely) then hands off.
+  - **`simplify_edge_geometry`** (`gravel-core`, Douglas–Peucker in degree space) — downscales
+    per-edge polylines natively. The animated renderers expose it as a `geometry_tolerance=` parameter
+    (0 = full resolution), so map granularity is a render-time knob instead of a viz pre-pass.
+- **`SimplificationConfig.emit_geometry` defaults to `true`** — new simplified graphs carry per-edge
+  geometry out of the box (a few MB per county). Internal fragility paths that discard it
+  (`location_fragility`, per-county analysis, the `simplify` CLI) opt out, so the ~2 s
+  county-fragility hot path pays nothing.
+- Corrected the degree-2 contraction docs: it is not unconditionally "lossless" — an isolated
+  degree-2 cycle (a ring with no junction, or a lollipop loop) has no anchor and is dropped. It
+  carries no junction-to-junction route, so routing/fragility on the surviving graph is unaffected.
+
+### Fixed
+- **Phantom one-way edges in degree-2 contraction.** A merged direction was emitted from a positive
+  weight *sum* rather than actual edge *existence*, so contracting a one-way chain could synthesize a
+  nonexistent (usually zero-weight) reverse edge — distorting routing and fragility on simplified
+  graphs (~396 such edges on the Swain fixture). Contraction now tracks per-direction existence and
+  emits a direction only when the through-path exists. *(Pre-existing; surfaced by the 2B geometry
+  work, which drew the phantoms on maps.)*
+- **`viz.edge_failure_round` on parallel edges.** Graphs with parallel edges (e.g. several degree-2
+  chains contracted between the same two junctions) mis-sized the output and raised `IndexError`; it
+  now keys a per-`(u, v)` queue so each parallel edge gets its own round, aligned to `edge_count`.
 
 ## [2.4.0] — 2026-07-01
 

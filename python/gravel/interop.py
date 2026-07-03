@@ -20,18 +20,19 @@ Edge ordering
 the i-th metadata value lines up with the i-th edge returned by ``to_coo()``.
 The adapters here rely on that alignment.
 
-Geometry caveat
----------------
-Gravel stores edge endpoints, not the intermediate OSM way polyline, so
-:func:`to_geodataframe` draws each edge as a straight segment between its two
-nodes. Persisting full edge geometry is planned for a later release; until then,
-treat the geometry as topological, not cartographic.
+Geometry
+--------
+By default :func:`to_geodataframe` draws each edge as a straight segment between its
+two nodes. Pass ``edge_geometry`` — a :class:`gravel.EdgeGeometry` produced by
+``simplify_graph`` with ``emit_geometry`` set on its :class:`gravel.SimplificationConfig` —
+to draw each edge along its real OSM way polyline instead.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from . import _gravel
 from ._gravel import Graph
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -226,8 +227,8 @@ def to_geodataframe(
         in CSR order) to attach as columns — e.g. betweenness or fragility
         scores.
     edge_geometry:
-        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with
-        ``emit_geometry=True``), CSR-aligned to ``graph``'s edges. When given,
+        Optional :class:`gravel.EdgeGeometry` (from ``simplify_graph`` with ``emit_geometry``
+        set on its ``SimplificationConfig``), CSR-aligned to ``graph``'s edges. When given,
         each edge is drawn along its true polyline instead of a straight chord.
     crs:
         Coordinate reference system for the result (default WGS84).
@@ -337,23 +338,12 @@ def from_geodataframe(
     _require("geopandas")
     np = _require("numpy")
 
-    node_ids: dict[tuple[float, float], int] = {}
-    node_coords: list[tuple[float, float]] = []  # (lat, lon) in node-id order
-
-    def node_for(lon: float, lat: float) -> int:
-        key = (round(lat, precision), round(lon, precision))
-        nid = node_ids.get(key)
-        if nid is None:
-            nid = len(node_coords)
-            node_ids[key] = nid
-            node_coords.append((lat, lon))
-        return nid
-
-    sources: list[int] = []
-    targets: list[int] = []
-    weights: list[float] = []
+    # Extract each line's endpoints in (lat, lon); the C++ engine snaps shared nodes and builds
+    # the CSR graph (rounding endpoints to `precision` decimals).
+    src_coords: list[tuple[float, float]] = []
+    tgt_coords: list[tuple[float, float]] = []
+    weights_list: list[float] = []
     skipped = 0
-
     weight_values = gdf[weight].tolist() if weight is not None else None
 
     for row_i, geom in enumerate(gdf.geometry):
@@ -370,21 +360,11 @@ def from_geodataframe(
             continue
         (lon_a, lat_a) = coords[0][0], coords[0][1]
         (lon_b, lat_b) = coords[-1][0], coords[-1][1]
-        ia = node_for(lon_a, lat_a)
-        ib = node_for(lon_b, lat_b)
-
-        if weight_values is not None:
-            w = float(weight_values[row_i])
-        else:
-            w = float(_haversine_meters(lat_a, lon_a, lat_b, lon_b))
-
-        sources.append(ia)
-        targets.append(ib)
-        weights.append(w)
-        if not directed:
-            sources.append(ib)
-            targets.append(ia)
-            weights.append(w)
+        w = (float(weight_values[row_i]) if weight_values is not None
+             else float(_haversine_meters(lat_a, lon_a, lat_b, lon_b)))
+        src_coords.append((lat_a, lon_a))
+        tgt_coords.append((lat_b, lon_b))
+        weights_list.append(w)
 
     if skipped:
         import warnings
@@ -394,11 +374,10 @@ def from_geodataframe(
             stacklevel=2,
         )
 
-    coords_arr = np.asarray(node_coords, dtype="float64").reshape(-1, 2)
-    return Graph.from_coo(
-        len(node_coords),
-        np.asarray(sources, dtype="uint32"),
-        np.asarray(targets, dtype="uint32"),
-        np.asarray(weights, dtype="float64"),
-        coords_arr,
+    return _gravel.graph_from_endpoints(
+        np.asarray(src_coords, dtype="float64").reshape(-1, 2),
+        np.asarray(tgt_coords, dtype="float64").reshape(-1, 2),
+        np.asarray(weights_list, dtype="float64"),
+        int(precision),
+        bool(directed),
     )

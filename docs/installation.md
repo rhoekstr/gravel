@@ -1,108 +1,87 @@
 # Installation
 
-Gravel is available via conda-forge (recommended for C++ dependencies) and PyPI (source build).
+Gravel is distributed on **PyPI**. Binary wheels ship for Linux (x86_64, aarch64),
+macOS (arm64), and Windows (AMD64) across Python 3.10–3.13, **with OSM loading built
+in** (libosmium is bundled into the wheels from v2.2.2 onward — no system libraries
+required).
 
-## conda (recommended)
+> **conda-forge is not currently a supported channel.** The feedstock is stale; install
+> from PyPI. (If it is revived, this page will note it.)
 
-```bash
-conda install -c conda-forge gravel-fragility
-```
-
-This installs the full library including OSM support (via libosmium from conda-forge).
-
-## pip
+## pip (recommended)
 
 ```bash
 pip install gravel-fragility
 ```
 
-**Note:** The PyPI wheels do not include OSM loading support (libosmium is not available on PyPI). For OSM support via pip, install libosmium on your system first and build from source:
+That's it — the wheel includes OSM support. Verify with `gravel.HAS_OSM` (see below).
 
-### macOS
-
-```bash
-brew install libosmium
-pip install gravel-fragility --no-binary gravel-fragility
-```
-
-### Debian / Ubuntu
+### Optional extras
 
 ```bash
-sudo apt-get install libosmium2-dev libeigen3-dev nlohmann-json3-dev
-pip install gravel-fragility --no-binary gravel-fragility
+pip install "gravel-fragility[interop]"   # NetworkX / GeoPandas adapters
+pip install "gravel-fragility[viz]"        # static + interactive maps
 ```
 
-### RHEL / Fedora
-
-```bash
-sudo dnf install libosmium-devel eigen3-devel nlohmann-json-devel
-pip install gravel-fragility --no-binary gravel-fragility
-```
+- **`[interop]`** → `networkx`, `geopandas`, `shapely`, `pyproj` (the `gravel.interop` adapters).
+- **`[viz]`** → `matplotlib`, `lonboard`, `pyarrow`, `geopandas`, `shapely`, `pyproj` (the
+  `gravel.viz` renderers: `plot_fragility`, `interactive_map`, `animate_failure`).
 
 ## From source
 
-Clone the repository:
+A source build is only needed to develop Gravel or to target a platform without a wheel.
+OSM support is auto-detected (`GRAVEL_USE_OSMIUM=AUTO`); install libosmium first to enable it.
 
 ```bash
 git clone https://github.com/rhoekstr/gravel.git
 cd gravel
-```
-
-Install system dependencies (see above), then:
-
-```bash
-# Build C++ library + Python bindings + CLI
+# System deps for OSM (optional): macOS `brew install libosmium protozero`;
+# Debian/Ubuntu `sudo apt-get install libosmium2-dev`; conda `conda install -c conda-forge libosmium`.
 cmake -B build \
     -DGRAVEL_BUILD_PYTHON=ON \
     -DGRAVEL_BUILD_CLI=ON \
-    -DGRAVEL_USE_OSMIUM=ON \
+    -DGRAVEL_USE_OSMIUM=AUTO \
     -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j
-
-# Install Python package
 pip install -e .
 ```
+
+(Eigen is vendored under `third_party/`, so no system Eigen is required.)
 
 ## Verify installation
 
 ```python
 import gravel
 
-# Check version
-print(gravel.__version__)  # 2.1.0
+print(gravel.__version__)
+print("OSM support:", gravel.HAS_OSM)          # True on PyPI wheels
+print("OpenMP:", gravel.HAS_OPENMP)
 
-# Try a simple grid graph
 g = gravel.make_grid_graph(10, 10)
 ch = gravel.build_ch(g)
 print(f"Built CH for {g.node_count}-node graph")
 ```
 
-## Optional dependencies
-
-For visualization and the national pipeline script:
-
-```bash
-pip install gravel-fragility[viz,pipeline]
-```
-
-This pulls in `plotly`, `geopandas`, `shapely`, and `pyproj`.
-
 ## Requirements
 
-- **C++20** compiler (GCC 11+, Clang 14+, MSVC 2022+)
-- **CMake 3.20+**
-- **Python 3.10+** (for Python bindings)
+- **C++20** compiler (GCC 11+, Clang 14+, MSVC 2022+) — source builds only
+- **CMake 3.24+** — source builds only
+- **Python 3.10+**
 
 ## Troubleshooting
 
-### "Could not find libosmium"
+### `gravel.HAS_OSM` is `False`
 
-libosmium is a system library that isn't distributable via PyPI. Install it through your OS package manager (see above) or use the conda-forge distribution.
+You're on a build without libosmium (a source build where it wasn't found). PyPI wheels
+ship with OSM enabled; from source, install libosmium (see above) and pass
+`-DGRAVEL_USE_OSMIUM=ON` to fail fast if it's missing.
 
 ### Build fails on Windows
 
-Ensure you have Visual Studio 2022 with C++ tools installed. Native Windows builds are supported via cibuildwheel; if building from source fails, file an issue with the full CMake log.
+Ensure Visual Studio 2022 with C++ tools is installed. If a source build fails, file an
+issue with the full CMake log.
 
 ### Python import fails with "module _gravel not found"
 
-The C++ extension didn't build or isn't in your Python path. Check that `pip install -e .` completed successfully and your virtual environment is active.
+The C++ extension didn't build or isn't on your Python path. Check that `pip install -e .`
+completed successfully and your virtual environment is active.

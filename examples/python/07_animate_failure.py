@@ -36,9 +36,7 @@ def coord_grid(n):
     )
 
 
-def build():
-    """Return the animated widget (display it in a notebook)."""
-    n = 16
+def _setup(n=16):
     g = coord_grid(n)
     ch = gravel.build_ch(g)
     idx = gravel.ShortcutIndex(ch)
@@ -55,10 +53,18 @@ def build():
     cfg.selection_strategy = gravel.SelectionStrategy.GREEDY_BETWEENNESS
     cfg.k_max = 30
     prog = gravel.progressive_fragility(g, ch, idx, cfg)
+    return g, prog
 
-    return viz.animate_failure(g, prog)
+
+def build():
+    """Return the animated widget (display it in a notebook and press play)."""
+    g, prog = _setup()
+    return viz.animate_failure(g, prog)  # needs lonboard
 
 
 if __name__ == "__main__":
-    w = build()
-    print(f"built animated widget: {type(w).__name__} — display it in a Jupyter notebook to play")
+    # The standalone HTML export needs no kernel — great for a script or sharing.
+    g, prog = _setup()
+    out = "failure_animation.html"
+    viz.animate_failure_html(g, prog, out)
+    print(f"wrote {out} — open in any browser and press play")

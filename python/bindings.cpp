@@ -22,6 +22,9 @@
 #include "gravel/core/subgraph.h"
 #include "gravel/analysis/algebraic_connectivity.h"
 #include "gravel/analysis/betweenness.h"
+#include "gravel/analysis/network_disruption.h"
+#include "gravel/core/edge_geometry.h"
+#include "gravel/core/graph_build.h"
 #include "gravel/analysis/kirchhoff.h"
 #include "gravel/analysis/natural_connectivity.h"
 #include "gravel/analysis/county_fragility.h"
@@ -506,6 +509,71 @@ PYBIND11_MODULE(_gravel, m) {
           "Compute edge betweenness centrality via Brandes' algorithm",
           py::call_guard<py::gil_scoped_release>());
 
+    py::class_<NetworkDisruption>(m, "NetworkDisruption")
+        .def_readonly("severed_fraction", &NetworkDisruption::severed_fraction)
+        .def_property_readonly("stranded_round", [](const NetworkDisruption& d) {
+            return py::array_t<double>(static_cast<py::ssize_t>(d.stranded_round.size()),
+                                       d.stranded_round.data());
+        });
+    m.def("network_disruption",
+          [](const ArrayGraph& graph, py::array_t<double, py::array::c_style | py::array::forcecast>
+                 failure_round) {
+              std::vector<double> fr(failure_round.data(),
+                                     failure_round.data() + failure_round.size());
+              return network_disruption(graph, fr);
+          },
+          py::arg("graph"), py::arg("failure_round"),
+          "Per-stage connectivity-loss curve + per-edge stranded round from a per-edge "
+          "failure_round array (CSR order; NaN = never removed).");
+
+    m.def("edge_failure_round",
+          [](const ArrayGraph& graph,
+             const std::vector<std::pair<NodeID, NodeID>>& removal_sequence) {
+              std::vector<double> out = edge_failure_round(graph, removal_sequence);
+              return py::array_t<double>(static_cast<py::ssize_t>(out.size()), out.data());
+          },
+          py::arg("graph"), py::arg("removal_sequence"),
+          "Per-edge removal stage (CSR order; NaN = survived) from a greedy removal_sequence.");
+
+    m.def("failure_sequence_from_probabilities",
+          [](py::array_t<double, py::array::c_style | py::array::forcecast> probs, int limit,
+             int stages, std::uint64_t seed, bool exposure_order) {
+              std::vector<double> p(probs.data(), probs.data() + probs.size());
+              std::vector<double> out =
+                  failure_sequence_from_probabilities(p, limit, stages, seed, exposure_order);
+              return py::array_t<double>(static_cast<py::ssize_t>(out.size()), out.data());
+          },
+          py::arg("edge_probabilities"), py::arg("limit"), py::arg("stages"),
+          py::arg("seed"), py::arg("exposure_order"),
+          "Per-edge failure_round from per-edge probabilities (stochastic realization or "
+          "exposure order; CSR edge order).");
+
+    m.def("simplify_edge_geometry", &simplify_edge_geometry,
+          py::arg("geometry"), py::arg("tolerance"),
+          "Douglas-Peucker downscale of per-edge geometry (degrees; endpoints kept).");
+
+    m.def("graph_from_endpoints",
+          [](py::array_t<double, py::array::c_style | py::array::forcecast> src_xy,
+             py::array_t<double, py::array::c_style | py::array::forcecast> tgt_xy,
+             py::array_t<double, py::array::c_style | py::array::forcecast> weights,
+             int precision, bool directed) {
+              auto s = src_xy.unchecked<2>();
+              auto t = tgt_xy.unchecked<2>();
+              auto w = weights.unchecked<1>();
+              const size_t e_count = static_cast<size_t>(s.shape(0));
+              std::vector<Coord> src(e_count), tgt(e_count);
+              std::vector<double> wv(e_count);
+              for (size_t i = 0; i < e_count; ++i) {
+                  src[i] = Coord{s(i, 0), s(i, 1)};
+                  tgt[i] = Coord{t(i, 0), t(i, 1)};
+                  wv[i] = w(i);
+              }
+              return graph_from_endpoints(src, tgt, wv, precision, directed);
+          },
+          py::arg("src_coords"), py::arg("tgt_coords"), py::arg("weights"),
+          py::arg("precision"), py::arg("directed"),
+          "Build a Graph from per-edge endpoint (lat, lon) arrays, snapping shared nodes.");
+
     m.def("capacity_weighted_importance", &capacity_weighted_importance,
           py::arg("betweenness"), py::arg("capacity"),
           "Capacity-weighted edge importance = betweenness x capacity (CSR edge order). "
@@ -803,10 +871,10 @@ PYBIND11_MODULE(_gravel, m) {
             return arr;
         }, "Prefix-sum offsets into points; size edge_count+1 (empty when no geometry).")
         .def_property_readonly("points", [](const EdgeGeometry& g) -> py::array_t<double> {
-            const auto m = static_cast<py::ssize_t>(g.points.size());
-            py::array_t<double> arr({m, py::ssize_t{2}});
+            const auto npts = static_cast<py::ssize_t>(g.points.size());
+            py::array_t<double> arr({npts, py::ssize_t{2}});
             auto a = arr.mutable_unchecked<2>();
-            for (py::ssize_t i = 0; i < m; ++i) { a(i, 0) = g.points[i].lat; a(i, 1) = g.points[i].lon; }
+            for (py::ssize_t i = 0; i < npts; ++i) { a(i, 0) = g.points[i].lat; a(i, 1) = g.points[i].lon; }
             return arr;
         }, "All polyline vertices as an (M, 2) array of [lat, lon].")
         .def_property_readonly("edge_count", [](const EdgeGeometry& g) { return g.edge_count(); })
@@ -907,6 +975,16 @@ PYBIND11_MODULE(_gravel, m) {
     m.def("edges_in_polygon", &edges_in_polygon,
           py::arg("graph"), py::arg("polygon"),
           "Find graph edges within a polygon (for hazard footprint conversion)");
+
+    m.def("hazard_edge_probabilities",
+          [](const ArrayGraph& graph, const std::vector<std::pair<Polygon, double>>& zones,
+             double baseline) {
+              std::vector<double> out = hazard_edge_probabilities(graph, zones, baseline);
+              return py::array_t<double>(static_cast<py::ssize_t>(out.size()), out.data());
+          },
+          py::arg("graph"), py::arg("zones"), py::arg("baseline") = 0.0,
+          "Per-edge failure probability (CSR order) from (polygon, prob) zones; both endpoints "
+          "inside, max wins, bbox-prefiltered.");
 
     // --- Stochastic fragility (Monte Carlo over per-edge failure probabilities) ---
     py::enum_<StochasticTarget>(m, "StochasticTarget")

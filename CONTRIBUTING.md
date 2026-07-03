@@ -14,7 +14,7 @@ Thanks for your interest in contributing! This document describes the process fo
 ### Prerequisites
 
 - C++20 compiler (GCC 11+, Clang 14+, MSVC 2022+)
-- CMake 3.20+
+- CMake 3.24+
 - Python 3.10+ (for bindings)
 - libosmium (optional, for OSM support): `brew install libosmium` / `apt install libosmium2-dev`
 
