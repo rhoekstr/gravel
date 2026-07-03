@@ -164,3 +164,69 @@ def test_flood_unknown_zone_honors_default_probability():
         g, _flood_gdf("ZZZ"), default_probability=0.4, baseline=0.0
     )
     assert probs[idx[(0, 1)]] == 0.4
+
+
+# --- FEMA NFHL fetch (F1) ---
+
+
+class _FakeResp:
+    def __init__(self, body): self._b = body
+    def __enter__(self): return self
+    def __exit__(self, *a): return False
+    def read(self): return self._b
+
+
+def _feature(zone):
+    return {"type": "Feature", "properties": {"FLD_ZONE": zone},
+            "geometry": {"type": "Polygon",
+                         "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]}}
+
+
+@requires_geopandas
+def test_fetch_nfhl_paginates_and_builds_gdf(monkeypatch):
+    import json as _json
+    pages = [
+        {"features": [_feature("AE"), _feature("X")], "exceededTransferLimit": True},
+        {"features": [_feature("AE")], "exceededTransferLimit": False},
+    ]
+    calls = []
+
+    def fake_urlopen(req, timeout=None):
+        calls.append(req.full_url)
+        return _FakeResp(_json.dumps(pages[len(calls) - 1]).encode())
+
+    monkeypatch.setattr(hazards, "urlopen", fake_urlopen)
+    gdf = hazards.fetch_nfhl_flood_zones(
+        (-82.6, 35.55, -82.52, 35.64), endpoint="https://x/MapServer", page_size=2
+    )
+    assert len(gdf) == 3
+    assert list(gdf["FLD_ZONE"]) == ["AE", "X", "AE"]
+    assert len(calls) == 2  # paged until exceededTransferLimit is False
+    assert "https://x/MapServer/28/query" in calls[0]
+    assert "resultOffset=2" in calls[1]  # second page advanced by the first page's count
+
+
+@requires_geopandas
+def test_fetch_nfhl_halves_page_on_500(monkeypatch):
+    import json as _json
+    from urllib.error import HTTPError
+    sizes = []
+
+    def fake_urlopen(req, timeout=None):
+        import urllib.parse as up
+        q = dict(up.parse_qsl(req.full_url.split("?", 1)[1]))
+        sizes.append(int(q["resultRecordCount"]))
+        if int(q["resultRecordCount"]) > 20:  # emulate NFHL rejecting big pages
+            raise HTTPError(req.full_url, 500, "err", {}, None)
+        return _FakeResp(_json.dumps({"features": [_feature("AE")],
+                                      "exceededTransferLimit": False}).encode())
+
+    monkeypatch.setattr(hazards, "urlopen", fake_urlopen)
+    gdf = hazards.fetch_nfhl_flood_zones((0, 0, 1, 1), page_size=100)
+    assert len(gdf) == 1
+    assert sizes[0] == 100 and min(sizes) <= 25  # backed off after the 500
+
+
+def test_nfhl_zone_color_ramp():
+    assert hazards.nfhl_zone_color("AE")[0] > hazards.nfhl_zone_color("X")[0]  # SFHA redder
+    assert hazards.nfhl_zone_color("__nope__") == hazards.NFHL_DEFAULT_ZONE_COLOR

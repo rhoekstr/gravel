@@ -50,8 +50,13 @@ Caveats (disclosed, not hidden)
 
 from __future__ import annotations
 
+import json
+import os
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
+from urllib.error import HTTPError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 import numpy as np
 
@@ -95,6 +100,126 @@ NFHL_ANNUAL_PROBABILITY: dict[str, float] = {
     "VE": 0.01,
     "0.2 PCT ANNUAL CHANCE FLOOD HAZARD": 0.002,
 }
+
+
+# FEMA National Flood Hazard Layer (NFHL) ArcGIS MapServer. Override with the
+# ``GRAVEL_NFHL_ENDPOINT`` environment variable, or pass ``endpoint=`` to the fetcher
+# (e.g. a mirror, a regional service, or a locally hosted copy).
+NFHL_ENDPOINT: str = os.environ.get(
+    "GRAVEL_NFHL_ENDPOINT",
+    "https://hazards.fema.gov/arcgis/rest/services/public/NFHL/MapServer",
+)
+NFHL_FLOOD_ZONE_LAYER: int = 28  # "Flood Hazard Zones" (S_FLD_HAZ_AR)
+
+# FLD_ZONE -> RGBA fill for a map risk layer (deep red = coastal high hazard, red =
+# 1%-annual SFHA, amber = 0.2%-annual fringe, green = minimal). An illustrative
+# cartographic ramp for visualization — NOT official FEMA symbology.
+NFHL_ZONE_COLORS: dict[str, list[int]] = {
+    "V": [178, 24, 43, 150], "VE": [178, 24, 43, 150],
+    "A": [214, 96, 77, 120], "AE": [214, 96, 77, 120], "AH": [214, 96, 77, 120],
+    "AO": [214, 96, 77, 120], "AR": [214, 96, 77, 120], "A99": [214, 96, 77, 120],
+    "0.2 PCT ANNUAL CHANCE FLOOD HAZARD": [244, 165, 130, 90],
+    "X": [26, 150, 65, 55], "AREA NOT INCLUDED": [150, 150, 150, 40],
+}
+NFHL_DEFAULT_ZONE_COLOR: list[int] = [180, 180, 180, 60]
+
+
+def nfhl_zone_color(zone: str) -> list[int]:
+    """RGBA fill for a FEMA flood-zone code (see :data:`NFHL_ZONE_COLORS`)."""
+    return NFHL_ZONE_COLORS.get(str(zone), NFHL_DEFAULT_ZONE_COLOR)
+
+
+def fetch_nfhl_flood_zones(
+    bbox: tuple[float, float, float, float],
+    *,
+    endpoint: str | None = None,
+    layer: int = NFHL_FLOOD_ZONE_LAYER,
+    where: str = "1=1",
+    out_fields: str = "FLD_ZONE,ZONE_SUBTY",
+    timeout: float = 60.0,
+    page_size: int = 100,
+) -> gpd.GeoDataFrame:
+    """Fetch FEMA NFHL flood-hazard polygons for a bounding box as a ``GeoDataFrame``.
+
+    Queries the NFHL ArcGIS MapServer (paginated) and returns flood-zone polygons in
+    EPSG:4326 with a ``FLD_ZONE`` column — ready to hand to
+    :func:`flood_edge_probabilities` or to draw as a map risk layer.
+
+    Parameters
+    ----------
+    bbox : (min_lon, min_lat, max_lon, max_lat)
+        Query envelope in WGS84 (lon/lat).
+    endpoint : str, optional
+        NFHL MapServer URL. Defaults to :data:`NFHL_ENDPOINT` (the ``GRAVEL_NFHL_ENDPOINT``
+        environment variable, else FEMA's public service). Pass this to use a mirror or a
+        self-hosted copy.
+    layer : int, optional
+        Feature-layer id (default 28, "Flood Hazard Zones").
+    where, out_fields, timeout, page_size
+        ArcGIS query knobs. ``page_size`` is the per-request feature cap (default 100 —
+        NFHL rejects large GeoJSON polygon pages with HTTP 500, so the fetcher also halves
+        the page size and retries on a 500). Pagination follows ``exceededTransferLimit``.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        Flood-zone polygons (EPSG:4326). Empty frame if the bbox has no mapped zones.
+
+    Notes
+    -----
+    Requires geopandas (``pip install gravel-fragility[interop]``). Uses only the standard
+    library for HTTP, so no extra networking dependency.
+    """
+    try:
+        import geopandas as gpd
+        import pandas as pd
+    except ImportError as exc:  # pragma: no cover - environment dependent
+        raise ImportError(
+            "fetch_nfhl_flood_zones needs geopandas: pip install gravel-fragility[interop]"
+        ) from exc
+
+    base = (endpoint or NFHL_ENDPOINT).rstrip("/")
+    query_url = f"{base}/{layer}/query"
+    minx, miny, maxx, maxy = (float(v) for v in bbox)
+
+    frames = []
+    offset = 0
+    page = int(page_size)
+    while True:
+        params = {
+            "where": where,
+            "geometry": f"{minx},{miny},{maxx},{maxy}",
+            "geometryType": "esriGeometryEnvelope",
+            "inSR": "4326", "outSR": "4326",
+            "spatialRel": "esriSpatialRelIntersects",
+            "outFields": out_fields,
+            "returnGeometry": "true",
+            "resultOffset": str(offset),
+            "resultRecordCount": str(page),
+            "f": "geojson",
+        }
+        req = Request(f"{query_url}?{urlencode(params)}",
+                      headers={"User-Agent": "gravel-fragility"})
+        try:
+            with urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fixed https endpoint
+                payload = json.loads(resp.read().decode("utf-8"))
+        except HTTPError as exc:
+            # NFHL 500s when a GeoJSON page exceeds its response-size limit (flood
+            # polygons are large). Back off the page size and retry the same offset.
+            if exc.code == 500 and page > 20:
+                page = max(20, page // 2)
+                continue
+            raise
+        features = payload.get("features", [])
+        if features:
+            frames.append(gpd.GeoDataFrame.from_features(features, crs="EPSG:4326"))
+            offset += len(features)
+        if not features or not payload.get("exceededTransferLimit"):
+            break
+
+    if not frames:
+        return gpd.GeoDataFrame({"FLD_ZONE": []}, geometry=[], crs="EPSG:4326")
+    return gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs="EPSG:4326")
 
 
 def _edge_index_map(graph: Graph) -> tuple[dict[tuple[int, int], int], int]:
