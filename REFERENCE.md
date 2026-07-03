@@ -3486,6 +3486,13 @@ reuses the shipped `edges_in_polygon`. Two layers:
 |----------|-------|-------|
 | `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**. Returns `float64[edge_count]` in CSR order. |
 | `flood_edge_probabilities(graph, gdf, *, zone_field="FLD_ZONE", zone_probabilities=NFHL_EVENT_CLOSURE, baseline=0.0, default_probability=None)` | FEMA NFHL `GeoDataFrame` | Reprojects to WGS84, maps flood-zone codes → prob, explodes MultiPolygons, delegates to the core. Needs `[interop]`. |
+| `fetch_nfhl_flood_zones(bbox, *, endpoint=NFHL_ENDPOINT, layer=28, timeout=60, page_size=100)` | `(min_lon, min_lat, max_lon, max_lat)` | Fetches real FEMA NFHL flood polygons (paginated ArcGIS query, stdlib HTTP) → a `FLD_ZONE` `GeoDataFrame` (EPSG:4326). Needs `[interop]`. |
+
+**Configuring the endpoint.** `NFHL_ENDPOINT` defaults to FEMA's public service
+(`…/arcgis/rest/services/public/NFHL/MapServer`); override with the `GRAVEL_NFHL_ENDPOINT`
+environment variable or the `endpoint=` argument (mirror / self-hosted copy). NFHL rejects large
+GeoJSON pages with HTTP 500, so `fetch_nfhl_flood_zones` pages small and halves on a 500.
+`nfhl_zone_color(zone)` gives an RGBA severity ramp for drawing the risk layer.
 
 **Probability semantics (pick deliberately).** `prob[e]` is the chance edge `e` fails in one Monte
 Carlo run, so what a "run" means is your choice:
@@ -3503,7 +3510,7 @@ import geopandas as gpd, gravel
 from gravel import hazards
 g, _ = gravel.load_osm_graph_with_metadata("county.osm.pbf")
 ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
-flood = gpd.read_file("NFHL_37173_S_FLD_HAZ_AR.shp")     # FEMA county floodplain
+flood = hazards.fetch_nfhl_flood_zones((-82.60, 35.55, -82.52, 35.64))  # live FEMA NFHL
 probs = hazards.flood_edge_probabilities(g, flood)        # design-flood scenario
 res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
 ```
@@ -3593,6 +3600,27 @@ makes a large file — a deliberate share/export artifact, not a live analysis v
 
 ```python
 viz.animate_failure_html(g, prog, "failure.html")   # open in any browser, press play
+```
+
+**Hazard-driven scenarios & the dashboard (v2.5.0).** A removal *order* need not come from a greedy
+run — `failure_sequence_from_probabilities(probs, *, limit=None, stages=None, seed=0,
+exposure_order=False)` turns a per-edge hazard probability (e.g. `flood_edge_probabilities`) into a
+`failure_round` array: a seeded stochastic realization by default (worst-exposure ordered), or
+deterministic exposure order. Every renderer above (`failure_geoframe`, `plot_fragility`,
+`interactive_map`, `animate_failure`, `animate_failure_html`) accepts that array wherever it accepts a
+progressive result. `dashboard_html(graph, result_or_failure_round, path, *, edge_geometry=None,
+hazard=None, hazard_zone_field=None, …)` writes a self-contained **two-panel** file — a deck.gl map
+(optionally a severity-colored hazard base layer via `hazard_zone_field="FLD_ZONE"`) above a synced
+chart of **% of trips severed vs stage** — driven by one play/slider. `connectivity_curve(graph,
+failure_round)` is that metric (`1 − Σ(component_size²)/n²` by union-find per stage).
+
+```python
+from gravel import hazards, viz
+flood = hazards.fetch_nfhl_flood_zones(bbox)              # real FEMA NFHL
+probs = hazards.flood_edge_probabilities(sg, flood)
+order = viz.failure_sequence_from_probabilities(probs, seed=1, limit=1000, stages=50)
+viz.dashboard_html(sg, order, "flood_dashboard.html",
+                   edge_geometry=sres.edge_geometry, hazard=flood, hazard_zone_field="FLD_ZONE")
 ```
 
 **Two audiences, two modes** (design principle for the full viz layer): the **static** artifact is the

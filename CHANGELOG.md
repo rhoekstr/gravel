@@ -51,6 +51,24 @@ field is populated automatically; existing routing/fragility behavior and the pu
   `hazard` layer draws the risk geometry (e.g. floodplain) underneath as the causal "why"; and
   `edge_geometry` draws edges along the real road shape (2B). `failure_geoframe` gains an
   `edge_geometry` argument to match. Needs the `[viz]` extra (adds matplotlib).
+- **FEMA NFHL flood-data access.** `hazards.fetch_nfhl_flood_zones(bbox)` pulls real flood-hazard
+  polygons from FEMA's National Flood Hazard Layer (paginated ArcGIS query, stdlib HTTP → a
+  `FLD_ZONE`-tagged `GeoDataFrame` for `flood_edge_probabilities`). Endpoint is configurable via
+  the `endpoint=` argument or the `GRAVEL_NFHL_ENDPOINT` environment variable
+  (`hazards.NFHL_ENDPOINT`). `hazards.nfhl_zone_color` gives a severity color ramp for drawing the
+  risk layer.
+- **Hazard-ordered removal sequences.** `viz.failure_sequence_from_probabilities(probs, …)` turns a
+  per-edge hazard probability (e.g. from `flood_edge_probabilities`) into an animatable
+  `failure_round` — a seeded stochastic realization by default (worst-exposure ordered), or
+  deterministic exposure order. `failure_geoframe` / `plot_fragility` / `interactive_map` /
+  `animate_failure` / `animate_failure_html` now accept a `failure_round` array anywhere they took a
+  progressive result, so a flood scenario is a first-class animation input.
+- **Fragility dashboard.** `viz.dashboard_html(graph, result_or_failure_round, path, …)` writes a
+  self-contained two-panel HTML — a deck.gl map (real geometry, optional severity-colored hazard
+  base layer via `hazard_zone_field`) above a synced chart of **% of trips severed vs stage** — with
+  play/slider driving both. `viz.connectivity_curve` exposes that per-stage metric
+  (`1 − Σ(component_size²)/n²`, union-find). Example: `examples/python/08_asheville_flood_dashboard.py`
+  (FEMA NFHL → flood order → dashboard).
 
 ### Changed
 - **`SimplificationConfig.emit_geometry` defaults to `true`** — new simplified graphs carry per-edge
