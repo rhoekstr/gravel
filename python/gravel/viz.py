@@ -49,6 +49,14 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     from ._gravel import Graph
 
 
+# Default per-edge colors for the animated renderers (RGB). An edge is BLUE while it is in
+# service, RED once it is directly blocked (flood / debris / removed), and YELLOW when it is
+# still intact but cut off from the main network (stranded as a consequence of other failures).
+ACTIVE_COLOR = (31, 119, 180)
+FAILED_COLOR = (232, 27, 27)
+STRANDED_COLOR = (240, 190, 20)
+
+
 def edge_failure_round(graph: Graph, result: ProgressiveFragilityResult) -> np.ndarray:
     """Per-edge removal step from a greedy ``progressive_fragility`` result.
 
@@ -212,6 +220,97 @@ def connectivity_curve(graph: Graph, failure_round: np.ndarray) -> list[float]:
             union(int(sources[e]), int(targets[e]))
         curve[k] = severed_fraction()
     return curve
+
+
+def disconnection_rounds(graph: Graph, failure_round: np.ndarray) -> np.ndarray:
+    """Per-edge round at which an intact edge becomes *stranded* — cut off from the main network.
+
+    As edges fail in ``failure_round`` order, some roads that are not themselves blocked lose all
+    routes to the rest of the city (their only access floods). This returns, per edge (CSR order),
+    the first stage ``k`` at which the edge is **still present** (``failure_round`` is ``NaN`` or
+    ``> k``) but its connected component is no longer the largest one — ``NaN`` if it never strands
+    (or is itself removed first). Only edges that started in the main component can strand, so a
+    network that was already disconnected is not mislabeled.
+
+    "Cut off" means separated from the network **hub** (the most-connected node, which sits in the
+    main component); only roads originally reachable from it can strand, so an already-fragmented
+    graph is not mislabeled. Computed by a reverse-incremental union-find (adding edges back in
+    decreasing round), ``O(edges · α + stages · nodes)`` — fast enough to run by default.
+    """
+    fr = np.asarray(failure_round, dtype=np.float64)
+    sources, targets, _ = graph.to_coo()
+    src = sources.astype(np.int64)
+    tgt = targets.astype(np.int64)
+    m = len(src)
+    n = int(graph.node_count)
+    strand = np.full(m, np.nan, dtype=np.float64)
+    finite = fr[~np.isnan(fr)]
+    max_round = int(finite.max()) if finite.size else 0
+    if max_round == 0 or n == 0:
+        return strand
+
+    def find(parent, a):
+        root = a
+        while parent[root] != root:
+            root = parent[root]
+        while parent[a] != root:
+            parent[a], a = root, parent[a]
+        return root
+
+    def union(parent, size, anchor, a, b):
+        ra, rb = find(parent, a), find(parent, b)
+        if ra == rb:
+            return
+        if size[ra] < size[rb]:
+            ra, rb = rb, ra
+        parent[rb] = ra
+        size[ra] += size[rb]
+        anchor[ra] = anchor[ra] or anchor[rb]
+
+    # 1. Anchor = the most-connected node (the hub, deep in the main network); "stranded" means cut
+    #    off from it. Restrict to nodes originally connected to the anchor so pre-existing islands
+    #    are not mislabeled.
+    parent = list(range(n))
+    size = [1] * n
+    dummy = [False] * n
+    for e in range(m):
+        union(parent, size, dummy, int(src[e]), int(tgt[e]))
+    roots = np.fromiter((find(parent, v) for v in range(n)), dtype=np.int64, count=n)
+    degree = np.bincount(src, minlength=n) + np.bincount(tgt, minlength=n)
+    anchor_node = int(degree.argmax())
+    in_main = roots == roots[anchor_node]  # nodes originally reachable from the hub
+
+    # 2. Reverse pass: start at the most-removed stage (only never-removed edges present) and add
+    #    edges back in decreasing round. Record, per node in the main network, the smallest stage
+    #    at which it is not connected to the anchor.
+    parent = list(range(n))
+    size = [1] * n
+    anchor = [False] * n
+    anchor[anchor_node] = True
+    by_round: dict[int, list[int]] = {}
+    for e in range(m):
+        if np.isnan(fr[e]):
+            union(parent, size, anchor, int(src[e]), int(tgt[e]))
+        else:
+            by_round.setdefault(int(fr[e]), []).append(e)
+
+    node_strand = np.full(n, np.nan, dtype=np.float64)
+    main_nodes = np.nonzero(in_main)[0]
+    for k in range(max_round, 0, -1):
+        for v in main_nodes:
+            if not anchor[find(parent, int(v))]:
+                node_strand[v] = k  # decreasing k => final write is the smallest stranded stage
+        for e in by_round.get(k, ()):
+            union(parent, size, anchor, int(src[e]), int(tgt[e]))
+
+    # 3. An intact edge is stranded when its (shared) component detaches from the anchor — the round
+    #    its endpoints strand, provided the edge is still present then.
+    for e in range(m):
+        su, sv = node_strand[int(src[e])], node_strand[int(tgt[e])]
+        cand = su if np.isnan(sv) else (sv if np.isnan(su) else min(su, sv))
+        if not np.isnan(cand) and (np.isnan(fr[e]) or fr[e] > cand):
+            strand[e] = cand
+    return strand
 
 
 def _failure_column(graph: Graph, result: Any) -> tuple[str, np.ndarray]:
@@ -450,18 +549,23 @@ def _failure_colors(
     failure_round: np.ndarray,
     k: int,
     *,
-    active_color=(31, 119, 180),
-    failed_color=(180, 180, 180),
+    strand_round: np.ndarray | None = None,
+    active_color=ACTIVE_COLOR,
+    failed_color=FAILED_COLOR,
+    stranded_color=STRANDED_COLOR,
 ) -> np.ndarray:
-    """Binary per-edge (N, 3) uint8 colors for animation round ``k``.
+    """Per-edge (N, 3) uint8 colors at animation round ``k``.
 
-    Edges whose ``failure_round <= k`` are ``failed_color`` (grey, receding); everything else
-    — including survivors (``NaN``) — is ``active_color``. Pure function (the animation's core).
+    ``failed_color`` where ``failure_round <= k`` (directly blocked); else ``stranded_color`` where
+    ``strand_round <= k`` (intact but cut off from the main network, if ``strand_round`` given);
+    else ``active_color``. Blocked takes precedence over stranded. Pure function (the animation core).
     """
     fr = np.asarray(failure_round, dtype=float)
-    failed = np.isfinite(fr) & (fr <= k)
     rgb = np.tile(np.array(active_color, dtype=np.uint8), (fr.shape[0], 1))
-    rgb[failed] = failed_color
+    if strand_round is not None:
+        sr = np.asarray(strand_round, dtype=float)
+        rgb[np.isfinite(sr) & (sr <= k)] = stranded_color
+    rgb[np.isfinite(fr) & (fr <= k)] = failed_color  # blocked wins over stranded
     return rgb
 
 
@@ -471,8 +575,10 @@ def animate_failure(
     *,
     edge_geometry: Any | None = None,
     hazard: Any | None = None,
-    active_color: tuple[int, int, int] = (31, 119, 180),
-    failed_color: tuple[int, int, int] = (180, 180, 180),
+    active_color: tuple[int, int, int] = ACTIVE_COLOR,
+    failed_color: tuple[int, int, int] = FAILED_COLOR,
+    stranded_color: tuple[int, int, int] = STRANDED_COLOR,
+    show_stranded: bool = True,
     width_min_pixels: float = 1.5,
     interval_ms: int = 400,
     metadata: Any | None = None,
@@ -480,8 +586,9 @@ def animate_failure(
 ) -> Any:
     """Animated failure playback (Tier 2) — returns an ipywidgets widget over a lonboard map.
 
-    Scrubs the **progressive removal order**: at round *k*, edges removed by then go grey
-    (receding) while the still-active network stays ``active_color``; survivors never grey. Each
+    Scrubs the **removal order**: at round *k*, directly-blocked edges are ``failed_color`` (red);
+    with ``show_stranded`` (default), edges that are intact but cut off from the main network are
+    ``stranded_color`` (yellow); everything still in service stays ``active_color`` (blue). Each
     frame only updates the color array (data is sent once via GeoArrow), so it stays smooth at
     county scale. Display the returned widget in a notebook and press play, or drag the slider.
 
@@ -520,6 +627,13 @@ def animate_failure(
     fr = np.asarray(gdf["failure_round"], dtype=float)
     finite = np.isfinite(fr)
     max_round = int(np.max(fr[finite])) if finite.any() else 0
+    strand = disconnection_rounds(graph, fr) if show_stranded else None
+
+    def colors(k):
+        return _failure_colors(
+            fr, k, strand_round=strand, active_color=active_color,
+            failed_color=failed_color, stranded_color=stranded_color,
+        )
 
     layers = []
     if hazard is not None:
@@ -529,9 +643,7 @@ def animate_failure(
             )
         )
     edges = PathLayer.from_geopandas(gdf, width_min_pixels=width_min_pixels)
-    edges.get_color = _failure_colors(
-        fr, 0, active_color=active_color, failed_color=failed_color
-    )
+    edges.get_color = colors(0)
     layers.append(edges)
     m = Map(layers)
 
@@ -540,9 +652,7 @@ def animate_failure(
     widgets.jslink((play, "value"), (slider, "value"))
 
     def _on_round(change):
-        edges.get_color = _failure_colors(
-            fr, change["new"], active_color=active_color, failed_color=failed_color
-        )
+        edges.get_color = colors(change["new"])
 
     slider.observe(_on_round, names="value")
     return widgets.VBox([widgets.HBox([play, slider]), m])
@@ -576,6 +686,7 @@ const EDGES = __EDGES__;
 const HAZARD = __HAZARD__;
 const ACTIVE = __ACTIVE__;
 const FAILED = __FAILED__;
+const STRANDED = __STRANDED__;
 const MAXROUND = __MAXROUND__;
 const INTERVAL = __INTERVAL__;
 const WIDTH = __WIDTH__;
@@ -592,7 +703,8 @@ function makeLayers(round) {
   }
   layers.push(new deck.PathLayer({
     id: 'edges', data: EDGES, getPath: d => d.path,
-    getColor: d => (d.round !== null && d.round <= round) ? FAILED : ACTIVE,
+    getColor: d => (d.round !== null && d.round <= round) ? FAILED
+      : ((d.strand !== null && d.strand <= round) ? STRANDED : ACTIVE),
     widthMinPixels: WIDTH, capRounded: true, jointRounded: true,
     updateTriggers: { getColor: round }
   }));
@@ -633,22 +745,25 @@ def animate_failure_html(
     *,
     edge_geometry: Any | None = None,
     hazard: Any | None = None,
-    active_color: tuple[int, int, int] = (31, 119, 180),
-    failed_color: tuple[int, int, int] = (180, 180, 180),
+    active_color: tuple[int, int, int] = ACTIVE_COLOR,
+    failed_color: tuple[int, int, int] = FAILED_COLOR,
+    stranded_color: tuple[int, int, int] = STRANDED_COLOR,
+    show_stranded: bool = True,
     width_min_pixels: float = 1.5,
     interval_ms: int = 400,
     deckgl_version: str = "9",
     metadata: Any | None = None,
     crs: str = "EPSG:4326",
 ) -> str:
-    """Write a **self-contained animated HTML** of the progressive removal order and return ``path``.
+    """Write a **self-contained animated HTML** of the removal order and return ``path``.
 
     Unlike :func:`animate_failure` (a notebook widget needing a live kernel), this bakes a
-    standalone file: deck.gl (loaded from a CDN) plays/scrubs the failure sequence entirely
-    client-side — at round *k*, edges removed by then turn ``failed_color`` while the active
-    network stays ``active_color`` (survivors never change). Geometry is embedded once and each
-    frame only re-evaluates the color accessor (``updateTriggers`` keyed to the round), so it
-    stays responsive. Open the file in any browser and press play — no server, no kernel.
+    standalone file: deck.gl (from a CDN) plays/scrubs the failure sequence client-side. At round
+    *k*, directly-blocked edges turn ``failed_color`` (red); with ``show_stranded`` (default), edges
+    that are intact but cut off from the main network turn ``stranded_color`` (yellow); the rest stay
+    ``active_color`` (blue). Geometry is embedded once and each frame only re-evaluates the color
+    accessor (``updateTriggers`` keyed to the round), so it stays responsive. Open in any browser and
+    press play — no server, no kernel.
 
     Requires a **greedy** :class:`ProgressiveFragilityResult`. ``edge_geometry`` embeds real road
     shape; ``hazard`` (a geopandas ``GeoDataFrame``) is drawn as a translucent base layer.
@@ -682,10 +797,16 @@ def animate_failure_html(
     gdf = failure_geoframe(
         graph, result, metadata=metadata, edge_geometry=edge_geometry, crs=crs
     )
+    fr = np.asarray(gdf["failure_round"], dtype=float)
+    strand = disconnection_rounds(graph, fr) if show_stranded else np.full(len(fr), np.nan)
+
+    def _int_or_none(x):
+        return None if (x is None or (isinstance(x, float) and math.isnan(x))) else int(x)
+
     edges = []
-    for geom, r in zip(gdf.geometry, gdf["failure_round"], strict=True):
-        rnd = None if (r is None or (isinstance(r, float) and math.isnan(r))) else int(r)
-        edges.append({"path": [[float(x), float(y)] for x, y in geom.coords], "round": rnd})
+    for geom, r, s in zip(gdf.geometry, gdf["failure_round"], strand, strict=True):
+        edges.append({"path": [[float(x), float(y)] for x, y in geom.coords],
+                      "round": _int_or_none(r), "strand": _int_or_none(s)})
 
     rounds = [e["round"] for e in edges if e["round"] is not None]
     max_round = max(rounds) if rounds else 0
@@ -708,6 +829,7 @@ def animate_failure_html(
         .replace("__HAZARD__", hazard_json)
         .replace("__ACTIVE__", json.dumps(list(active_color)))
         .replace("__FAILED__", json.dumps(list(failed_color)))
+        .replace("__STRANDED__", json.dumps(list(stranded_color)))
         .replace("__MAXROUND__", str(max_round))
         .replace("__INTERVAL__", str(int(interval_ms)))
         .replace("__WIDTH__", json.dumps(width_min_pixels))
@@ -753,7 +875,7 @@ _DASHBOARD_HTML_TEMPLATE = """<!doctype html>
 </div>
 <script>
 const EDGES = __EDGES__, HAZARD = __HAZARD__, CURVE = __CURVE__, VIEW = __VIEW__;
-const ACTIVE = __ACTIVE__, FAILED = __FAILED__;
+const ACTIVE = __ACTIVE__, FAILED = __FAILED__, STRANDED = __STRANDED__;
 const MAXROUND = __MAXROUND__, INTERVAL = __INTERVAL__, WIDTH = __WIDTH__;
 const { Deck, PathLayer, GeoJsonLayer } = deck;
 
@@ -768,7 +890,8 @@ function layers(round) {
   }
   ls.push(new PathLayer({
     id: "edges", data: EDGES, getPath: d => d.path,
-    getColor: d => (d.round !== null && d.round <= round) ? FAILED : ACTIVE,
+    getColor: d => (d.round !== null && d.round <= round) ? FAILED
+      : ((d.strand !== null && d.strand <= round) ? STRANDED : ACTIVE),
     widthMinPixels: WIDTH, updateTriggers: { getColor: round },
   }));
   return ls;
@@ -833,8 +956,10 @@ def dashboard_html(
     hazard: Any | None = None,
     hazard_zone_field: str | None = None,
     title: str = "Road fragility under progressive failure",
-    active_color: tuple[int, int, int] = (31, 119, 180),
-    failed_color: tuple[int, int, int] = (180, 180, 180),
+    active_color: tuple[int, int, int] = ACTIVE_COLOR,
+    failed_color: tuple[int, int, int] = FAILED_COLOR,
+    stranded_color: tuple[int, int, int] = STRANDED_COLOR,
+    show_stranded: bool = True,
     width_min_pixels: float = 1.6,
     interval_ms: int = 350,
     deckgl_version: str = "9",
@@ -844,9 +969,10 @@ def dashboard_html(
     """Write a **self-contained fragility dashboard** (map + synced impact chart) and return ``path``.
 
     Two panels in one standalone HTML file (deck.gl from a CDN, no server/kernel): a map that
-    plays/scrubs the removal sequence (failed roads recede to ``failed_color``) and, below it, an
-    inline chart of **% of trips severed vs stage** (:func:`connectivity_curve`) with a marker and
-    readout locked to the same play/slider.
+    plays/scrubs the removal sequence — directly-blocked roads turn ``failed_color`` (red), roads cut
+    off from the main network turn ``stranded_color`` (yellow, when ``show_stranded``), the rest stay
+    ``active_color`` (blue) — and below it an inline chart of **% of trips severed vs stage**
+    (:func:`connectivity_curve`) with a marker and readout locked to the same play/slider.
 
     ``result`` is a greedy :class:`ProgressiveFragilityResult` **or** a ``failure_round`` array
     (e.g. a flood order from :func:`failure_sequence_from_probabilities`) — a stochastic result
@@ -877,10 +1003,16 @@ def dashboard_html(
     gdf = failure_geoframe(
         graph, failure_round, metadata=metadata, edge_geometry=edge_geometry, crs=crs
     )
+    strand = (disconnection_rounds(graph, failure_round) if show_stranded
+              else np.full(len(failure_round), np.nan))
+
+    def _int_or_none(x):
+        return None if (x is None or (isinstance(x, float) and math.isnan(x))) else int(x)
+
     edges = []
-    for geom, r in zip(gdf.geometry, gdf["failure_round"], strict=True):
-        rnd = None if (r is None or (isinstance(r, float) and math.isnan(r))) else int(r)
-        edges.append({"path": [[float(x), float(y)] for x, y in geom.coords], "round": rnd})
+    for geom, r, s in zip(gdf.geometry, gdf["failure_round"], strand, strict=True):
+        edges.append({"path": [[float(x), float(y)] for x, y in geom.coords],
+                      "round": _int_or_none(r), "strand": _int_or_none(s)})
 
     minx, miny, maxx, maxy = (float(v) for v in gdf.total_bounds)
     span = max(maxx - minx, maxy - miny) or 1e-3
@@ -907,6 +1039,7 @@ def dashboard_html(
         .replace("__CURVE__", json.dumps([round(float(c), 5) for c in curve]))
         .replace("__ACTIVE__", json.dumps(list(active_color)))
         .replace("__FAILED__", json.dumps(list(failed_color)))
+        .replace("__STRANDED__", json.dumps(list(stranded_color)))
         .replace("__MAXROUND__", str(max_round))
         .replace("__INTERVAL__", str(int(interval_ms)))
         .replace("__WIDTH__", json.dumps(width_min_pixels))

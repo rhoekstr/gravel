@@ -311,20 +311,53 @@ def test_interactive_map_rejects_other_type():
 def test_failure_colors_binary_and_monotonic():
     # Pure animation core — no optional deps, so this runs everywhere.
     fr = np.array([1.0, 2.0, 3.0, np.nan])  # last edge survives
-    grey = (180, 180, 180)
+    red = tuple(viz.FAILED_COLOR)
 
     c0 = viz._failure_colors(fr, 0)
     assert (c0 == c0[0]).all()  # nothing failed at round 0
 
     c2 = viz._failure_colors(fr, 2)
-    assert tuple(c2[0]) == grey and tuple(c2[1]) == grey  # failed by round 2
-    assert tuple(c2[2]) != grey and tuple(c2[3]) != grey  # not-yet + survivor stay active
+    assert tuple(c2[0]) == red and tuple(c2[1]) == red  # blocked by round 2 -> red
+    assert tuple(c2[2]) != red and tuple(c2[3]) != red  # not-yet + survivor stay active
 
-    grey_counts = [
-        int(np.sum(np.all(viz._failure_colors(fr, k) == grey, axis=1))) for k in range(5)
+    red_counts = [
+        int(np.sum(np.all(viz._failure_colors(fr, k) == red, axis=1))) for k in range(5)
     ]
-    assert grey_counts == sorted(grey_counts)  # monotonic non-decreasing
-    assert grey_counts[-1] == 3  # all finite edges eventually grey; survivor never
+    assert red_counts == sorted(red_counts)  # monotonic non-decreasing
+    assert red_counts[-1] == 3  # all finite edges eventually red; survivor never
+
+
+def test_failure_colors_three_state():
+    fr = np.array([1.0, np.nan, np.nan])       # edge 0 blocked at 1
+    sr = np.array([np.nan, 2.0, np.nan])       # edge 1 stranded at 2
+    red, yellow, blue = (tuple(viz.FAILED_COLOR), tuple(viz.STRANDED_COLOR),
+                         tuple(viz.ACTIVE_COLOR))
+    c = viz._failure_colors(fr, 2, strand_round=sr)
+    assert tuple(c[0]) == red      # blocked
+    assert tuple(c[1]) == yellow   # stranded
+    assert tuple(c[2]) == blue     # active
+    # blocked wins over stranded when both apply to the same edge
+    c2 = viz._failure_colors(np.array([1.0]), 1, strand_round=np.array([1.0]))
+    assert tuple(c2[0]) == red
+
+
+def test_disconnection_rounds_strands_cutoff():
+    # Path 0-1-2-3-4; block both 2<->3 edges at round 1 -> {3,4} stranded from main {0,1,2}.
+    s = np.array([0, 1, 1, 2, 2, 3, 3, 4], np.uint32)
+    t = np.array([1, 0, 2, 1, 3, 2, 4, 3], np.uint32)
+    g = gravel.Graph.from_coo(5, s, t, np.ones(8))
+    s2, t2, _ = g.to_coo()
+    fr = np.full(8, np.nan)
+    for e in range(8):
+        if {int(s2[e]), int(t2[e])} == {2, 3}:
+            fr[e] = 1.0
+    strand = viz.disconnection_rounds(g, fr)
+    for e in range(8):
+        pair = {int(s2[e]), int(t2[e])}
+        if pair == {3, 4}:
+            assert strand[e] == 1.0        # intact but cut off
+        else:
+            assert np.isnan(strand[e])     # blocked (2-3) or still in main
 
 
 @requires_geopandas

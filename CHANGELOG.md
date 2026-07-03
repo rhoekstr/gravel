@@ -69,8 +69,18 @@ field is populated automatically; existing routing/fragility behavior and the pu
   play/slider driving both. `viz.connectivity_curve` exposes that per-stage metric
   (`1 − Σ(component_size²)/n²`, union-find). Example: `examples/python/08_asheville_flood_dashboard.py`
   (FEMA NFHL → flood order → dashboard).
+- **Three-state failure coloring.** The animated renderers (`animate_failure`, `animate_failure_html`,
+  `dashboard_html`) now distinguish **blocked** roads (directly failed — red, `FAILED_COLOR`) from
+  **stranded** roads (intact but cut off from the main network — yellow, `STRANDED_COLOR`), over the
+  still-connected network (blue, `ACTIVE_COLOR`). `viz.disconnection_rounds(graph, failure_round)`
+  computes the per-edge round at which an edge becomes stranded (union-find per stage); on by default
+  via `show_stranded=True`. This surfaces the network amplification the severed-% chart measures — a
+  handful of blocked crossings isolating a much larger dry area.
 
 ### Changed
+- **Default animation colors.** Failed/blocked edges now render **red** (was grey) and the new
+  stranded state renders **yellow** across the animated renderers (`ACTIVE_COLOR` / `FAILED_COLOR` /
+  `STRANDED_COLOR` are overridable). The static `plot_fragility` choropleth is unchanged.
 - **`SimplificationConfig.emit_geometry` defaults to `true`** — new simplified graphs carry per-edge
   geometry out of the box (a few MB per county). Internal fragility paths that discard it
   (`location_fragility`, per-county analysis, the `simplify` CLI) opt out, so the ~2 s

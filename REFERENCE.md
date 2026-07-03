@@ -3614,6 +3614,13 @@ hazard=None, hazard_zone_field=None, …)` writes a self-contained **two-panel**
 chart of **% of trips severed vs stage** — driven by one play/slider. `connectivity_curve(graph,
 failure_round)` is that metric (`1 − Σ(component_size²)/n²` by union-find per stage).
 
+**Three-state coloring (default).** The animated renderers color each edge **red** when directly
+blocked (`FAILED_COLOR`), **yellow** when intact but cut off from the main network
+(`STRANDED_COLOR`), else **blue** (`ACTIVE_COLOR`). `disconnection_rounds(graph, failure_round)`
+computes the per-edge stranded round; disable with `show_stranded=False`, or override any of the three
+colors. This makes the network amplification visible — few blocked crossings can strand a large dry
+area (which the severed-% curve already counts).
+
 ```python
 from gravel import hazards, viz
 flood = hazards.fetch_nfhl_flood_zones(bbox)              # real FEMA NFHL
