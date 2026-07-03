@@ -66,8 +66,7 @@ SimplificationResult contract_degree2(
     std::vector<MergedEdge> merged_edges;
 
     // Iterate junctions, tracing each contractible chain out to the next junction.
-    std::fill(visited.begin(), visited.end(), false);
-
+    // (`visited` is already all-false from its declaration above.)
     for (NodeID junction = 0; junction < n; ++junction) {
         if (contractible[junction]) continue;  // not a junction
 

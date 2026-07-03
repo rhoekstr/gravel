@@ -19,8 +19,12 @@ std::shared_ptr<ArrayGraph> graph_from_endpoints(
     std::vector<Coord> node_coords;
 
     auto node_for = [&](const Coord& c) -> uint32_t {
-        std::pair<int64_t, int64_t> key{static_cast<int64_t>(std::llround(c.lat * scale)),
-                                        static_cast<int64_t>(std::llround(c.lon * scale))};
+        // Round-half-to-even (banker's) to match Python's round(), which the prior pure-Python
+        // from_geodataframe used for endpoint quantization. std::llrint honors the default
+        // FE_TONEAREST rounding mode; std::llround would be half-away-from-zero and could snap an
+        // exact-half boundary to a different node than the 2.4.x release did.
+        std::pair<int64_t, int64_t> key{static_cast<int64_t>(std::llrint(c.lat * scale)),
+                                        static_cast<int64_t>(std::llrint(c.lon * scale))};
         auto it = node_ids.find(key);
         if (it != node_ids.end()) return it->second;
         auto id = static_cast<uint32_t>(node_coords.size());

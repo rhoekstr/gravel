@@ -252,8 +252,10 @@ incrementally restore edges with bounded propagation. This is counterintuitive (
 edges one at a time) but gives tight bounds and enables early termination.
 
 ### DD-2: Simplify before analyze
-Degree-2 contraction reduces 200K-node county graphs to ~14K nodes with zero loss of shortest-path
-information. All analysis runs on the simplified graph; results map back to original node IDs via
+Degree-2 contraction reduces 200K-node county graphs to ~14K nodes with zero loss of
+junction-to-junction shortest-path information (isolated degree-2 cycles/lollipops, which carry no
+such route, are dropped rather than contracted). All analysis runs on the simplified graph; results
+map back to original node IDs via
 stored mapping.
 
 ### DD-3: Sample-based scoring

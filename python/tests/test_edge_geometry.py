@@ -151,5 +151,12 @@ def test_simplify_edge_geometry_reduces_points():
     assert collapsed.points.shape[0] < before
     assert all(len(collapsed.polyline(e)) == 2 for e in range(collapsed.edge_count))
 
+    # Retention path: a tolerance below the off-chord midpoint distance (1.0 on the bent chains)
+    # keeps those bends while still dropping the one collinear midpoint — so it lands strictly
+    # between full collapse and the untouched geometry, and at least one polyline keeps its 3rd point.
+    retained = _gravel.simplify_edge_geometry(geom, 0.5)
+    assert collapsed.points.shape[0] < retained.points.shape[0] < before
+    assert any(len(retained.polyline(e)) == 3 for e in range(retained.edge_count))
+
     unchanged = _gravel.simplify_edge_geometry(geom, 0.0)
     assert unchanged.points.shape[0] == before

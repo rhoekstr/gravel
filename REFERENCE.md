@@ -872,11 +872,14 @@ Defined in `gravel/simplify/simplify.h` and `gravel/simplify/edge_labels.h`.
 
 Three composable, independently optional stages that reduce graph size:
 
-### Stage 1: Degree-2 Contraction (Lossless)
+### Stage 1: Degree-2 Contraction (lossless for junction-to-junction routes)
 
-Merges chains of degree-2 nodes into single edges. Preserves all shortest-path distances exactly.
+Merges chains of degree-2 nodes into single edges. Preserves all shortest-path distances between
+surviving junctions exactly. *Caveat:* an isolated degree-2 cycle (a ring with no junction, or a
+lollipop loop) has no anchor and is dropped rather than contracted — it carries no
+junction-to-junction route, so routing/fragility on the surviving graph is unaffected.
 **Typical reduction:** 25-35% of nodes.
-**Error:** Exactly 0%.
+**Error:** 0% on junction-to-junction routes.
 
 ### Stage 2: Edge Category Filtering
 
@@ -893,7 +896,7 @@ Removes structurally unimportant nodes based on contraction hierarchy levels. Br
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `contract_degree2` | `bool` | `true` | Enable degree-2 chain contraction (lossless). |
+| `contract_degree2` | `bool` | `true` | Enable degree-2 chain contraction (lossless for junction-to-junction routes; isolated cycles/lollipops are dropped). |
 | `edge_filter` | `function<bool(uint32_t)>` | `nullptr` | Predicate: given CSR edge index, return true to KEEP. Runs on original graph indices. |
 | `ch_level_keep_fraction` | `double` | `1.0` | Fraction of nodes to keep by CH level. 1.0 = disabled, 0.5 = top 50%, 0.3 = top 30%. |
 | `preserve_bridges` | `bool` | `true` | Never prune bridge endpoints regardless of CH level. |
@@ -1430,7 +1433,7 @@ Reduce graph size with configurable stages and degradation estimation.
 gravel simplify --graph <.gravel.meta> [options]
 
 Stages:
-    --contract-degree2          Merge degree-2 chains (lossless, default: on)
+    --contract-degree2          Merge degree-2 chains (lossless for junction routes, default: on)
     --no-degree2                Disable degree-2 contraction
     --ch <.gravel.ch>          Required for CH pruning and degradation
     --ch-keep-fraction <F>      Keep top F by CH level (e.g., 0.7 = top 70%)
@@ -2732,7 +2735,7 @@ County fragility analysis involves several expensive setup steps: subgraph extra
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
 | `boundary` | `Polygon` | (required) | Analysis polygon. Same as `CountyFragilityConfig::boundary`. |
-| `simplify` | `bool` | `true` | Apply degree-2 contraction before analysis. Reduces node count by ~70–90% with zero loss of routing accuracy. |
+| `simplify` | `bool` | `true` | Apply degree-2 contraction before analysis. Reduces node count by ~70–90% with zero loss of junction-to-junction routing accuracy (isolated cycles/lollipops, which carry no such route, are dropped). |
 
 ---
 

@@ -4,6 +4,7 @@
 #include "gravel/analysis/scenario_fragility.h"
 #include "gravel/core/graph_build.h"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
 
@@ -43,6 +44,36 @@ TEST_CASE("graph_from_endpoints snaps shared nodes", "[graph_build]") {
 
     REQUIRE(g->node_count() == 3);          // (0,0), (0,1), (0,2) — shared node merged
     REQUIRE(g->edge_count() == 4);          // 2 edges x 2 directions
+
+    // Resolve node IDs by coordinate and assert the edges connect the correct snapped nodes.
+    auto find_node = [&](double lat, double lon) -> NodeID {
+        for (NodeID n = 0; n < g->node_count(); ++n) {
+            auto c = g->node_coordinate(n);
+            if (c && c->lat == Catch::Approx(lat) && c->lon == Catch::Approx(lon)) return n;
+        }
+        FAIL("node not found for coordinate");
+        return 0;
+    };
+    NodeID a = find_node(0.0, 0.0), b = find_node(0.0, 1.0), c = find_node(0.0, 2.0);
+    REQUIRE(a != b);
+    REQUIRE(b != c);
+
+    auto off = g->raw_offsets();
+    auto tg = g->raw_targets();
+    auto neighbors = [&](NodeID u) {
+        std::vector<NodeID> out;
+        for (uint32_t e = off[u]; e < off[u + 1]; ++e) out.push_back(tg[e]);
+        return out;
+    };
+    // b is the shared midpoint: undirected, it links to both a and c.
+    auto nb = neighbors(b);
+    REQUIRE(std::find(nb.begin(), nb.end(), a) != nb.end());
+    REQUIRE(std::find(nb.begin(), nb.end(), c) != nb.end());
+    // a links only to b; c links only to b.
+    REQUIRE(neighbors(a) == std::vector<NodeID>{b});
+    REQUIRE(neighbors(c) == std::vector<NodeID>{b});
+    // Shared node carries the (0,1) coordinate.
+    REQUIRE(g->node_coordinate(b)->lon == Catch::Approx(1.0));
 
     auto directed = graph_from_endpoints(src, tgt, w, 7, /*directed=*/true);
     REQUIRE(directed->node_count() == 3);

@@ -1,4 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
+#include "gravel/core/edge_geometry.h"
 #include "gravel/simplify/simplify.h"
 
 #include <vector>
@@ -125,4 +126,36 @@ TEST_CASE("one-way degree-2 chain emits no phantom reverse edge", "[geometry][si
     REQUIRE(s.edge_count() == 5);
     for (Weight w : s.raw_weights()) REQUIRE(w > 0.0);  // no zero-weight phantom
     REQUIRE(res.edge_geometry.edge_count() == s.edge_count());  // geometry stays aligned
+}
+
+TEST_CASE("simplify_edge_geometry keeps off-chord points and drops near-chord ones",
+          "[geometry][simplify]") {
+    // Edge 0: bent 3-point polyline — midpoint (1,1) sits perpendicular distance 1.0 off the
+    // chord (0,0)->(0,2). Edge 1: an already-straight 2-point segment (must be untouched).
+    EdgeGeometry geom;
+    geom.offsets = {0, 3, 5};
+    geom.points = {{0.0, 0.0}, {1.0, 1.0}, {0.0, 2.0}, {5.0, 5.0}, {5.0, 7.0}};
+
+    SECTION("tolerance below the off-chord distance retains the bend") {
+        auto out = simplify_edge_geometry(geom, 0.5);  // 0.5 < 1.0 -> keep midpoint
+        REQUIRE(out.edge_count() == 2);
+        REQUIRE(out.points_for(0).size() == 3);  // bend retained
+        REQUIRE(out.points_for(0)[1].lat == 1.0);
+        REQUIRE(out.points_for(1).size() == 2);  // straight edge unchanged
+    }
+
+    SECTION("tolerance above the off-chord distance collapses to the endpoints") {
+        auto out = simplify_edge_geometry(geom, 2.0);  // 2.0 > 1.0 -> drop midpoint
+        REQUIRE(out.edge_count() == 2);
+        REQUIRE(out.points_for(0).size() == 2);
+        REQUIRE(out.points_for(0).front().lat == 0.0);
+        REQUIRE(out.points_for(0).back().lon == 2.0);
+        REQUIRE(out.points_for(1).size() == 2);
+    }
+
+    SECTION("tolerance <= 0 returns an unchanged copy") {
+        auto out = simplify_edge_geometry(geom, 0.0);
+        REQUIRE(out.points.size() == geom.points.size());
+        REQUIRE(out.points_for(0).size() == 3);
+    }
 }

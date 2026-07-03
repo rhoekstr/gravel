@@ -169,7 +169,8 @@ SimplificationResult simplify_graph(
 
 // --- Internal stage functions (exposed for testing) ---
 
-/// Degree-2 chain contraction. Lossless.
+/// Degree-2 chain contraction. Preserves junction-to-junction shortest paths; isolated
+/// degree-2 cycles/lollipops (no junction anchor) are dropped, not contracted (see overview above).
 /// @param bridge_endpoints      Set of node IDs that are bridge endpoints (never contracted).
 /// @param boundary_protection   Additional nodes to protect (e.g., region boundary nodes).
 ///                              The union of both sets is protected from contraction.

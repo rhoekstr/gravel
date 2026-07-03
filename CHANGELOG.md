@@ -28,10 +28,9 @@ field is populated automatically; existing routing/fragility behavior and the pu
   `EdgeGeometry` are now re-exported at the top level (`gravel.simplify_graph`, …).
 - **Animated failure playback (`gravel.viz` Tier 2).** `animate_failure(graph, progressive_result, …)`
   returns a Play/slider ipywidgets widget over a lonboard map that scrubs the progressive removal
-  order — edges removed by round *k* recede to grey while the active network stays highlighted
-  (survivors never grey). Only the color array updates per frame (data sent once via GeoArrow), so it
-  stays smooth at scale. Requires a greedy `ProgressiveFragilityResult`; notebook-interactive
-  (ipywidgets ships with lonboard).
+  order (see "Three-state failure coloring" below for the per-round encoding). Only the color array
+  updates per frame (data sent once via GeoArrow), so it stays smooth at scale. Requires a greedy
+  `ProgressiveFragilityResult`; notebook-interactive (ipywidgets ships with lonboard).
 - **Self-contained animated HTML (`gravel.viz` Tier 2).** `animate_failure_html(graph, result, path, …)`
   writes a standalone HTML file that plays/scrubs the removal sequence with deck.gl entirely
   client-side — no kernel or server. Geometry is embedded once; each frame only re-evaluates the color
@@ -83,7 +82,7 @@ field is populated automatically; existing routing/fragility behavior and the pu
   `STRANDED_COLOR` are overridable). The static `plot_fragility` choropleth is unchanged.
 - **Connectivity/disconnection moved to the C++ engine.** The severed-fraction curve and per-edge
   stranded rounds are now computed by a single C++ kernel, `network_disruption(graph, failure_round)`
-  (`gravel-analysis`, one reverse-incremental union-find). `viz.connectivity_curve` and
+  (`gravel-fragility`, `analysis/`, one reverse-incremental union-find). `viz.connectivity_curve` and
   `viz.disconnection_rounds` are now thin wrappers over it (same signatures) — milliseconds on
   county-scale graphs, keeping `viz` a thin layer over the engine.
 - **Five more hot kernels moved to the C++ engine.** Following the connectivity move, the remaining
@@ -93,9 +92,9 @@ field is populated automatically; existing routing/fragility behavior and the pu
     point-in-polygon with per-polygon bbox pre-filter, both-endpoints rule, max-wins, and per-node
     PIP caching. This was the dominant Python cost: **101,760 edges × 250 zones now in ~228 ms**
     (previously the multi-second-to-minutes hotspot on national runs).
-  - **`edge_failure_round`** (`gravel-analysis`) — maps a flat removal sequence to per-edge rounds via
-    a per-`(u, v)` queue (parallel-edge safe).
-  - **`failure_sequence_from_probabilities`** (`gravel-analysis`) — engine-side RNG (`mt19937_64`,
+  - **`edge_failure_round`** (`gravel-fragility`, `analysis/`) — maps a flat removal sequence to
+    per-edge rounds via a per-`(u, v)` queue (parallel-edge safe).
+  - **`failure_sequence_from_probabilities`** (`gravel-fragility`, `analysis/`) — engine-side RNG (`mt19937_64`,
     seeded, thread-count invariant) for the seeded stochastic realization; deterministic
     worst-exposure order otherwise.
   - **`from_geodataframe` node snapping** (`graph_from_endpoints`, `gravel-core`) — coordinate
