@@ -224,7 +224,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.4.0}
+  version = {2.5.0}
 }
 ```
 

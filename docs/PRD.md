@@ -10,7 +10,7 @@ replacement-path fragility analysis to produce composite isolation scores for ge
 supporting disaster-preparedness research, infrastructure planning, and transportation-equity
 analysis.
 
-Gravel is **published and in use** — PyPI (`gravel-fragility`), currently **2.4.0**, Apache-2.0.
+Gravel is **published and in use** — PyPI (`gravel-fragility`), currently **2.5.0**, Apache-2.0.
 (conda-forge is not a current channel; the feedstock is out of date — install via pip.) It is
 deliberately **dual-purpose**:
 
@@ -441,7 +441,7 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   nlohmann/json, pybind11, and Catch2 still `FetchContent`-clone from github at build time. Vendor or
   checksum-pin the rest so a release can never be blocked by an upstream host outage.
 - **conda-forge is stale (targets 2.2.x) — currently not a supported channel.** The README and docs no
-  longer advertise it. Either revive the feedstock and bump it to the current PyPI release (2.4.0), or
+  longer advertise it. Either revive the feedstock and bump it to the current PyPI release (2.5.0), or
   formally drop conda-forge; until then, PyPI is the only distribution.
 - ✅ **Refreshed headline performance numbers** (2026-07-01, `bench/baselines/routing_performance.md`).
   Re-benchmarked Release + OpenMP on real counties: distance matrix and `route_fragility` are ~5×
