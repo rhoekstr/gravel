@@ -87,6 +87,8 @@ add_library(gravel-core
     src/core/graph_serialization.cpp
     src/core/hilbert_order.cpp
     src/core/subgraph.cpp
+    src/core/edge_geometry.cpp
+    src/core/graph_build.cpp
     src/core/priority_queue.cpp
     src/core/four_heap.cpp
     src/core/dijkstra.cpp

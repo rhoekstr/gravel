@@ -3484,7 +3484,7 @@ reuses the shipped `edges_in_polygon`. Two layers:
 
 | Function | Input | Notes |
 |----------|-------|-------|
-| `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**. Returns `float64[edge_count]` in CSR order. |
+| `hazard_edge_probabilities(graph, zones, *, baseline=0.0)` | `zones`: iterable of `(gravel.Polygon, prob)` | geopandas-free core; any polygonal hazard. Edge gets a zone's prob when **both** endpoints are inside (matches `edges_in_polygon`); overlaps take the **max**; edges outside every zone get `baseline`. Returns `float64[edge_count]` in CSR order. **Engine-backed** (C++, per-zone bbox pre-filter + per-node PIP caching): ~228 ms for 101,760 edges × 250 zones. |
 | `flood_edge_probabilities(graph, gdf, *, zone_field="FLD_ZONE", zone_probabilities=NFHL_EVENT_CLOSURE, baseline=0.0, default_probability=None)` | FEMA NFHL `GeoDataFrame` | Reprojects to WGS84, maps flood-zone codes → prob, explodes MultiPolygons, delegates to the core. Needs `[interop]`. |
 | `fetch_nfhl_flood_zones(bbox, *, endpoint=NFHL_ENDPOINT, layer=28, timeout=60, page_size=100)` | `(min_lon, min_lat, max_lon, max_lat)` | Fetches real FEMA NFHL flood polygons (paginated ArcGIS query, stdlib HTTP) → a `FLD_ZONE` `GeoDataFrame` (EPSG:4326). Needs `[interop]`. |
 
@@ -3576,13 +3576,14 @@ m.to_html("flood_fragility.html")                    # shareable, no server
 ```
 
 `animate_failure(graph, result, *, edge_geometry=None, hazard=None, active_color=(31,119,180),
-failed_color=(180,180,180), width_min_pixels=1.5, interval_ms=400, metadata=None, crs="EPSG:4326")
-→ ipywidgets.VBox`. Play/slider **animation** of the progressive removal order: at round *k*, edges
-removed by then recede to grey while the still-active network stays `active_color` (survivors never
-grey). Only the color array updates per frame (data sent once via GeoArrow), so it stays smooth at
-scale. Requires a **greedy** `ProgressiveFragilityResult` (stochastic has no failure order — use
-`interactive_map`). Notebook-interactive; ipywidgets ships with lonboard. For a shareable file with no
-kernel, see `animate_failure_html` below.
+failed_color=(232,27,27), stranded_color=(240,190,20), show_stranded=True, width_min_pixels=1.5,
+interval_ms=400, metadata=None, crs="EPSG:4326") → ipywidgets.VBox`. Play/slider **animation** of the
+progressive removal order: at round *k*, directly-blocked edges turn `failed_color` (red), edges cut
+off from the main network turn `stranded_color` (yellow, when `show_stranded`), and the still-active
+network stays `active_color` (blue). Only the color array updates per frame (data sent once via
+GeoArrow), so it stays smooth at scale. Requires a **greedy** `ProgressiveFragilityResult` (stochastic
+has no failure order — use `interactive_map`). Notebook-interactive; ipywidgets ships with lonboard.
+For a shareable file with no kernel, see `animate_failure_html` below.
 
 ```python
 prog = gravel.progressive_fragility(g, ch, idx, cfg)  # greedy strategy
@@ -3590,13 +3591,16 @@ viz.animate_failure(g, prog)                           # display in a notebook, 
 ```
 
 `animate_failure_html(graph, result, path, *, edge_geometry=None, hazard=None,
-active_color=(31,119,180), failed_color=(180,180,180), width_min_pixels=1.5, interval_ms=400,
-deckgl_version="9", metadata=None, crs="EPSG:4326") → str`. Writes a **self-contained animated HTML**
-file — deck.gl (from a CDN) plays/scrubs the removal sequence entirely client-side, no kernel or
-server. Geometry is embedded once and each frame only re-evaluates the color accessor
+active_color=(31,119,180), failed_color=(232,27,27), stranded_color=(240,190,20), show_stranded=True,
+width_min_pixels=1.5, interval_ms=400, geometry_tolerance=0.0, deckgl_version="9", metadata=None,
+crs="EPSG:4326") → str`. Writes a **self-contained animated HTML** file — deck.gl (from a CDN)
+plays/scrubs the removal sequence entirely client-side, no kernel or server. Same three-state coloring
+as `animate_failure`. Geometry is embedded once and each frame only re-evaluates the color accessor
 (`updateTriggers` keyed to the round). Same progressive-only requirement and `edge_geometry` / `hazard`
-support. Needs only geopandas (`[interop]`). Geometry is embedded as JSON, so a county-scale network
-makes a large file — a deliberate share/export artifact, not a live analysis view.
+support. `geometry_tolerance` > 0 downscales the embedded polylines in the engine (Douglas–Peucker,
+degrees) to shrink the file — `~0.0001–0.0002` trims a county map from tens of MB to a few. Needs only
+geopandas (`[interop]`). Geometry is embedded as JSON, so a full-resolution county-scale network makes
+a large file — a deliberate share/export artifact, not a live analysis view.
 
 ```python
 viz.animate_failure_html(g, prog, "failure.html")   # open in any browser, press play
@@ -3609,7 +3613,8 @@ exposure_order=False)` turns a per-edge hazard probability (e.g. `flood_edge_pro
 deterministic exposure order. Every renderer above (`failure_geoframe`, `plot_fragility`,
 `interactive_map`, `animate_failure`, `animate_failure_html`) accepts that array wherever it accepts a
 progressive result. `dashboard_html(graph, result_or_failure_round, path, *, edge_geometry=None,
-hazard=None, hazard_zone_field=None, …)` writes a self-contained **two-panel** file — a deck.gl map
+hazard=None, hazard_zone_field=None, geometry_tolerance=0.0, …)` (same `geometry_tolerance` downscale
+knob as `animate_failure_html`) writes a self-contained **two-panel** file — a deck.gl map
 (optionally a severity-colored hazard base layer via `hazard_zone_field="FLD_ZONE"`) above a synced
 chart of **% of trips severed vs stage** — driven by one play/slider. `connectivity_curve(graph,
 failure_round)` is that metric (`1 − Σ(component_size²)/n²` by union-find per stage).

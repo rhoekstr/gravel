@@ -94,4 +94,14 @@ std::vector<std::pair<NodeID, NodeID>> edges_in_polygon(
     const ArrayGraph& graph,
     const Polygon& polygon);
 
+/// Per-edge failure probability (CSR edge order) from `(polygon, probability)` hazard zones. An
+/// edge takes a zone's probability when BOTH endpoints fall inside it; where zones overlap the
+/// maximum wins; edges in no zone get `baseline`. Each polygon is bbox-pre-filtered and per-node
+/// point-in-polygon results are cached, so this is far faster than one `edges_in_polygon` call per
+/// zone. Feed the result to `stochastic_fragility` as `edge_probabilities`.
+std::vector<double> hazard_edge_probabilities(
+    const ArrayGraph& graph,
+    const std::vector<std::pair<Polygon, double>>& zones,
+    double baseline = 0.0);
+
 }  // namespace gravel

@@ -60,7 +60,8 @@ from urllib.request import Request, urlopen
 
 import numpy as np
 
-from ._gravel import Coord, Polygon, edges_in_polygon
+from . import _gravel
+from ._gravel import Coord, Polygon
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import geopandas as gpd
@@ -222,15 +223,6 @@ def fetch_nfhl_flood_zones(
     return gpd.GeoDataFrame(pd.concat(frames, ignore_index=True), crs="EPSG:4326")
 
 
-def _edge_index_map(graph: Graph) -> tuple[dict[tuple[int, int], int], int]:
-    """Map each directed CSR edge ``(u, v)`` to its edge index; also return m."""
-    sources, targets, _ = graph.to_coo()
-    edge_index = {
-        (int(u), int(v)): e for e, (u, v) in enumerate(zip(sources, targets, strict=True))
-    }
-    return edge_index, int(targets.shape[0])
-
-
 def hazard_edge_probabilities(
     graph: Graph,
     zones: Iterable[tuple[Polygon, float]],
@@ -258,17 +250,14 @@ def hazard_edge_probabilities(
     numpy.ndarray
         Shape ``(graph.edge_count,)``, dtype ``float64``, in CSR edge order. Feed
         directly to :func:`gravel.stochastic_fragility` as ``edge_probabilities``.
+
+    Delegates to the C++ engine, which bbox-pre-filters each polygon and caches per-node
+    point-in-polygon results — far faster than one ``edges_in_polygon`` call per zone.
     """
-    edge_index, m = _edge_index_map(graph)
-    probs = np.full(m, float(baseline), dtype=np.float64)
-    # Apply zones from lowest to highest probability so the max effectively wins.
-    for polygon, prob in sorted(zones, key=lambda z: float(z[1])):
-        prob = float(prob)
-        for u, v in edges_in_polygon(graph, polygon):
-            e = edge_index.get((int(u), int(v)))
-            if e is not None and prob > probs[e]:
-                probs[e] = prob
-    return probs
+    return np.asarray(
+        _gravel.hazard_edge_probabilities(graph, list(zones), float(baseline)),
+        dtype=np.float64,
+    )
 
 
 def _rings_from_geometry(geom) -> Iterable[Polygon]:

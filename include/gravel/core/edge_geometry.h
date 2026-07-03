@@ -49,4 +49,9 @@ struct EdgeGeometry {
     }
 };
 
+/// Downscale per-edge geometry with Douglas-Peucker (per polyline; endpoints always kept), for
+/// smaller visualization payloads. `tolerance` is in coordinate units (degrees); `<= 0` returns a
+/// copy unchanged. CSR-aligned to the same edges. Straight (2-point) edges are unaffected.
+EdgeGeometry simplify_edge_geometry(const EdgeGeometry& geometry, double tolerance);
+
 }  // namespace gravel

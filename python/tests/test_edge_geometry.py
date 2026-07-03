@@ -135,3 +135,21 @@ def test_ch_pruning_clears_geometry():
     assert not gravel.simplify_graph(g, None, None, cfg).edge_geometry.empty
     cfg.ch_level_keep_fraction = 0.5
     assert gravel.simplify_graph(g, ch, idx, cfg).edge_geometry.empty
+
+
+def test_simplify_edge_geometry_reduces_points():
+    # Theta graph -> 3-point bent merged edges; Douglas-Peucker with a large tolerance drops the
+    # off-chord midpoints down to straight 2-point edges; tolerance 0 leaves it unchanged.
+    from gravel import _gravel
+
+    res = _simplify(_theta_graph(), emit_geometry=True)
+    geom = res.edge_geometry
+    before = geom.points.shape[0]
+
+    collapsed = _gravel.simplify_edge_geometry(geom, 5.0)
+    assert collapsed.edge_count == geom.edge_count
+    assert collapsed.points.shape[0] < before
+    assert all(len(collapsed.polyline(e)) == 2 for e in range(collapsed.edge_count))
+
+    unchanged = _gravel.simplify_edge_geometry(geom, 0.0)
+    assert unchanged.points.shape[0] == before

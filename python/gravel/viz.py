@@ -41,11 +41,8 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from ._gravel import (
-    ProgressiveFragilityResult,
-    StochasticFragilityResult,
-    network_disruption,
-)
+from . import _gravel
+from ._gravel import ProgressiveFragilityResult, StochasticFragilityResult
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import geopandas as gpd
@@ -73,23 +70,11 @@ def edge_failure_round(graph: Graph, result: ProgressiveFragilityResult) -> np.n
     so counts and lengths stay aligned to ``edge_count``.
 
     The removal sequence is only populated for greedy strategies; for a Monte-Carlo
-    progressive run it is empty and every edge comes back ``NaN``.
+    progressive run it is empty and every edge comes back ``NaN``. Delegates to the C++ engine.
     """
-    from collections import defaultdict, deque
-
-    sources, targets, _ = graph.to_coo()
-    edge_count = len(sources)
-    # (u, v) -> queue of edge indices, so parallel edges each get their own round.
-    buckets: dict[tuple[int, int], deque] = defaultdict(deque)
-    for e, (u, v) in enumerate(zip(sources, targets, strict=True)):
-        buckets[(int(u), int(v))].append(e)
-
-    rounds = np.full(edge_count, np.nan, dtype=np.float64)
-    for step, (u, v) in enumerate(result.removal_sequence, start=1):
-        q = buckets.get((int(u), int(v)))
-        if q:
-            rounds[q.popleft()] = float(step)
-    return rounds
+    return np.asarray(
+        _gravel.edge_failure_round(graph, result.removal_sequence), dtype=np.float64
+    )
 
 
 def edge_failure_frequency(result: StochasticFragilityResult) -> np.ndarray:
@@ -142,23 +127,16 @@ def failure_sequence_from_probabilities(
         ``float64`` ``failure_round`` (CSR order); ``NaN`` where an edge is never removed.
     """
     probs = np.asarray(edge_probabilities, dtype=np.float64)
-    m = probs.shape[0]
-    if exposure_order:
-        candidates = [e for e in range(m) if probs[e] > 0.0]
-    else:
-        draws = np.random.default_rng(seed).random(m)
-        candidates = [e for e in range(m) if probs[e] > 0.0 and draws[e] < probs[e]]
-    candidates.sort(key=lambda e: (-probs[e], e))  # worst-exposure first
-    if limit is not None:
-        candidates = candidates[: int(limit)]
-
-    rounds = np.full(m, np.nan, dtype=np.float64)
-    n = len(candidates)
-    if n:
-        nstages = int(stages) if stages else n
-        for rank, e in enumerate(candidates):
-            rounds[e] = 1 + (rank * nstages) // n if stages else rank + 1
-    return rounds
+    return np.asarray(
+        _gravel.failure_sequence_from_probabilities(
+            probs,
+            -1 if limit is None else int(limit),
+            0 if stages is None else int(stages),
+            0 if seed is None else int(seed),
+            bool(exposure_order),
+        ),
+        dtype=np.float64,
+    )
 
 
 def connectivity_curve(graph: Graph, failure_round: np.ndarray) -> list[float]:
@@ -174,7 +152,7 @@ def connectivity_curve(graph: Graph, failure_round: np.ndarray) -> list[float]:
     :func:`edge_failure_round` or :func:`failure_sequence_from_probabilities`.
     """
     fr = np.asarray(failure_round, dtype=np.float64)
-    return list(network_disruption(graph, fr).severed_fraction)
+    return list(_gravel.network_disruption(graph, fr).severed_fraction)
 
 
 def disconnection_rounds(graph: Graph, failure_round: np.ndarray) -> np.ndarray:
@@ -190,7 +168,7 @@ def disconnection_rounds(graph: Graph, failure_round: np.ndarray) -> np.ndarray:
     color stranded roads distinctly (:data:`STRANDED_COLOR`).
     """
     fr = np.asarray(failure_round, dtype=np.float64)
-    return np.asarray(network_disruption(graph, fr).stranded_round, dtype=np.float64)
+    return np.asarray(_gravel.network_disruption(graph, fr).stranded_round, dtype=np.float64)
 
 
 def _failure_column(graph: Graph, result: Any) -> tuple[str, np.ndarray]:
@@ -631,6 +609,7 @@ def animate_failure_html(
     show_stranded: bool = True,
     width_min_pixels: float = 1.5,
     interval_ms: int = 400,
+    geometry_tolerance: float = 0.0,
     deckgl_version: str = "9",
     metadata: Any | None = None,
     crs: str = "EPSG:4326",
@@ -674,6 +653,8 @@ def animate_failure_html(
             "stochastic result has no order — use interactive_map for its static P(fail) map."
         )
 
+    if edge_geometry is not None and geometry_tolerance > 0.0:
+        edge_geometry = _gravel.simplify_edge_geometry(edge_geometry, geometry_tolerance)
     gdf = failure_geoframe(
         graph, result, metadata=metadata, edge_geometry=edge_geometry, crs=crs
     )
@@ -842,6 +823,7 @@ def dashboard_html(
     show_stranded: bool = True,
     width_min_pixels: float = 1.6,
     interval_ms: int = 350,
+    geometry_tolerance: float = 0.0,
     deckgl_version: str = "9",
     metadata: Any | None = None,
     crs: str = "EPSG:4326",
@@ -880,6 +862,8 @@ def dashboard_html(
     curve = connectivity_curve(graph, failure_round)
     max_round = len(curve) - 1
 
+    if edge_geometry is not None and geometry_tolerance > 0.0:
+        edge_geometry = _gravel.simplify_edge_geometry(edge_geometry, geometry_tolerance)
     gdf = failure_geoframe(
         graph, failure_round, metadata=metadata, edge_geometry=edge_geometry, crs=crs
     )

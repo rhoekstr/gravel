@@ -4,6 +4,8 @@
 
 #include "gravel/core/array_graph.h"
 
+#include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace gravel {
@@ -34,5 +36,21 @@ struct NetworkDisruption {
 /// (`connectivity_curve`, `disconnection_rounds`) to color and chart fragility animations.
 NetworkDisruption network_disruption(const ArrayGraph& graph,
                                      const std::vector<double>& failure_round);
+
+/// Per-edge removal stage from a greedy progressive `removal_sequence` (CSR edge order): the 1-based
+/// step at which each edge is removed, or NaN if it survived. Parallel edges sharing an `(u, v)` each
+/// consume the next removal of that pair, so lengths stay aligned to the edge count.
+std::vector<double> edge_failure_round(
+    const ArrayGraph& graph,
+    const std::vector<std::pair<NodeID, NodeID>>& removal_sequence);
+
+/// Build a per-edge `failure_round` (CSR order; NaN = never removed) from per-edge failure
+/// probabilities. When `exposure_order` is false this is one seeded stochastic realization (each
+/// edge fails with its own probability); otherwise every positive-probability edge is ordered by
+/// probability. Removed edges are ordered worst-exposure first; `limit < 0` = no cap; `stages <= 0`
+/// = one round per removed edge, else the order is bucketed into `stages` rounds.
+std::vector<double> failure_sequence_from_probabilities(
+    const std::vector<double>& edge_probabilities,
+    int limit, int stages, std::uint64_t seed, bool exposure_order);
 
 }  // namespace gravel

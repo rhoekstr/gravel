@@ -86,6 +86,23 @@ field is populated automatically; existing routing/fragility behavior and the pu
   (`gravel-analysis`, one reverse-incremental union-find). `viz.connectivity_curve` and
   `viz.disconnection_rounds` are now thin wrappers over it (same signatures) — milliseconds on
   county-scale graphs, keeping `viz` a thin layer over the engine.
+- **Five more hot kernels moved to the C++ engine.** Following the connectivity move, the remaining
+  Python analysis hotspots now compute in C++, with the Python names kept as thin wrappers (identical
+  signatures, ABI unchanged):
+  - **`hazard_edge_probabilities`** (`gravel-fragility`, `scenario_fragility.h`) — multi-zone
+    point-in-polygon with per-polygon bbox pre-filter, both-endpoints rule, max-wins, and per-node
+    PIP caching. This was the dominant Python cost: **101,760 edges × 250 zones now in ~228 ms**
+    (previously the multi-second-to-minutes hotspot on national runs).
+  - **`edge_failure_round`** (`gravel-analysis`) — maps a flat removal sequence to per-edge rounds via
+    a per-`(u, v)` queue (parallel-edge safe).
+  - **`failure_sequence_from_probabilities`** (`gravel-analysis`) — engine-side RNG (`mt19937_64`,
+    seeded, thread-count invariant) for the seeded stochastic realization; deterministic
+    worst-exposure order otherwise.
+  - **`from_geodataframe` node snapping** (`graph_from_endpoints`, `gravel-core`) — coordinate
+    quantization + node dedup in C++; `interop` extracts endpoints (shapely) then hands off.
+  - **`simplify_edge_geometry`** (`gravel-core`, Douglas–Peucker in degree space) — downscales
+    per-edge polylines natively. The animated renderers expose it as a `geometry_tolerance=` parameter
+    (0 = full resolution), so map granularity is a render-time knob instead of a viz pre-pass.
 - **`SimplificationConfig.emit_geometry` defaults to `true`** — new simplified graphs carry per-edge
   geometry out of the box (a few MB per county). Internal fragility paths that discard it
   (`location_fragility`, per-county analysis, the `simplify` CLI) opt out, so the ~2 s

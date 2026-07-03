@@ -41,17 +41,17 @@ Modules map onto the six linkable libraries above:
 
 | Path | What |
 |---|---|
-| `core/` | graph representation (structure-of-arrays), basic routing, OpenMP, optional per-edge polyline geometry (`edge_geometry.h`) |
+| `core/` | graph representation (structure-of-arrays), basic routing, OpenMP, optional per-edge polyline geometry (`edge_geometry.h` + `simplify_edge_geometry` Douglas–Peucker), endpoint→CSR node snapping (`graph_build.h`) |
 | `ch/` | contraction hierarchy + blocked queries |
 | `simplify/` | graph simplification, bridges, degree-2 collapse |
 | `fragility/` | all fragility analysis (route / location / county / scenario / progressive / tiled); Eigen + Spectra |
 | `geo/` | OSM loading (libosmium), regions, snapping, point-in-polygon |
 | `us/` | US TIGER/Census specializations |
-| `algo/ · analysis/ · io/ · snap/ · validation/` | shared algorithms, analysis orchestration (incl. `network_disruption` — connectivity curve + stranded edges for viz), I/O (incl. optional Arrow/Parquet), snapping, input validation |
+| `algo/ · analysis/ · io/ · snap/ · validation/` | shared algorithms, analysis orchestration (incl. `network_disruption` — connectivity curve + stranded edges for viz — plus `edge_failure_round` and seeded `failure_sequence_from_probabilities`), I/O (incl. optional Arrow/Parquet), snapping, input validation |
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |
-| `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra) |
-| `python/gravel/hazards.py` | hazard footprints → per-edge failure probabilities; FEMA NFHL fetch (`fetch_nfhl_flood_zones`, `GRAVEL_NFHL_ENDPOINT`) → `flood_edge_probabilities` → `stochastic_fragility` |
+| `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra); `from_geodataframe` snaps nodes via the C++ `graph_from_endpoints` |
+| `python/gravel/hazards.py` | hazard footprints → per-edge failure probabilities (`hazard_edge_probabilities` is a thin wrapper over the C++ multi-zone PIP kernel); FEMA NFHL fetch (`fetch_nfhl_flood_zones`, `GRAVEL_NFHL_ENDPOINT`) → `flood_edge_probabilities` → `stochastic_fragility` |
 | `python/gravel/viz.py` | fragility results → plot-ready traces + renderers: static (`plot_fragility`), interactive (`interactive_map`), animated (`animate_failure`/`animate_failure_html`), 2-panel `dashboard_html`; hazard-ordered `failure_sequence_from_probabilities`, `connectivity_curve`; `gravel[viz]` extra |
 | `cli/cmd_*.cpp` | command-line tools (`build_graph`, `build_ch`, `batch_fragility`, …) |
 | `tests/test_*.cpp` | Catch2 unit tests (+ `python/tests/` pytest) |

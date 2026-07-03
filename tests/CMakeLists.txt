@@ -53,6 +53,7 @@ add_executable(gravel_tests
     test_cascade_fragility.cpp
     test_edge_geometry.cpp
     test_network_disruption.cpp
+    test_engine_kernels.cpp
 )
 
 if(GRAVEL_OSMIUM_ENABLED)

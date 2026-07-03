@@ -1,6 +1,8 @@
 #include "gravel/analysis/scenario_fragility.h"
 #include "gravel/simplify/bridges.h"
 #include "gravel/core/geo_math.h"
+#include <algorithm>
+#include <limits>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -85,6 +87,55 @@ ScenarioResult scenario_fragility(
     }
 
     return result;
+}
+
+std::vector<double> hazard_edge_probabilities(
+    const ArrayGraph& graph,
+    const std::vector<std::pair<Polygon, double>>& zones,
+    double baseline) {
+    const uint32_t n = graph.node_count();
+    const auto& offsets = graph.raw_offsets();
+    const auto& targets = graph.raw_targets();
+    const uint32_t m = static_cast<uint32_t>(targets.size());
+    std::vector<double> probs(m, baseline);
+
+    // Per-edge source (implicit from the CSR offset array).
+    std::vector<uint32_t> src(m);
+    for (uint32_t u = 0; u < n; ++u) {
+        for (uint32_t e = offsets[u]; e < offsets[u + 1]; ++e) src[e] = u;
+    }
+
+    std::vector<char> tested(n, 0);
+    std::vector<char> inside(n, 0);
+    for (const auto& [polygon, prob] : zones) {
+        if (polygon.vertices.empty()) continue;
+        double min_lat = std::numeric_limits<double>::infinity();
+        double max_lat = -std::numeric_limits<double>::infinity();
+        double min_lon = std::numeric_limits<double>::infinity();
+        double max_lon = -std::numeric_limits<double>::infinity();
+        for (const Coord& v : polygon.vertices) {
+            min_lat = std::min(min_lat, v.lat);
+            max_lat = std::max(max_lat, v.lat);
+            min_lon = std::min(min_lon, v.lon);
+            max_lon = std::max(max_lon, v.lon);
+        }
+        std::fill(tested.begin(), tested.end(), 0);
+        auto node_inside = [&](uint32_t node) -> bool {
+            if (tested[node]) return inside[node] != 0;
+            tested[node] = 1;
+            auto c = graph.node_coordinate(node);
+            bool r = c && c->lat >= min_lat && c->lat <= max_lat && c->lon >= min_lon &&
+                     c->lon <= max_lon && point_in_polygon(*c, polygon.vertices);
+            inside[node] = r ? 1 : 0;
+            return r;
+        };
+        for (uint32_t e = 0; e < m; ++e) {
+            if (prob > probs[e] && node_inside(src[e]) && node_inside(targets[e])) {
+                probs[e] = prob;
+            }
+        }
+    }
+    return probs;
 }
 
 }  // namespace gravel
