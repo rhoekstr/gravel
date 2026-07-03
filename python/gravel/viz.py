@@ -41,7 +41,11 @@ from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
-from ._gravel import ProgressiveFragilityResult, StochasticFragilityResult
+from ._gravel import (
+    ProgressiveFragilityResult,
+    StochasticFragilityResult,
+    network_disruption,
+)
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     import geopandas as gpd
@@ -170,147 +174,23 @@ def connectivity_curve(graph: Graph, failure_round: np.ndarray) -> list[float]:
     :func:`edge_failure_round` or :func:`failure_sequence_from_probabilities`.
     """
     fr = np.asarray(failure_round, dtype=np.float64)
-    sources, targets, _ = graph.to_coo()
-    n = int(graph.node_count)
-    finite = fr[~np.isnan(fr)]
-    max_round = int(finite.max()) if finite.size else 0
-
-    parent = list(range(n))
-    size = [1] * n
-
-    def find(a: int) -> int:
-        while parent[a] != a:
-            parent[a] = parent[parent[a]]
-            a = parent[a]
-        return a
-
-    def union(a: int, b: int) -> None:
-        ra, rb = find(a), find(b)
-        if ra == rb:
-            return
-        if size[ra] < size[rb]:
-            ra, rb = rb, ra
-        parent[rb] = ra
-        size[ra] += size[rb]
-
-    # Edges never removed are present at every stage; bucket the rest by round.
-    by_round: dict[int, list[int]] = {}
-    for e in range(len(sources)):
-        r = fr[e]
-        if np.isnan(r):
-            union(int(sources[e]), int(targets[e]))
-        else:
-            by_round.setdefault(int(r), []).append(e)
-
-    def severed_fraction() -> float:
-        total, seen = 0, set()
-        for v in range(n):
-            root = find(v)
-            if root not in seen:
-                seen.add(root)
-                total += size[root] * size[root]
-        return 1.0 - total / (n * n) if n else 0.0
-
-    # Walk stages high->low, adding edges back (incremental union): at stage k the edges
-    # with round == k+1 are present again.
-    curve = [0.0] * (max_round + 1)
-    curve[max_round] = severed_fraction()
-    for k in range(max_round - 1, -1, -1):
-        for e in by_round.get(k + 1, ()):
-            union(int(sources[e]), int(targets[e]))
-        curve[k] = severed_fraction()
-    return curve
+    return list(network_disruption(graph, fr).severed_fraction)
 
 
 def disconnection_rounds(graph: Graph, failure_round: np.ndarray) -> np.ndarray:
-    """Per-edge round at which an intact edge becomes *stranded* — cut off from the main network.
+    """Per-edge round at which an intact edge becomes *stranded* — cut off from the network hub.
 
     As edges fail in ``failure_round`` order, some roads that are not themselves blocked lose all
-    routes to the rest of the city (their only access floods). This returns, per edge (CSR order),
-    the first stage ``k`` at which the edge is **still present** (``failure_round`` is ``NaN`` or
-    ``> k``) but its connected component is no longer the largest one — ``NaN`` if it never strands
-    (or is itself removed first). Only edges that started in the main component can strand, so a
-    network that was already disconnected is not mislabeled.
+    routes to the rest of the city. Returns, per edge (CSR order), the first stage at which the edge
+    is still present but cut off from the network **hub** (the most-connected node) — ``NaN`` if it
+    never strands (or is itself removed first). Only roads originally reachable from the hub can
+    strand, so an already-fragmented network is not mislabeled.
 
-    "Cut off" means separated from the network **hub** (the most-connected node, which sits in the
-    main component); only roads originally reachable from it can strand, so an already-fragmented
-    graph is not mislabeled. Computed by a reverse-incremental union-find (adding edges back in
-    decreasing round), ``O(edges · α + stages · nodes)`` — fast enough to run by default.
+    Delegates to the C++ engine (:func:`gravel.network_disruption`); the animated renderers use it to
+    color stranded roads distinctly (:data:`STRANDED_COLOR`).
     """
     fr = np.asarray(failure_round, dtype=np.float64)
-    sources, targets, _ = graph.to_coo()
-    src = sources.astype(np.int64)
-    tgt = targets.astype(np.int64)
-    m = len(src)
-    n = int(graph.node_count)
-    strand = np.full(m, np.nan, dtype=np.float64)
-    finite = fr[~np.isnan(fr)]
-    max_round = int(finite.max()) if finite.size else 0
-    if max_round == 0 or n == 0:
-        return strand
-
-    def find(parent, a):
-        root = a
-        while parent[root] != root:
-            root = parent[root]
-        while parent[a] != root:
-            parent[a], a = root, parent[a]
-        return root
-
-    def union(parent, size, anchor, a, b):
-        ra, rb = find(parent, a), find(parent, b)
-        if ra == rb:
-            return
-        if size[ra] < size[rb]:
-            ra, rb = rb, ra
-        parent[rb] = ra
-        size[ra] += size[rb]
-        anchor[ra] = anchor[ra] or anchor[rb]
-
-    # 1. Anchor = the most-connected node (the hub, deep in the main network); "stranded" means cut
-    #    off from it. Restrict to nodes originally connected to the anchor so pre-existing islands
-    #    are not mislabeled.
-    parent = list(range(n))
-    size = [1] * n
-    dummy = [False] * n
-    for e in range(m):
-        union(parent, size, dummy, int(src[e]), int(tgt[e]))
-    roots = np.fromiter((find(parent, v) for v in range(n)), dtype=np.int64, count=n)
-    degree = np.bincount(src, minlength=n) + np.bincount(tgt, minlength=n)
-    anchor_node = int(degree.argmax())
-    in_main = roots == roots[anchor_node]  # nodes originally reachable from the hub
-
-    # 2. Reverse pass: start at the most-removed stage (only never-removed edges present) and add
-    #    edges back in decreasing round. Record, per node in the main network, the smallest stage
-    #    at which it is not connected to the anchor.
-    parent = list(range(n))
-    size = [1] * n
-    anchor = [False] * n
-    anchor[anchor_node] = True
-    by_round: dict[int, list[int]] = {}
-    for e in range(m):
-        if np.isnan(fr[e]):
-            union(parent, size, anchor, int(src[e]), int(tgt[e]))
-        else:
-            by_round.setdefault(int(fr[e]), []).append(e)
-
-    node_strand = np.full(n, np.nan, dtype=np.float64)
-    main_nodes = np.nonzero(in_main)[0]
-    for k in range(max_round, 0, -1):
-        for v in main_nodes:
-            if not anchor[find(parent, int(v))]:
-                node_strand[v] = k  # decreasing k => final write is the smallest stranded stage
-        for e in by_round.get(k, ()):
-            union(parent, size, anchor, int(src[e]), int(tgt[e]))
-
-    # 3. An intact edge is stranded when its (shared) component detaches from the anchor — the round
-    #    its endpoints strand, provided the edge is still present then.
-    for e in range(m):
-        su, sv = node_strand[int(src[e])], node_strand[int(tgt[e])]
-        cand = su if np.isnan(sv) else (sv if np.isnan(su) else min(su, sv))
-        if not np.isnan(cand) and (np.isnan(fr[e]) or fr[e] > cand):
-            strand[e] = cand
-    return strand
+    return np.asarray(network_disruption(graph, fr).stranded_round, dtype=np.float64)
 
 
 def _failure_column(graph: Graph, result: Any) -> tuple[str, np.ndarray]:

@@ -155,6 +155,7 @@ add_library(gravel-fragility
     src/analysis/progressive_fragility.cpp
     src/analysis/progressive_fragility_mc.cpp
     src/analysis/progressive_fragility_greedy.cpp
+    src/analysis/network_disruption.cpp
     src/analysis/analysis_context.cpp
     src/fragility/inter_region_fragility.cpp
     src/validation/synthetic_graphs.cpp

@@ -22,6 +22,7 @@
 #include "gravel/core/subgraph.h"
 #include "gravel/analysis/algebraic_connectivity.h"
 #include "gravel/analysis/betweenness.h"
+#include "gravel/analysis/network_disruption.h"
 #include "gravel/analysis/kirchhoff.h"
 #include "gravel/analysis/natural_connectivity.h"
 #include "gravel/analysis/county_fragility.h"
@@ -505,6 +506,23 @@ PYBIND11_MODULE(_gravel, m) {
           py::arg("graph"), py::arg("config") = BetweennessConfig{},
           "Compute edge betweenness centrality via Brandes' algorithm",
           py::call_guard<py::gil_scoped_release>());
+
+    py::class_<NetworkDisruption>(m, "NetworkDisruption")
+        .def_readonly("severed_fraction", &NetworkDisruption::severed_fraction)
+        .def_property_readonly("stranded_round", [](const NetworkDisruption& d) {
+            return py::array_t<double>(static_cast<py::ssize_t>(d.stranded_round.size()),
+                                       d.stranded_round.data());
+        });
+    m.def("network_disruption",
+          [](const ArrayGraph& graph, py::array_t<double, py::array::c_style | py::array::forcecast>
+                 failure_round) {
+              std::vector<double> fr(failure_round.data(),
+                                     failure_round.data() + failure_round.size());
+              return network_disruption(graph, fr);
+          },
+          py::arg("graph"), py::arg("failure_round"),
+          "Per-stage connectivity-loss curve + per-edge stranded round from a per-edge "
+          "failure_round array (CSR order; NaN = never removed).");
 
     m.def("capacity_weighted_importance", &capacity_weighted_importance,
           py::arg("betweenness"), py::arg("capacity"),

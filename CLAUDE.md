@@ -47,7 +47,7 @@ Modules map onto the six linkable libraries above:
 | `fragility/` | all fragility analysis (route / location / county / scenario / progressive / tiled); Eigen + Spectra |
 | `geo/` | OSM loading (libosmium), regions, snapping, point-in-polygon |
 | `us/` | US TIGER/Census specializations |
-| `algo/ · analysis/ · io/ · snap/ · validation/` | shared algorithms, analysis orchestration, I/O (incl. optional Arrow/Parquet), snapping, input validation |
+| `algo/ · analysis/ · io/ · snap/ · validation/` | shared algorithms, analysis orchestration (incl. `network_disruption` — connectivity curve + stranded edges for viz), I/O (incl. optional Arrow/Parquet), snapping, input validation |
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |
 | `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra) |

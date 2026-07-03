@@ -81,6 +81,11 @@ field is populated automatically; existing routing/fragility behavior and the pu
 - **Default animation colors.** Failed/blocked edges now render **red** (was grey) and the new
   stranded state renders **yellow** across the animated renderers (`ACTIVE_COLOR` / `FAILED_COLOR` /
   `STRANDED_COLOR` are overridable). The static `plot_fragility` choropleth is unchanged.
+- **Connectivity/disconnection moved to the C++ engine.** The severed-fraction curve and per-edge
+  stranded rounds are now computed by a single C++ kernel, `network_disruption(graph, failure_round)`
+  (`gravel-analysis`, one reverse-incremental union-find). `viz.connectivity_curve` and
+  `viz.disconnection_rounds` are now thin wrappers over it (same signatures) — milliseconds on
+  county-scale graphs, keeping `viz` a thin layer over the engine.
 - **`SimplificationConfig.emit_geometry` defaults to `true`** — new simplified graphs carry per-edge
   geometry out of the box (a few MB per county). Internal fragility paths that discard it
   (`location_fragility`, per-county analysis, the `simplify` CLI) opt out, so the ~2 s
