@@ -89,15 +89,148 @@ def edge_failure_frequency(result: StochasticFragilityResult) -> np.ndarray:
     return np.asarray(result.edge_failure_frequency, dtype=np.float64)
 
 
+def failure_sequence_from_probabilities(
+    edge_probabilities,
+    *,
+    limit: int | None = None,
+    stages: int | None = None,
+    seed: int | None = 0,
+    exposure_order: bool = False,
+) -> np.ndarray:
+    """Build a per-edge ``failure_round`` from per-edge failure probabilities (CSR order).
+
+    Turns a hazard probability array (e.g. from :func:`gravel.hazards.flood_edge_probabilities`)
+    into an animatable removal order — so a flood/hazard scenario can drive
+    :func:`animate_failure_html`, :func:`animate_failure`, or :func:`dashboard_html`.
+
+    By default this is **one stochastic realization**: each edge fails with its own
+    probability (RNG seeded by ``seed``), and the failed edges are ordered worst-exposure
+    first ("as the flood rises, the most-exposed roads close first"). Set
+    ``exposure_order=True`` for the deterministic variant (order every positive-probability
+    edge by probability, ignoring the draw).
+
+    Parameters
+    ----------
+    edge_probabilities : array-like
+        Per-edge failure probability in CSR edge order (length ``edge_count``).
+    limit : int, optional
+        Cap the number of edges removed (keep the highest-exposure ``limit``).
+    stages : int, optional
+        Bucket the order into this many rounds (a watchable animation); default one round
+        per removed edge.
+    seed : int or None, optional
+        RNG seed for the stochastic draw (default ``0`` for reproducibility). Ignored when
+        ``exposure_order=True``.
+    exposure_order : bool, optional
+        Deterministic worst-exposure ordering instead of a stochastic realization.
+
+    Returns
+    -------
+    numpy.ndarray
+        ``float64`` ``failure_round`` (CSR order); ``NaN`` where an edge is never removed.
+    """
+    probs = np.asarray(edge_probabilities, dtype=np.float64)
+    m = probs.shape[0]
+    if exposure_order:
+        candidates = [e for e in range(m) if probs[e] > 0.0]
+    else:
+        draws = np.random.default_rng(seed).random(m)
+        candidates = [e for e in range(m) if probs[e] > 0.0 and draws[e] < probs[e]]
+    candidates.sort(key=lambda e: (-probs[e], e))  # worst-exposure first
+    if limit is not None:
+        candidates = candidates[: int(limit)]
+
+    rounds = np.full(m, np.nan, dtype=np.float64)
+    n = len(candidates)
+    if n:
+        nstages = int(stages) if stages else n
+        for rank, e in enumerate(candidates):
+            rounds[e] = 1 + (rank * nstages) // n if stages else rank + 1
+    return rounds
+
+
+def connectivity_curve(graph: Graph, failure_round: np.ndarray) -> list[float]:
+    """Fraction of node pairs disconnected at each removal stage (the dashboard metric).
+
+    For each stage ``k`` (0 = nothing removed), removes every edge whose ``failure_round``
+    is ``<= k`` and reports **the share of ordered node pairs that can no longer reach each
+    other** — ``1 - Σ(component_size²) / n²`` — computed by union-find over the surviving
+    edges. Returns a list of length ``max_round + 1`` (``curve[k]`` for stage ``k``); it is
+    non-decreasing in ``k`` since removals only sever.
+
+    ``failure_round`` is CSR-aligned (``NaN`` = never removed), e.g. from
+    :func:`edge_failure_round` or :func:`failure_sequence_from_probabilities`.
+    """
+    fr = np.asarray(failure_round, dtype=np.float64)
+    sources, targets, _ = graph.to_coo()
+    n = int(graph.node_count)
+    finite = fr[~np.isnan(fr)]
+    max_round = int(finite.max()) if finite.size else 0
+
+    parent = list(range(n))
+    size = [1] * n
+
+    def find(a: int) -> int:
+        while parent[a] != a:
+            parent[a] = parent[parent[a]]
+            a = parent[a]
+        return a
+
+    def union(a: int, b: int) -> None:
+        ra, rb = find(a), find(b)
+        if ra == rb:
+            return
+        if size[ra] < size[rb]:
+            ra, rb = rb, ra
+        parent[rb] = ra
+        size[ra] += size[rb]
+
+    # Edges never removed are present at every stage; bucket the rest by round.
+    by_round: dict[int, list[int]] = {}
+    for e in range(len(sources)):
+        r = fr[e]
+        if np.isnan(r):
+            union(int(sources[e]), int(targets[e]))
+        else:
+            by_round.setdefault(int(r), []).append(e)
+
+    def severed_fraction() -> float:
+        total, seen = 0, set()
+        for v in range(n):
+            root = find(v)
+            if root not in seen:
+                seen.add(root)
+                total += size[root] * size[root]
+        return 1.0 - total / (n * n) if n else 0.0
+
+    # Walk stages high->low, adding edges back (incremental union): at stage k the edges
+    # with round == k+1 are present again.
+    curve = [0.0] * (max_round + 1)
+    curve[max_round] = severed_fraction()
+    for k in range(max_round - 1, -1, -1):
+        for e in by_round.get(k + 1, ()):
+            union(int(sources[e]), int(targets[e]))
+        curve[k] = severed_fraction()
+    return curve
+
+
 def _failure_column(graph: Graph, result: Any) -> tuple[str, np.ndarray]:
-    """Resolve ``(column_name, per-edge values)`` for a progressive/stochastic result."""
+    """Resolve ``(column_name, per-edge values)`` for a result or a raw failure_round array."""
+    if isinstance(result, np.ndarray):
+        arr = np.asarray(result, dtype=np.float64)
+        if arr.shape != (graph.edge_count,):
+            raise ValueError(
+                f"failure_round array has {arr.shape} entries but the graph has "
+                f"{graph.edge_count} edges."
+            )
+        return "failure_round", arr
     if isinstance(result, ProgressiveFragilityResult):
         return "failure_round", edge_failure_round(graph, result)
     if isinstance(result, StochasticFragilityResult):
         return "failure_frequency", edge_failure_frequency(result)
     raise TypeError(
-        "expected a ProgressiveFragilityResult or StochasticFragilityResult, "
-        f"got {type(result).__name__}"
+        "expected a ProgressiveFragilityResult, StochasticFragilityResult, or a "
+        f"failure_round numpy array; got {type(result).__name__}"
     )
 
 
@@ -367,11 +500,11 @@ def animate_failure(
     ImportError
         If lonboard / ipywidgets are not installed (``pip install gravel-fragility[viz]``).
     """
-    if not isinstance(result, ProgressiveFragilityResult):
+    if not isinstance(result, (ProgressiveFragilityResult, np.ndarray)):
         raise TypeError(
-            "animate_failure needs a ProgressiveFragilityResult from a greedy "
-            "progressive_fragility run; stochastic results have no failure order — "
-            "use interactive_map for their static P(fail) map."
+            "animate_failure needs a ProgressiveFragilityResult (greedy) or a failure_round "
+            "array (e.g. from failure_sequence_from_probabilities); a stochastic result has "
+            "no order — use interactive_map for its static P(fail) map."
         )
     try:
         import ipywidgets as widgets
@@ -539,11 +672,11 @@ def animate_failure_html(
     import math
     from pathlib import Path as _Path
 
-    if not isinstance(result, ProgressiveFragilityResult):
+    if not isinstance(result, (ProgressiveFragilityResult, np.ndarray)):
         raise TypeError(
-            "animate_failure_html needs a ProgressiveFragilityResult from a greedy "
-            "progressive_fragility run; stochastic results have no failure order — "
-            "use interactive_map for their static P(fail) map."
+            "animate_failure_html needs a ProgressiveFragilityResult (greedy) or a "
+            "failure_round array (e.g. from failure_sequence_from_probabilities); a "
+            "stochastic result has no order — use interactive_map for its static P(fail) map."
         )
 
     gdf = failure_geoframe(
@@ -573,6 +706,205 @@ def animate_failure_html(
         .replace("__DECKVER__", str(deckgl_version))
         .replace("__EDGES__", json.dumps(edges))
         .replace("__HAZARD__", hazard_json)
+        .replace("__ACTIVE__", json.dumps(list(active_color)))
+        .replace("__FAILED__", json.dumps(list(failed_color)))
+        .replace("__MAXROUND__", str(max_round))
+        .replace("__INTERVAL__", str(int(interval_ms)))
+        .replace("__WIDTH__", json.dumps(width_min_pixels))
+        .replace("__VIEW__", json.dumps(view))
+    )
+    _Path(path).write_text(html, encoding="utf-8")
+    return path
+
+
+_DASHBOARD_HTML_TEMPLATE = """<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>__TITLE__</title>
+<script src="https://unpkg.com/deck.gl@__DECKVER__/dist.min.js"></script>
+<style>
+  html, body { margin: 0; height: 100%; font-family: system-ui, sans-serif; }
+  #wrap { display: flex; flex-direction: column; height: 100vh; }
+  #main { flex: 1; position: relative; }
+  #map { position: absolute; inset: 0; }
+  #panel { height: 200px; border-top: 1px solid #ddd; padding: 8px 14px 12px;
+           box-sizing: border-box; background: #fafafa; }
+  #head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  #title { font-weight: 600; }
+  #readout { color: #c0392b; font-variant-numeric: tabular-nums; }
+  #controls { display: flex; align-items: center; gap: 10px; margin: 6px 0; }
+  #slider { flex: 1; }
+  #chart { width: 100%; height: 120px; display: block; }
+  button { font-size: 14px; padding: 2px 12px; cursor: pointer; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="main"><canvas id="map"></canvas></div>
+  <div id="panel">
+    <div id="head"><span id="title">__TITLE__</span><span id="readout"></span></div>
+    <div id="controls">
+      <button id="play">&#9654; play</button>
+      <input id="slider" type="range" min="0" max="__MAXROUND__" value="0" step="1" />
+    </div>
+    <svg id="chart" viewBox="0 0 800 120" preserveAspectRatio="none"></svg>
+  </div>
+</div>
+<script>
+const EDGES = __EDGES__, HAZARD = __HAZARD__, CURVE = __CURVE__, VIEW = __VIEW__;
+const ACTIVE = __ACTIVE__, FAILED = __FAILED__;
+const MAXROUND = __MAXROUND__, INTERVAL = __INTERVAL__, WIDTH = __WIDTH__;
+const { Deck, PathLayer, GeoJsonLayer } = deck;
+
+function layers(round) {
+  const ls = [];
+  if (HAZARD) {
+    ls.push(new GeoJsonLayer({
+      id: "hazard", data: HAZARD, filled: true, stroked: true,
+      getFillColor: f => (f.properties && f.properties._color) || [217, 164, 65, 70],
+      getLineColor: [120, 90, 20, 110], lineWidthMinPixels: 0.5,
+    }));
+  }
+  ls.push(new PathLayer({
+    id: "edges", data: EDGES, getPath: d => d.path,
+    getColor: d => (d.round !== null && d.round <= round) ? FAILED : ACTIVE,
+    widthMinPixels: WIDTH, updateTriggers: { getColor: round },
+  }));
+  return ls;
+}
+const deckgl = new Deck({ canvas: "map", initialViewState: VIEW, controller: true, layers: layers(0) });
+
+const NS = "http://www.w3.org/2000/svg", chart = document.getElementById("chart");
+const W = 800, H = 120, PAD = 8;
+const sx = i => PAD + i * (W - 2 * PAD) / Math.max(1, MAXROUND);
+const sy = v => (H - PAD) - v * (H - 2 * PAD);
+function svg(tag, attrs) {
+  const el = document.createElementNS(NS, tag);
+  for (const k in attrs) el.setAttribute(k, attrs[k]);
+  return el;
+}
+[0.25, 0.5, 0.75, 1.0].forEach(g => {
+  chart.appendChild(svg("line", { x1: PAD, x2: W - PAD, y1: sy(g), y2: sy(g),
+    stroke: "#e2e2e2", "stroke-width": 1 }));
+});
+chart.appendChild(svg("polyline", {
+  points: CURVE.map((v, i) => sx(i) + "," + sy(v)).join(" "),
+  fill: "none", stroke: "#c0392b", "stroke-width": 2,
+}));
+const mline = svg("line", { stroke: "#333", "stroke-width": 1 });
+const dot = svg("circle", { r: 3.5, fill: "#c0392b" });
+chart.appendChild(mline); chart.appendChild(dot);
+const slider = document.getElementById("slider"), readout = document.getElementById("readout");
+
+let current = 0;
+function setRound(k) {
+  current = k;
+  deckgl.setProps({ layers: layers(k) });
+  const sev = CURVE[k] !== undefined ? CURVE[k] : 0;
+  readout.textContent = "stage " + k + " / " + MAXROUND + " \\u00b7 " + (sev * 100).toFixed(1) + "% of trips severed";
+  mline.setAttribute("x1", sx(k)); mline.setAttribute("x2", sx(k));
+  mline.setAttribute("y1", PAD); mline.setAttribute("y2", H - PAD);
+  dot.setAttribute("cx", sx(k)); dot.setAttribute("cy", sy(sev));
+  slider.value = k;
+}
+slider.addEventListener("input", e => setRound(+e.target.value));
+let playing = false, timer = null;
+const btn = document.getElementById("play");
+btn.addEventListener("click", () => {
+  playing = !playing;
+  btn.innerHTML = playing ? "&#10073;&#10073; pause" : "&#9654; play";
+  if (playing) timer = setInterval(() => setRound(current + 1 > MAXROUND ? 0 : current + 1), INTERVAL);
+  else clearInterval(timer);
+});
+setRound(0);
+</script>
+</body>
+</html>
+"""
+
+
+def dashboard_html(
+    graph: Graph,
+    result: Any,
+    path: str,
+    *,
+    edge_geometry: Any | None = None,
+    hazard: Any | None = None,
+    hazard_zone_field: str | None = None,
+    title: str = "Road fragility under progressive failure",
+    active_color: tuple[int, int, int] = (31, 119, 180),
+    failed_color: tuple[int, int, int] = (180, 180, 180),
+    width_min_pixels: float = 1.6,
+    interval_ms: int = 350,
+    deckgl_version: str = "9",
+    metadata: Any | None = None,
+    crs: str = "EPSG:4326",
+) -> str:
+    """Write a **self-contained fragility dashboard** (map + synced impact chart) and return ``path``.
+
+    Two panels in one standalone HTML file (deck.gl from a CDN, no server/kernel): a map that
+    plays/scrubs the removal sequence (failed roads recede to ``failed_color``) and, below it, an
+    inline chart of **% of trips severed vs stage** (:func:`connectivity_curve`) with a marker and
+    readout locked to the same play/slider.
+
+    ``result`` is a greedy :class:`ProgressiveFragilityResult` **or** a ``failure_round`` array
+    (e.g. a flood order from :func:`failure_sequence_from_probabilities`) — a stochastic result
+    has no order and is rejected. ``edge_geometry`` draws real road shape; ``hazard`` is a base
+    layer, and ``hazard_zone_field`` (e.g. ``"FLD_ZONE"``) colors it by
+    :func:`gravel.hazards.nfhl_zone_color` severity instead of a flat fill.
+
+    Returns
+    -------
+    str
+        The ``path`` written.
+    """
+    import json
+    import math
+    from pathlib import Path as _Path
+
+    column, values = _failure_column(graph, result)
+    if column != "failure_round":
+        raise TypeError(
+            "dashboard_html needs a removal ORDER — a greedy ProgressiveFragilityResult or a "
+            "failure_round array (e.g. failure_sequence_from_probabilities). A stochastic result "
+            "has no order; use interactive_map for its static P(fail) map."
+        )
+    failure_round = values
+    curve = connectivity_curve(graph, failure_round)
+    max_round = len(curve) - 1
+
+    gdf = failure_geoframe(
+        graph, failure_round, metadata=metadata, edge_geometry=edge_geometry, crs=crs
+    )
+    edges = []
+    for geom, r in zip(gdf.geometry, gdf["failure_round"], strict=True):
+        rnd = None if (r is None or (isinstance(r, float) and math.isnan(r))) else int(r)
+        edges.append({"path": [[float(x), float(y)] for x, y in geom.coords], "round": rnd})
+
+    minx, miny, maxx, maxy = (float(v) for v in gdf.total_bounds)
+    span = max(maxx - minx, maxy - miny) or 1e-3
+    view = {
+        "longitude": (minx + maxx) / 2, "latitude": (miny + maxy) / 2,
+        "zoom": max(1.0, min(18.0, math.log2(360.0 / span) - 1.0)), "pitch": 0, "bearing": 0,
+    }
+
+    hazard_json = "null"
+    if hazard is not None:
+        hz = hazard.to_crs(crs)
+        if hazard_zone_field and hazard_zone_field in hz.columns:
+            from .hazards import nfhl_zone_color
+            hz = hz.copy()
+            hz["_color"] = [nfhl_zone_color(z) for z in hz[hazard_zone_field]]
+        hazard_json = hz.to_json()
+
+    html = (
+        _DASHBOARD_HTML_TEMPLATE
+        .replace("__TITLE__", title)
+        .replace("__DECKVER__", str(deckgl_version))
+        .replace("__EDGES__", json.dumps(edges))
+        .replace("__HAZARD__", hazard_json)
+        .replace("__CURVE__", json.dumps([round(float(c), 5) for c in curve]))
         .replace("__ACTIVE__", json.dumps(list(active_color)))
         .replace("__FAILED__", json.dumps(list(failed_color)))
         .replace("__MAXROUND__", str(max_round))

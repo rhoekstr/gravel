@@ -458,3 +458,103 @@ def test_edge_failure_round_unknown_pair_is_ignored():
     # (7,9) is step 1 but ignored (not in graph); (0,1) is step 2 and lands. No raise.
     assert rounds[0] == 2.0
     assert rounds.shape == (1,)
+
+
+# --- F2: hazard-ordered sequence + renderers accepting a failure_round array ---
+
+
+def test_failure_sequence_exposure_order():
+    probs = np.array([0.0, 0.9, 0.3, 0.6])
+    fr = viz.failure_sequence_from_probabilities(probs, exposure_order=True)
+    assert np.isnan(fr[0])                       # zero probability -> never removed
+    assert fr[1] == 1.0 and fr[3] == 2.0 and fr[2] == 3.0  # worst-exposure first
+
+
+def test_failure_sequence_limit_and_stages():
+    probs = np.linspace(0.05, 1.0, 20)
+    fr = viz.failure_sequence_from_probabilities(probs, exposure_order=True, limit=10, stages=5)
+    finite = fr[~np.isnan(fr)]
+    assert len(finite) == 10                     # limit honored
+    assert set(finite.tolist()) <= set(range(1, 6)) and finite.max() == 5  # bucketed
+
+
+def test_failure_sequence_stochastic_reproducible():
+    probs = np.full(60, 0.5)
+    a = viz.failure_sequence_from_probabilities(probs, seed=7)
+    b = viz.failure_sequence_from_probabilities(probs, seed=7)
+    c = viz.failure_sequence_from_probabilities(probs, seed=8)
+
+    def fill(x):
+        return np.nan_to_num(x, nan=-1.0)
+
+    assert np.array_equal(fill(a), fill(b))      # same seed -> identical realization
+    assert not np.array_equal(fill(a), fill(c))  # different seed -> different draw
+
+
+@requires_geopandas
+def test_failure_geoframe_accepts_array():
+    g = _coord_grid(5)
+    fr = np.full(g.edge_count, np.nan)
+    fr[0], fr[1] = 1.0, 2.0
+    gdf = viz.failure_geoframe(g, fr)
+    assert "failure_round" in gdf.columns and len(gdf) == g.edge_count
+
+
+@requires_geopandas
+def test_failure_round_array_length_mismatch_raises():
+    g = _coord_grid(4)
+    with pytest.raises(ValueError):
+        viz.failure_geoframe(g, np.zeros(g.edge_count + 3))
+
+
+@requires_geopandas
+def test_animate_failure_html_accepts_failure_round_array(tmp_path):
+    g = _coord_grid(5)
+    probs = np.random.default_rng(0).random(g.edge_count)
+    fr = viz.failure_sequence_from_probabilities(probs, seed=1, limit=8, stages=4)
+    out = tmp_path / "flood.html"
+    viz.animate_failure_html(g, fr, str(out))
+    assert out.exists() and "unpkg.com/deck.gl@" in out.read_text()
+
+
+# --- F3: connectivity_curve + dashboard_html ---
+
+
+def test_connectivity_curve_severs_a_component():
+    # Path 0-1-2 (bidirectional); remove both 1<->2 edges at stage 1 -> node 2 isolated.
+    s = np.array([0, 1, 1, 2], np.uint32)
+    t = np.array([1, 0, 2, 1], np.uint32)
+    g = gravel.Graph.from_coo(3, s, t, np.ones(4))
+    s2, t2, _ = g.to_coo()
+    fr = np.full(4, np.nan)
+    for e in range(4):
+        if {int(s2[e]), int(t2[e])} == {1, 2}:
+            fr[e] = 1.0
+    curve = viz.connectivity_curve(g, fr)
+    assert curve[0] == 0.0                       # fully connected
+    assert abs(curve[1] - (1 - 5 / 9)) < 1e-9    # {0,1} + {2}: 1 - (4+1)/9
+    assert curve == sorted(curve)                # non-decreasing
+
+
+@requires_geopandas
+def test_dashboard_html_writes_map_and_chart(tmp_path):
+    g = _coord_grid(6)
+    probs = np.random.default_rng(0).random(g.edge_count)
+    fr = viz.failure_sequence_from_probabilities(probs, seed=1, limit=30, stages=10)
+    out = tmp_path / "dash.html"
+    viz.dashboard_html(g, fr, str(out))
+    html = out.read_text()
+    assert "unpkg.com/deck.gl@" in html          # map
+    assert "CURVE = " in html and "<svg" in html  # synced impact chart
+    assert "of trips severed" in html
+    import json
+    import re
+    curve = json.loads(re.search(r"CURVE = (\[.*?\])", html, re.S).group(1))
+    assert len(curve) == 11 and curve == sorted(curve)  # stages+1, monotonic
+
+
+@requires_geopandas
+def test_dashboard_html_rejects_stochastic(tmp_path):
+    g = _coord_grid(5)
+    with pytest.raises(TypeError):
+        viz.dashboard_html(g, _stochastic(g), str(tmp_path / "x.html"))
