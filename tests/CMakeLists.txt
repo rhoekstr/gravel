@@ -3,6 +3,7 @@ include(Catch)
 set(TEST_DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data")
 
 add_executable(gravel_tests
+    test_dataset_catalog.cpp
     test_types.cpp
     test_array_graph.cpp
     test_priority_queue.cpp

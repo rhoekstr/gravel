@@ -208,7 +208,7 @@ def test_to_geodataframe_requires_coordinates():
 @requires_osm
 def test_osm_metadata_alignment():
     assert SWAIN_PBF.exists(), f"missing test data: {SWAIN_PBF}"
-    g, md = gravel.load_osm_graph_with_metadata(str(SWAIN_PBF))
+    g, md = gravel.datasets.osm.load_with_metadata(str(SWAIN_PBF))
     assert g.node_count > 0
     assert g.has_coordinates is True
     assert "highway" in md
@@ -223,7 +223,7 @@ def test_osm_metadata_alignment():
 def test_osm_to_geodataframe_carries_metadata():
     from gravel import interop
 
-    g, md = gravel.load_osm_graph_with_metadata(str(SWAIN_PBF))
+    g, md = gravel.datasets.osm.load_with_metadata(str(SWAIN_PBF))
     gdf = interop.to_geodataframe(g, metadata=md)
     assert len(gdf) == g.edge_count
     for col in ("highway", "lanes", "maxspeed"):
