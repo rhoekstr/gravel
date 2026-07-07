@@ -50,6 +50,11 @@
 #include "gravel/datasets/tiger_loader.h"
 #include "gravel/datasets/osm_graph.h"
 #include "gravel/datasets/catalog.h"
+#include "gravel/datasets/net_gridsfm.h"
+#include "gravel/datasets/net_opfdata.h"
+#include "gravel/datasets/net_caida.h"
+#include "gravel/datasets/net_openflights.h"
+#include "gravel/datasets/net_gtfs.h"
 #include "gravel/geo/border_edges.h"
 #include "gravel/geo/graph_coarsening.h"
 #include "gravel/geo/region_serialization.h"
@@ -1638,5 +1643,67 @@ PYBIND11_MODULE(_gravel, m) {
     m.def("dataset_catalog", &dataset_catalog,
           "The catalog of natively-supported datasets, as a list of DatasetInfo. "
           "Pure metadata; the Python gravel.datasets layer annotates runtime availability.");
+
+    // ===== Network substrates (2.7) =====
+    // Each loader returns (Graph, capacity): capacity is a per-edge list, empty
+    // when the source carries none. The C++ NetworkGraph's unique_ptr graph is
+    // moved into a shared_ptr for the Python Graph.
+    py::enum_<ItdkLinkExpansion>(m, "ItdkLinkExpansion")
+        .value("CLIQUE", ItdkLinkExpansion::CLIQUE)
+        .value("STAR", ItdkLinkExpansion::STAR);
+
+    py::class_<ItdkConfig>(m, "ItdkConfig")
+        .def(py::init<>())
+        .def_readwrite("nodes_path", &ItdkConfig::nodes_path)
+        .def_readwrite("links_path", &ItdkConfig::links_path)
+        .def_readwrite("nodes_geo_path", &ItdkConfig::nodes_geo_path)
+        .def_readwrite("expansion", &ItdkConfig::expansion)
+        .def_readwrite("drop_placeholder_nodes", &ItdkConfig::drop_placeholder_nodes);
+
+    py::class_<GtfsCapacityModel>(m, "GtfsCapacityModel")
+        .def(py::init<>())
+        .def_readwrite("bus", &GtfsCapacityModel::bus)
+        .def_readwrite("tram", &GtfsCapacityModel::tram)
+        .def_readwrite("subway", &GtfsCapacityModel::subway)
+        .def_readwrite("rail", &GtfsCapacityModel::rail)
+        .def_readwrite("ferry", &GtfsCapacityModel::ferry)
+        .def_readwrite("lift", &GtfsCapacityModel::lift)
+        .def_readwrite("other", &GtfsCapacityModel::other);
+
+    py::class_<GtfsConfig>(m, "GtfsConfig")
+        .def(py::init<>())
+        .def_readwrite("dir", &GtfsConfig::dir)
+        .def_readwrite("capacity_model", &GtfsConfig::capacity_model)
+        .def_readwrite("window_hours", &GtfsConfig::window_hours);
+
+    auto net_result = [](NetworkGraph ng) {
+        return py::make_tuple(std::shared_ptr<ArrayGraph>(std::move(ng.graph)), ng.capacity);
+    };
+
+    m.def("load_gridsfm_network", [net_result](const std::string& path) {
+        return net_result(load_gridsfm_network(path));
+    }, py::arg("model_json_path"), "Load a GridSFM power-grid model JSON -> (Graph, capacity in MVA).");
+
+    m.def("load_opfdata_graph", [net_result](const std::string& path) {
+        return net_result(load_opfdata_graph(path));
+    }, py::arg("json_path"), "Load an OPFData example JSON -> (Graph, capacity in MVA).");
+
+    m.def("load_openflights_network",
+          [net_result](const std::string& airports, const std::string& routes,
+                       bool collapse_parallel, bool drop_codeshare) {
+              return net_result(load_openflights_network(airports, routes, collapse_parallel,
+                                                         drop_codeshare));
+          },
+          py::arg("airports_path"), py::arg("routes_path"),
+          py::arg("collapse_parallel") = true, py::arg("drop_codeshare") = true,
+          "Load OpenFlights airports.dat + routes.dat -> (Graph, empty capacity).");
+
+    m.def("load_caida_itdk", [net_result](const ItdkConfig& config) {
+        return net_result(load_caida_itdk(config));
+    }, py::arg("config"), "Load a CAIDA ITDK release (ItdkConfig) -> (Graph, empty capacity).");
+
+    m.def("load_gtfs_network", [net_result](const GtfsConfig& config) {
+        return net_result(load_gtfs_network(config));
+    }, py::arg("config"), "Load a GTFS feed directory (GtfsConfig) -> (Graph, capacity in persons/hr).");
 
 }

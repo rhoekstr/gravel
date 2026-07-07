@@ -213,6 +213,11 @@ target_link_libraries(gravel-geo PUBLIC gravel-core gravel-simplify nlohmann_jso
 # (which includes geo/geojson_loader.h) propagates to consumers such as gravel-us.
 add_library(gravel-datasets
     src/datasets/catalog.cpp
+    src/datasets/net_gridsfm.cpp
+    src/datasets/net_opfdata.cpp
+    src/datasets/net_caida.cpp
+    src/datasets/net_openflights.cpp
+    src/datasets/net_gtfs.cpp
 )
 target_link_libraries(gravel-datasets PUBLIC gravel-core gravel-geo)
 

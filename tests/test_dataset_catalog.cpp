@@ -18,8 +18,9 @@ const DatasetInfo* find(const std::vector<DatasetInfo>& cat, const std::string& 
 
 TEST_CASE("dataset_catalog lists the 2.6 datasets", "[datasets]") {
     const auto cat = dataset_catalog();
-    REQUIRE(cat.size() == 6);
-    for (const char* id : {"osm", "tiger", "nfhl", "shakemap", "usdm", "nri"}) {
+    REQUIRE(cat.size() == 11);
+    for (const char* id : {"osm", "tiger", "nfhl", "shakemap", "usdm", "nri",
+                           "gridsfm", "opfdata", "caida", "openflights", "gtfs"}) {
         REQUIRE(find(cat, id) != nullptr);
     }
     // every entry has an id, name, source, and license (metadata is complete).
@@ -59,4 +60,11 @@ TEST_CASE("dataset kinds, feature and temporal bitmasks", "[datasets]") {
     REQUIRE(tiger->kind == DatasetKind::BOUNDARY);
     REQUIRE(tiger->access == Access::BYO);
     REQUIRE(tiger->features == Feature::NONE);
+
+    // A 2.7 network substrate.
+    const DatasetInfo* gridsfm = find(cat, "gridsfm");
+    REQUIRE(gridsfm != nullptr);
+    REQUIRE(gridsfm->kind == DatasetKind::NETWORK);
+    REQUIRE(gridsfm->domain == Domain::POWER);
+    REQUIRE(has_feature(gridsfm->features, Feature::CAPACITY));
 }

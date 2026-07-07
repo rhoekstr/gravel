@@ -1,0 +1,7 @@
+# Tiny synthetic ITDK-format fixture for tests: midar-iff.links format.
+# One IP-layer link per line, space-separated member node references after
+# "link L<id>:". Each member is "N<id>:<iface_ip>" or bare "N<id>".
+# A link may touch MORE THAN TWO nodes (shared L2 segment) — L1 below has three.
+link L1:  N1:190.5.224.217 N2:80.77.177.33 N3
+link L2:  N2:80.77.178.121 N4
+link L3:  N4:1.0.0.11 N5

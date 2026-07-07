@@ -1,0 +1,9 @@
+# This file was generated as a tiny synthetic ITDK-format fixture for tests.
+# It mimics the midar-iff.nodes format: one router per line, space-separated
+# interface IPv4 addresses after the "node N<id>:" prefix.
+# Real headers also embed the full kapar command line and every input warts path.
+node N1:  190.5.224.217 190.5.225.121 190.5.226.57
+node N2:  80.77.177.33 80.77.178.121
+node N3:  4.71.46.6 192.8.96.6
+node N4:  1.0.0.11
+node N5:  224.0.0.9 233.1.2.3
