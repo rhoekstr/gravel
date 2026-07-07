@@ -4,6 +4,69 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] — Unreleased
+
+**Unified dataset onboarding.** A single `gravel.datasets` package now answers "what can I load, and
+how?" and does the loading — road networks, administrative boundaries, and four hazard overlays behind
+one consistent interface, with a self-describing catalog and a citable provenance stamp on every remote
+pull. A file/library relocation, not an API break: the existing C++ symbols and their signatures are
+unchanged, and the old Python entry points still work (with a deprecation warning) through 3.0.
+
+### Added
+- **`gravel-datasets` (7th linkable library).** A new dataset-onboarding layer above `gravel-geo`:
+  depends on `gravel-core`, `gravel-simplify`, and (public) `gravel-geo`, plus optional libosmium; must
+  not depend on `gravel-fragility` or `gravel-us`. The relocated OSM/TIGER loaders and the new dataset
+  catalog live here. The sub-library DAG is now **seven** libraries, not six.
+- **`gravel.datasets` info-pull API.** `gravel.datasets.list() -> list[Dataset]`,
+  `.info(id) -> Dataset` (`KeyError` on an unknown id), and `.summary()` (prints and returns a
+  feature-matrix string) let a user discover the supported datasets before loading anything. A `Dataset`
+  wrapper exposes `id`, `name`, `kind`, `domain`, `geometry`, `temporal`, `coverage`, `features`,
+  `versioning`, `source_url`, `field_docs_url`, `license`, `access`, plus `available`, `feature_names()`,
+  `temporal_names()`, `has_feature(feature)`, `to_dict()`, and `to_json()`.
+- **`DatasetInfo` catalog + enums (`gravel-core`, `gravel/core/dataset_info.h`).** A `DatasetInfo` POD
+  with enums `DatasetKind`, `Domain`, `Geometry`, `Coverage`, `Access` (plain) and `Temporal`, `Feature`
+  (combinable bitmasks). `dataset_catalog()` (implemented in `gravel-datasets`, `src/datasets/catalog.cpp`)
+  returns the six supported datasets. `DatasetInfo`, `dataset_catalog`, and the enums are re-exported at
+  the Python top level (`gravel.DatasetKind` / `Domain` / `Geometry` / `Temporal` / `Coverage` / `Access`
+  / `Feature` / `DatasetInfo` / `dataset_catalog`).
+- **Four hazard-overlay fetchers (`gravel.datasets.{nfhl, shakemap, usdm, nri}`).** Each exposes a
+  consistent `fetch(...) -> (GeoDataFrame, Provenance)` and
+  `edge_probabilities(graph, footprint, …) -> np.ndarray` (feeds `gravel.stochastic_fragility`), backed
+  by a disclosed, sweepable severity → probability table (illustrative, **not** authoritative rates):
+  - **`nfhl`** — FEMA National Flood Hazard Layer (relocated from `gravel.hazards`).
+  - **`shakemap`** — USGS ShakeMap via ComCat, by event id + version.
+  - **`usdm`** — US Drought Monitor, by week.
+  - **`nri`** — FEMA National Risk Index (annualized baseline).
+  These need the new **`gravel[datasets]`** extra (geopandas + shapely + pyproj).
+- **`Provenance` stamp.** `fetch()`'s second return value: a lean, citable
+  `{dataset_id, endpoint, resolved_version, pulled_at}` with `to_dict()`, `to_json()`, and `summary()`.
+  Deliberately a citation stamp, not full lineage.
+- **OSM / TIGER dataset submodules.** `gravel.datasets.osm.load(pbf_path, speed_profile=None)` and
+  `.load_with_metadata(pbf_path, speed_profile=None, bidirectional=True)`;
+  `gravel.datasets.tiger.counties` / `states` / `cbsas` / `places` / `urban_areas(geojson_path)` — one
+  consistent per-dataset interface alongside the hazard overlays.
+- **`gravel[datasets]` pip extra.** Pulls in geopandas + shapely + pyproj for the hazard fetchers.
+
+### Changed
+- **`osm_graph` and `tiger_loader` relocated into `gravel-datasets`.** Moved (with git history) from
+  `gravel-geo` and `gravel-us` respectively, alongside the new dataset catalog. The public C++ and Python
+  symbols are **unchanged** — `gravel::load_osm_graph`, `gravel::load_tiger_counties`, etc. keep their
+  flat `gravel::` namespace and signatures; this is a file/library move, not an API break. `gravel-us`
+  now depends on `gravel-datasets` (its county/CBSA-assignment headers use the relocated `tiger_loader`).
+- **The sub-library DAG is now seven libraries.** `gravel-datasets` sits above `gravel-geo`; the
+  "six libraries" invariant becomes seven. The hazard point-in-polygon kernel
+  (`edges_in_polygon` / `hazard_edge_probabilities`) did **not** move — it stays in `gravel-fragility`.
+
+### Deprecated
+- **`gravel.hazards.*`** — now a shim forwarding to `gravel.datasets` (`fetch_nfhl_flood_zones` →
+  `datasets.nfhl.fetch()[0]`; `flood_edge_probabilities` → `datasets.nfhl.edge_probabilities`;
+  `hazard_edge_probabilities` → `datasets._hazard.hazard_edge_probabilities`; `NFHL_*` constants +
+  `nfhl_zone_color` → `datasets.nfhl.*`). Still works, emits `DeprecationWarning`, **removed in 3.0**.
+- **`gravel.load_osm_graph` / `gravel.load_osm_graph_with_metadata`** — use
+  `gravel.datasets.osm.load` / `load_with_metadata`. Deprecated, **removed in 3.0**.
+- **`gravel.load_tiger_counties` / `states` / `cbsas` / `places` / `urban_areas`** — use
+  `gravel.datasets.tiger.*`. Deprecated, **removed in 3.0**.
+
 ## [2.5.0] — 2026-07-03
 
 **Phase 2B — real edge geometry.** Foundation for faithful maps: a simplified graph can now be drawn

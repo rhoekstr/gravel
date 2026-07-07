@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "gravel-fragility"
-version = "2.5.0"
+version = "2.6.0"
 description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -70,6 +70,12 @@ viz = [
     "pyproj>=3.6",
 ]
 pipeline = [
+    "geopandas>=0.14",
+    "shapely>=2.0",
+    "pyproj>=3.6",
+]
+# gravel.datasets hazard fetchers (fetch remote footprints -> GeoDataFrame).
+datasets = [
     "geopandas>=0.14",
     "shapely>=2.0",
     "pyproj>=3.6",

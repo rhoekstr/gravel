@@ -1,6 +1,6 @@
 # Gravel — Product Requirements Document
 
-**PRD revision 2.3 — reflects Gravel 2.3.0 | Last updated: June 2026**
+**PRD revision 2.5 — reflects Gravel 2.5.0 (shipped); roadmap through 3.0 | Last updated: 2026-07-07**
 
 ## Executive Summary
 
@@ -112,7 +112,7 @@ The two limitations that shaped the roadmap are now resolved:
 
 ### Sub-library structure
 
-Gravel (v2.1+) organizes code into six sub-libraries with a strict dependency DAG:
+Gravel (v2.1+) organizes code into seven sub-libraries with a strict dependency DAG:
 
 ```
 gravel-core      → (nothing)
@@ -120,14 +120,15 @@ gravel-ch        → gravel-core
 gravel-simplify  → gravel-core, gravel-ch
 gravel-fragility → gravel-core, gravel-ch, gravel-simplify
 gravel-geo       → gravel-core, gravel-simplify
-gravel-us        → gravel-geo
+gravel-datasets  → gravel-core, gravel-simplify, gravel-geo
+gravel-us        → gravel-geo, gravel-datasets
 ```
 
 External dependencies are isolated:
 
 | Dependency | Confined to | Optional |
 |-----------|-------------|----------|
-| libosmium | gravel-geo | Yes (GRAVEL_USE_OSMIUM, AUTO by default since 2.2.2) |
+| libosmium | gravel-datasets | Yes (GRAVEL_USE_OSMIUM, AUTO by default since 2.2.2) |
 | Eigen + Spectra | gravel-fragility | No (always built) |
 | nlohmann/json | gravel-geo, gravel-fragility | No |
 | Apache Arrow | gravel-fragility (output) | Yes (GRAVEL_USE_ARROW) |
@@ -432,6 +433,112 @@ probabilities enter fragility as arrays, derivation in geo/Python).
     journal figures. Geo-viz draws real road shape via the 2B edge-geometry above (pass
     `edge_geometry` to `to_geodataframe`). Backend chosen by spike (lonboard over pydeck).
 
+### Phase 3 — Dataset onboarding & catalog (2.6) ✅ shipped in 2.6.0
+
+Serves the research-onboarding mission — get disaster/crisis researchers from install to a
+hazard-overlaid fragility run without hand-wrangling ArcGIS feature services. Generalizes the existing
+`hazard_edge_probabilities` machinery (2.4.0 already named wildfire/surge as targets) and adds a
+first-class, queryable dataset catalog. Landed as a unified dataset-onboarding layer: a new seventh
+linkable library `gravel-datasets` (relocating `osm_graph` from `gravel-geo` and `tiger_loader` from
+`gravel-us` via `git mv`, history preserved; C++ symbols unchanged in the flat `gravel::` namespace),
+the `gravel.datasets` Python package, four hazard fetchers, and back-compat deprecation shims.
+
+- ✅ **Dataset catalog + info-pull.** A `DatasetInfo` POD in `gravel-core`
+  (`include/gravel/core/dataset_info.h`): id, name, plus enums `DatasetKind` / `Domain` / `Geometry` /
+  `Coverage` / `Access` (plain) and `Temporal` / `Feature` (combinable bitmasks), `source_url`,
+  `field_docs_url`, license — pure data, no deps. `gravel::dataset_catalog()` (implemented in
+  `gravel-datasets`, `src/datasets/catalog.cpp`) returns the 6 supported datasets, queryable from
+  both the CLI and Python (`gravel.datasets.list()` / `.info(id)` / `.summary()` feature-matrix). The
+  enums + `DatasetInfo` + `dataset_catalog` re-export at the top level.
+  - **Design constraint (DAG):** the catalog *type* lives in core; population lives in the new
+    `gravel-datasets` library (which sits above `geo`) and is aggregated at the binding layer — no
+    core→geo/us dependency and no static-init-order registry across the separately-linkable
+    libraries. `gravel-datasets` must not depend on `gravel-fragility` or `gravel-us`; the hazard
+    point-in-polygon kernel (`edges_in_polygon` / `hazard_edge_probabilities`) stays in
+    `gravel-fragility`.
+  - Field definitions are **pointed to** (`field_docs_url`), never ingested — the source's data
+    dictionary stays authoritative and cannot rot in a Gravel copy.
+- ✅ **Hazard-source expansion (four sources).** NFHL (relocated from `gravel.hazards`) + USGS
+  ShakeMap/ComCat (MMI contours, by event id + version), US Drought Monitor (D0–D4, by week), FEMA NRI
+  (multi-hazard annualized baseline, `temporal=static`). All are polygon → reuse the shipped
+  multi-zone `edges_in_polygon` kernel; each is a `gravel.datasets` submodule with a consistent
+  `fetch(...) → (GeoDataFrame, Provenance)` and `edge_probabilities(graph, footprint, …) → np.ndarray`
+  interface feeding `stochastic_fragility`, backed by a disclosed, sweepable severity→probability
+  table (not authoritative rates; same DAG-clean input-array pattern as NFHL). Behind the
+  `gravel[datasets]` extra (geopandas + shapely + pyproj). Deferred to 2.6.x: track-buffering hazards
+  (HURDAT2 hurricane, SPC SVRGIS tornado) and MTBS raster burn-severity.
+- ✅ **Fetch/resolve layer + lean provenance.** Each per-dataset `fetch(...)` returns data plus a
+  `Provenance` stamp — `{dataset_id, endpoint, resolved_version, pulled_at}` — with `.to_dict` /
+  `.to_json` (machine record) and `.summary()` (screen output). Version-aware (event-id for ShakeMap,
+  week for Drought, vintage for NRI) and endpoint-overridable per the `GRAVEL_NFHL_ENDPOINT`
+  precedent. Deliberately not full provenance handling; enough to cite what was pulled, from where,
+  and when.
+  - **BYO-GeoJSON is the stable contract**; auto-fetchers are best-effort convenience behind the
+    `gravel[datasets]` extra, degrading to BYO on endpoint breakage.
+  - **Integration-tier rule (self-serving for future datasets):** a dataset earns an auto-fetcher iff
+    it has a stable version axis *and* a programmatic endpoint; otherwise it is catalog + field-docs
+    pointer + BYO. (Applied in Phase 4: CAIDA's AUP gate → BYO-only; `inf-power` → bundled fixture.)
+- ✅ **Per-dataset load submodules + deprecation shims.** `gravel.datasets.osm.load` /
+  `.load_with_metadata` and `gravel.datasets.tiger.counties/states/cbsas/places/urban_areas` give the
+  relocated loaders a consistent home. The prior top-level entry points
+  (`gravel.load_osm_graph[_with_metadata]`, `gravel.load_tiger_*`) and the whole `gravel.hazards`
+  module now forward through deprecation shims — still working, emitting `DeprecationWarning`, slated
+  for removal in 3.0.
+
+### Phase 4 — Alternative network substrates (2.7, planned)
+
+Acts on the fragility engine being **network-agnostic** — road networks were the first example, not
+the boundary. Adds infrastructure networks beyond roads as first-class fragility substrates, each
+carrying real capacity so the Phase 5 cascade has ground truth to consume and validate against.
+
+- **Five substrates.**
+  - *Power* — Microsoft Research US Transmission Grid (**GridSFM**): topology + solved AC-OPF thermal
+    limits + OSM-derived geography, the one source that ships all three natively — the anchor. Plus
+    **OPFData** (PGLib-OPF synthetic, pre-applied N-1, geography-free) as the degradation-math
+    validation companion.
+  - *Internet* — **CAIDA ITDK**: router topology, Hoiho-inferred geography, no capacity; AUP-gated →
+    catalog + BYO only, no auto-fetcher.
+  - *Air* — **OpenFlights**: airport nodes + O-D routes (great-circle edge geometry approximated).
+  - *Transit* — **GTFS** via Transitland: fixed routes + `shapes.txt` geometry, ingested as
+    fixed-route infrastructure for fragility (**not** live routing — see Non-Goals).
+- **Capacity / attribute overlays (`DatasetKind = attribute-overlay`).** Tabular per-edge joins that
+  feed the existing capacity input array (2.4.0 interface) — the non-geometric sibling of hazard
+  overlays (key-join, not point-in-polygon):
+  - **BTS T-100** → airline segment capacity (seats/passengers per O-D pair). OpenFlights + T-100 =
+    topology + geography + real capacity, i.e. the airline analog of what GridSFM provides natively.
+  - **GTFS schedule → average historic capacity** (headway/frequency × vehicle capacity as a static
+    throughput proxy) — the *scheduled* capacity, deliberately not the live GTFS-RT alert signal.
+- **Scope boundary.** Substrates are analyzed *independently*; interdependent multi-layer coupling
+  remains a non-goal (see Non-Goals). No new fragility paradigm — the existing topological and
+  capacity-weighted analyses run on the new substrates through the same interfaces.
+
+### Phase 5 — Cascade maturation (3.0, future state)
+
+**Premise: the cascade model exists; 3.0 makes it defensible.** `cascade_fragility` shipped
+experimental in 2.4.0 (Motter–Lai — load = betweenness, capacity = (1+α)×initial load,
+redistribute-and-iterate to a fixed point, reported as cascade-size-vs-α). It is this document's
+sanctioned alternative to traffic-assignment flow modeling (see Non-Goals). What keeps it
+*experimental* is that its capacity is a topological proxy and its predictions are validated against no
+ground truth. 3.0 closes both gaps.
+
+- **Requires (and is therefore gated behind Phase 4):**
+  - **Real capacity inputs** replacing/augmenting the (1+α)×load proxy — threaded through the existing
+    capacity input-array interface, now sourced from real data: HCM road capacity (shipped), airline
+    segment capacity (T-100), grid thermal limits (GridSFM, native). No new DAG surface; derivation
+    stays in geo/Python.
+  - **Ground-truth failure states** — GridSFM's solved AC-OPF N-1 outcomes and OPFData's pre-applied
+    N-1 perturbations give known cascade results to score predictions against — the validation
+    substrate the 2.5 model never had.
+- **Boundary (stays inside DD-6 and the flow non-goal):** matures the *complex-networks* cascade (load
+  redistribution against a capacity threshold), **not** traffic-assignment/user-equilibrium, which
+  remains a non-goal. Capacity enters as disclosed, sensitivity-swept inputs; results report
+  capacity-source and α sensitivity, never a single hidden value. Domain-specific flow physics (DC/AC
+  power flow, transit headway dynamics) stay out of the 3.0 core; if wanted they attach upstream as
+  pluggable capacity derivations feeding the same input array.
+- **Graduation criteria (experimental → supported):** predictions validated against GridSFM N-1 /
+  OPFData contingencies within a disclosed error band; capacity-source sensitivity documented (proxy
+  vs. real-capacity divergence quantified); reproducible per the covariate-defensibility bar.
+
 ### Hardening & operational (surfaced during the 2.3.0 release)
 
 The 2.3.0 wheel build — blocked for hours by a gitlab.com outage that cascaded through Eigen 5.0 and
@@ -468,7 +575,11 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
 ## Non-Goals
 
 - Gravel is **not a turn-by-turn navigation library.** Use OSRM or GraphHopper for that.
-- Gravel is **not a transit planner.** Use OpenTripPlanner for GTFS/multi-modal.
+- Gravel is **not a transit *planner*.** Use OpenTripPlanner for GTFS trip planning and
+  live/multi-modal routing. This bounds the *routing* use case, not the *substrate*: the fragility
+  engine is network-agnostic (road networks were merely the first example), so a GTFS-derived transit
+  network — fixed routes with average historic capacity — is a legitimate **fragility** target
+  (Phase 4). What is out of scope is live routing on it, not modeling its network fragility.
 - Gravel's CH is **static topology.** All CH operations assume a fixed edge set; the hierarchy is
   built once and is not incrementally mutated. (Fragility analysis still removes edges — by
   recomputation on the degraded graph, not by editing the CH.)
@@ -479,3 +590,5 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
 - Gravel does **not yet** model interdependent multi-layer infrastructure as a first-class graph. When
   needed, coupled failures are expressed as an externally-built edge set fed to `scenario_fragility`;
   a true multi-layer core is reserved for a research need that demands interdependency covariates.
+  (Phase 4's added substrates — power, transit, air, internet — are analyzed one network at a time;
+  that is substrate breadth, not multi-layer coupling, which stays reserved.)

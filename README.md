@@ -83,6 +83,25 @@ print(f"Reachable nodes: {result.reachable_nodes}")
 print(f"Directional coverage: {result.directional_coverage:.2f}")
 ```
 
+### Datasets (2.6.0)
+
+```python
+import gravel
+
+# Browse the catalog of supported datasets
+gravel.datasets.list()          # -> list[Dataset]
+print(gravel.datasets.summary())  # prints (and returns) a feature matrix
+
+# Load a road network via the OSM submodule
+graph = gravel.datasets.osm.load("county.osm.pbf")
+
+# Fetch a hazard footprint (needs the gravel[datasets] extra)
+gdf, provenance = gravel.datasets.nfhl.fetch(bbox=(-83.6, 35.3, -83.3, 35.6))
+print(provenance.summary())  # {dataset_id, endpoint, resolved_version, pulled_at}
+```
+The hazard fetchers (`nfhl`, `shakemap`, `usdm`, `nri`) require the `gravel[datasets]` extra
+(geopandas + shapely + pyproj); their `edge_probabilities(...)` output feeds `stochastic_fragility`.
+
 ### C++
 
 ```cpp
@@ -103,7 +122,7 @@ std::cout << "Isolation risk: " << result.isolation_risk << "\n";
 ## Key Features
 
 ### Sub-library architecture
-Six independent libraries with a strict dependency DAG — link only what you need:
+Seven independent libraries with a strict dependency DAG — link only what you need:
 
 | Library | Purpose | Dependencies |
 |---------|---------|--------------|
@@ -111,8 +130,9 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 | `gravel-ch` | Contraction hierarchy + blocked queries | gravel-core |
 | `gravel-simplify` | Graph simplification, bridges | + gravel-ch |
 | `gravel-fragility` | All fragility analysis (Eigen/Spectra) | + gravel-simplify |
-| `gravel-geo` | OSM loading, regions, snapping (libosmium) | + gravel-simplify |
-| `gravel-us` | US TIGER/Census specializations | + gravel-geo |
+| `gravel-geo` | Regions, snapping, point-in-polygon | + gravel-simplify |
+| `gravel-datasets` | Dataset onboarding: OSM/TIGER loaders + catalog (libosmium) | + gravel-core, gravel-simplify, gravel-geo |
+| `gravel-us` | US TIGER/Census specializations | + gravel-geo, gravel-datasets |
 
 ### Analysis modules
 
@@ -126,6 +146,7 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 - **Graph coarsening** — collapse regions into meta-nodes
 - **Research depth (2.4.0)** — capacity-aware importance (HCM PCE from OSM tags), stochastic fragility (Monte Carlo over per-edge failure probabilities, e.g. floodplain / FEMA-NFHL hazards), and experimental Motter–Lai cascading failure — all as disclosed, sweepable inputs
 - **Visualization (2.5.0)** — real per-edge road geometry plus static (`plot_fragility`), interactive (`interactive_map`), and animated (`animate_failure`, self-contained deck.gl HTML) maps via `gravel-fragility[viz]`
+- **Dataset onboarding (2.6.0)** — a unified `gravel.datasets` layer: a queryable catalog (`list()`/`info()`/`summary()`) plus per-dataset submodules with a consistent interface — `osm` and `tiger` loaders, and `nfhl`/`shakemap`/`usdm`/`nri` hazard overlays whose `fetch(...)` returns `(GeoDataFrame, Provenance)` and whose `edge_probabilities(...)` feeds `stochastic_fragility`. Hazard fetchers need the `gravel[datasets]` extra (geopandas + shapely + pyproj)
 
 ### Performance
 
@@ -224,7 +245,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.5.0}
+  version = {2.6.0}
 }
 ```
 

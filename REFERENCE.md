@@ -70,6 +70,7 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 33. [Research Depth: Capacity, Stochastic & Cascade](#33-research-depth-capacity-stochastic--cascade)
 34. [Visualizing Results (data bridge)](#34-visualizing-results-data-bridge)
 35. [Edge geometry — real road shape](#35-edge-geometry--real-road-shape-gravelcoreedge_geometryh)
+36. [gravel.datasets — dataset catalog & fetchers (2.6)](#36-graveldatasets--dataset-catalog--fetchers-26)
 
 ---
 
@@ -2861,18 +2862,19 @@ The original progressive elimination computed a full `county_fragility_index` at
 
 ## 21. Sub-Library Architecture (v2.1)
 
-Gravel is organized into six sub-libraries with a strict one-directional dependency graph. The CLI and Python bindings link all libraries; consumers building custom pipelines can link only what they need.
+Gravel is organized into sub-libraries with a strict one-directional dependency graph. The CLI and Python bindings link all libraries; consumers building custom pipelines can link only what they need. *v2.6 adds a seventh library, `gravel-datasets`, sitting above `gravel-geo`; the OSM and TIGER loaders were relocated into it (a file/library move — the flat `gravel::` C++ symbols are unchanged).*
 
 ### 19.1 Sub-Library Definitions
 
 | Library | Purpose | Dependencies |
 |---------|---------|--------------|
-| `gravel-core` | Graph representation, basic routing, utilities, edge sampling, incremental SSSP | C++ stdlib, OpenMP |
+| `gravel-core` | Graph representation, basic routing, utilities, edge sampling, incremental SSSP, dataset-catalog types (§36) | C++ stdlib, OpenMP |
 | `gravel-ch` | Contraction hierarchy construction and query | gravel-core |
 | `gravel-simplify` | Graph simplification, bridge detection | gravel-core, gravel-ch |
-| `gravel-fragility` | All fragility/analysis, spectral metrics, progressive elimination | gravel-core, gravel-ch, gravel-simplify, Eigen, Spectra, nlohmann_json |
-| `gravel-geo` | Geographic operations, OSM loading, region assignment, GeoJSON loading | gravel-core, gravel-simplify, nlohmann_json |
-| `gravel-us` | US-specific specializations (TIGER loaders, FIPS conventions) | gravel-geo |
+| `gravel-fragility` | All fragility/analysis, spectral metrics, progressive elimination, hazard point-in-polygon kernel (`edges_in_polygon` / `hazard_edge_probabilities`) | gravel-core, gravel-ch, gravel-simplify, Eigen, Spectra, nlohmann_json |
+| `gravel-geo` | Geographic operations, region assignment, GeoJSON loading | gravel-core, gravel-simplify, nlohmann_json |
+| `gravel-datasets` | Dataset onboarding: OSM loading (`load_osm_graph`), TIGER loading (`load_tiger_*`), dataset catalog (`dataset_catalog`) | gravel-core, gravel-simplify, gravel-geo (PUBLIC), optional osmium |
+| `gravel-us` | US-specific specializations (FIPS conventions, county/CBSA assignment) | gravel-geo, gravel-datasets |
 
 ### 19.2 Dependency Rules
 
@@ -2881,17 +2883,18 @@ Any include that crosses a boundary in the wrong direction is a link error.
 - `gravel-core` → nothing
 - `gravel-ch` → gravel-core only
 - `gravel-simplify` → gravel-core, gravel-ch
-- `gravel-fragility` → gravel-core, gravel-ch, gravel-simplify (NOT gravel-geo, gravel-us)
-- `gravel-geo` → gravel-core, gravel-simplify (NOT gravel-fragility, gravel-us)
-- `gravel-us` → gravel-geo (NOT gravel-fragility)
+- `gravel-fragility` → gravel-core, gravel-ch, gravel-simplify (NOT gravel-geo, gravel-datasets, gravel-us)
+- `gravel-geo` → gravel-core, gravel-simplify (NOT gravel-fragility, gravel-datasets, gravel-us)
+- `gravel-datasets` → gravel-core, gravel-simplify, gravel-geo (NOT gravel-fragility, gravel-us)
+- `gravel-us` → gravel-geo, gravel-datasets (NOT gravel-fragility)
 
 ### 19.3 External Dependency Isolation
 
 | External Dependency | Confined To | Build Flag |
 |---------------------|-------------|------------|
-| osmium (OSM parsing) | gravel-geo | `GRAVEL_USE_OSMIUM=ON` |
+| osmium (OSM parsing) | gravel-datasets | `GRAVEL_USE_OSMIUM=ON` |
 | Eigen + Spectra | gravel-fragility | Always on |
-| nlohmann/json | gravel-geo, gravel-fragility | Always on |
+| nlohmann/json | gravel-geo, gravel-datasets, gravel-fragility | Always on |
 | OpenMP | gravel-core (propagates) | Auto-detected |
 
 ---
@@ -3672,3 +3675,223 @@ res = gravel.simplify_graph(g, None, None, cfg)
 gdf = gravel.interop.to_geodataframe(res.graph, edge_geometry=res.edge_geometry)
 gdf.plot()  # edges follow the real road, not straight lines
 ```
+
+## 36. gravel.datasets — dataset catalog & fetchers (2.6)
+
+*Added in v2.6.0.* `gravel.datasets` is the single front door to every natively-supported dataset: an
+**info-pull** catalog that says what each source *is* (and what it provides, and how to cite it), plus
+per-dataset submodules with a consistent load/fetch interface. The catalog metadata is authoritative in
+the C++ core (`gravel-core`); the Python layer annotates runtime availability and renders it. The hazard
+fetchers need the new `gravel[datasets]` extra (`pip install gravel-fragility[datasets]`: geopandas +
+shapely + pyproj); `osm.load` needs an OSM-enabled build (`gravel.HAS_OSM`); `tiger.*` needs only the
+core wheel.
+
+**Architecture note.** v2.6 adds a seventh linkable library, `gravel-datasets` (§21), sitting above
+`gravel-geo`. The OSM loader (from `gravel-geo`), the TIGER loader (from `gravel-us`), and the new
+dataset catalog were relocated into it via `git mv` (history preserved). The C++ symbols are **unchanged**
+and still in the flat `gravel::` namespace (`gravel::load_osm_graph`, `gravel::load_tiger_counties`,
+`gravel::dataset_catalog`) — a file/library relocation, not an API break. The hazard point-in-polygon
+kernel (`edges_in_polygon` / `hazard_edge_probabilities`, §17.6) did **not** move; it stays in
+`gravel-fragility`.
+
+### 36.1 Info-pull (catalog)
+
+Top-level functions on `gravel.datasets`:
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `list()` | `list[Dataset]` | Every dataset in the catalog, as `Dataset` objects. |
+| `info(id)` | `Dataset` | The catalog entry for `id`. Raises `KeyError` (with the known ids) if unknown. |
+| `summary(file=None)` | `str` | **Prints** and **returns** a compact feature-matrix string (one row per dataset; columns id, kind, domain, geometry, temporal, access, availability, features). |
+
+```python
+import gravel.datasets as ds
+ds.summary()                       # prints the feature matrix, also returns it
+entry = ds.info("shakemap")        # one Dataset (KeyError if unknown)
+[d.id for d in ds.list()]          # ['osm', 'tiger', 'nfhl', 'shakemap', 'usdm', 'nri']
+```
+
+The catalog has **six** datasets: `osm` (network / road), `tiger` (boundary / administrative), and the
+four hazard overlays `nfhl` / `shakemap` / `usdm` / `nri`.
+
+### 36.2 Dataset (catalog-entry wrapper)
+
+A thin wrapper over the C++ `DatasetInfo` that adds runtime availability and rendering. Descriptive
+facets are the bound enums (§36.3); `features` and `temporal` are bitmasks.
+
+**Passthrough attributes** (from `DatasetInfo`):
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `id` | `str` | Stable slug used to fetch / resolve (e.g. `"nfhl"`, `"osm"`). |
+| `name` | `str` | Human-readable name (e.g. `"USGS ShakeMap / ComCat"`). |
+| `kind` | `DatasetKind` | Role in the pipeline. |
+| `domain` | `Domain` | Domain described. |
+| `geometry` | `Geometry` | Footprint / coordinate geometry. |
+| `temporal` | `Temporal` | Relationship to time (bitmask). |
+| `coverage` | `Coverage` | Spatial extent. |
+| `features` | `Feature` | Per-edge/per-node features contributed (bitmask). |
+| `versioning` | `str` | Free-form label for the resolver's version axis (e.g. `"event_id+version"`, `"vintage_year"`). |
+| `source_url` | `str` | Landing page for the source. |
+| `field_docs_url` | `str` | Authoritative data dictionary — a *pointer*, never ingested content. |
+| `license` | `str` | e.g. `"public domain (US federal)"`. |
+| `access` | `Access` | How the dataset is obtained. |
+
+**Derived members:**
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `available` | `bool` | True when the dependencies to actually use this dataset are installed (`osm` → `gravel.HAS_OSM`; fetchers → geopandas present; else always True). |
+| `feature_names()` | `list[str]` | Names of the features this dataset provides. |
+| `temporal_names()` | `list[str]` | Temporal classifications that apply (e.g. `['SNAPSHOT', 'HISTORICAL']`). |
+| `has_feature(feature)` | `bool` | Whether this dataset provides `feature` (a `Feature` flag). |
+| `to_dict()` | `dict` | Plain-dict record (enums rendered as names; `temporal`/`features` as name lists) plus `available`. Suitable for JSON or a methods section. |
+| `to_json(**kwargs)` | `str` | `to_dict()` as a JSON string (`**kwargs` forwarded to `json.dumps`). |
+
+```python
+d = gravel.datasets.info("nri")
+d.has_feature(gravel.Feature.HAZARD_PROB)   # True
+d.temporal_names()                          # ['ANNUALIZED']
+print(d.to_json(indent=2))
+```
+
+### 36.3 Enums & DatasetInfo (`gravel/core/dataset_info.h`)
+
+The catalog types live in `gravel-core` and are re-exported at the **top level** of the package
+(`gravel.DatasetKind`, `gravel.Domain`, `gravel.Geometry`, `gravel.Temporal`, `gravel.Coverage`,
+`gravel.Access`, `gravel.Feature`, `gravel.DatasetInfo`, `gravel.dataset_catalog`) as well as under
+`gravel.datasets`. Descriptive facets are enums — a closed, compile-checked vocabulary; only genuinely
+free-form fields (id, name, URLs, license, version axis) are strings.
+
+| Enum | Kind | Values |
+|------|------|--------|
+| `DatasetKind` | plain | `NETWORK`, `BOUNDARY`, `HAZARD_OVERLAY`, `ATTRIBUTE_OVERLAY` |
+| `Domain` | plain | `GENERIC`, `ADMINISTRATIVE`, `ROAD`, `POWER`, `INTERNET`, `AIR`, `TRANSIT`, `FLOOD`, `WILDFIRE`, `EARTHQUAKE`, `HURRICANE`, `TORNADO`, `DROUGHT`, `MULTI_HAZARD` |
+| `Geometry` | plain | `NONE`, `POINT`, `LINE`, `POLYGON`, `RASTER` |
+| `Temporal` | **bitmask** | `NONE`, `SNAPSHOT`, `HISTORICAL`, `ANNUALIZED` |
+| `Coverage` | plain | `NONE`, `US`, `GLOBAL` |
+| `Access` | plain | `FETCHER` (auto-fetcher exists), `BYO` (bring-your-own file), `BUNDLED` (ships as a fixture) |
+| `Feature` | **bitmask** | `NONE`, `NODE_COORDS`, `EDGE_GEOMETRY`, `CAPACITY`, `LANES`, `SPEED`, `ROAD_CLASS`, `ONEWAY`, `SEVERITY`, `HAZARD_PROB` |
+
+`DatasetInfo` is the pure-data record behind each catalog entry, with no dependency on the graph or any
+serialization library (JSON/rendering live in Python). Fields: `id`, `name`, `kind`, `domain`,
+`features`, `geometry`, `temporal`, `coverage`, `versioning`, `source_url`, `field_docs_url`, `license`,
+`access`. `gravel.dataset_catalog()` (implemented in `gravel-datasets`, `src/datasets/catalog.cpp`)
+returns the six supported entries as `list[DatasetInfo]`.
+
+The `Temporal` and `Feature` bitmasks support `|`/`&` and an `has_temporal(set, query)` / `has_feature(set, query)`
+containment test in C++ (`dataset_info.h`); in Python, `Dataset.has_feature()` / `.feature_names()` /
+`.temporal_names()` decode them.
+
+### 36.4 OSM — road network (`gravel.datasets.osm`)
+
+Bring-your-own `.pbf` extract (e.g. from Geofabrik). Requires an OSM-enabled build (`gravel.HAS_OSM`);
+both functions raise `RuntimeError` otherwise.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `load(pbf_path, speed_profile=None)` | `Graph` | Road network from an OSM `.pbf`. `speed_profile` maps highway class → km/h (defaults to `SpeedProfile.car()`). Edge weight is travel time (s); node coordinates populated. |
+| `load_with_metadata(pbf_path, speed_profile=None, bidirectional=True)` | `(Graph, EdgeMetadata)` | Same, plus per-edge OSM tags (highway/name/surface/bridge/tunnel/maxspeed/lanes/ref) in CSR edge order (§31.2). |
+
+### 36.5 TIGER — US Census boundaries (`gravel.datasets.tiger`)
+
+Each function loads a TIGER/Line GeoJSON layer into a list of region specs for node assignment (§24).
+Bring-your-own file (download from the Census TIGER/Line site — see `datasets.info("tiger").source_url`).
+
+| Function | TIGER Layer | region_id | label |
+|----------|-------------|-----------|-------|
+| `counties(geojson_path)` | Counties | GEOID (5-digit FIPS) | NAMELSAD |
+| `states(geojson_path)` | States | STATEFP | NAME |
+| `cbsas(geojson_path)` | CBSAs (metro/micro) | CBSAFP | NAME |
+| `places(geojson_path)` | Places (cities/CDPs) | GEOID (7-digit) | NAMELSAD |
+| `urban_areas(geojson_path)` | Urban Areas | UACE10 | NAME10 |
+
+### 36.6 Hazard overlays (`gravel.datasets.{nfhl, shakemap, usdm, nri}`)
+
+The four hazard overlays share a **consistent two-function interface** — `fetch(...)` (retrieve a
+footprint + a citable stamp) and `edge_probabilities(graph, footprint, ...)` (join it to a per-edge
+failure probability that feeds `gravel.stochastic_fragility`, §33.3). Each ships a **disclosed,
+sweepable** severity→probability table; these are **illustrative defaults, NOT authoritative or
+source-published rates** — pass your own table or sweep the shipped one. All need the `gravel[datasets]`
+extra (geopandas).
+
+| Fetcher | `fetch(...)` first arg | Source / version axis | Default probability table |
+|---------|------------------------|-----------------------|---------------------------|
+| `nfhl` | `bbox=(min_lon, min_lat, max_lon, max_lat)` | FEMA National Flood Hazard Layer (ArcGIS); `effective_date`. Relocated from `gravel.hazards`. | `EVENT_CLOSURE` (design-flood), or `ANNUAL_PROBABILITY` (annual exceedance) keyed on `FLD_ZONE`. |
+| `shakemap` | `event_id` (or a `bbox`/time search) with `version=`/`source=` | USGS ShakeMap via ComCat; `event_id+version`. | `MMI_CLOSURE` keyed on the MMI band (floor 1..10). |
+| `usdm` | `date` (snapped to the USDM valid **Tuesday**) | US Drought Monitor (NDMC ArcGIS, current week only); `weekly_date`. | `DROUGHT_FAILURE` keyed on `DM` (0..4). Weak, secondary hazard — defaults deliberately tiny. |
+| `nri` | `geography="county"` (or `"tract"`) | FEMA National Risk Index (ArcGIS); annualized baseline (`release_version`). | `RISK_CLOSURE` keyed on the composite `RISK_RATNG` rating. |
+
+**`fetch(...) → (GeoDataFrame, Provenance)`.** Every fetcher returns the footprint as a WGS84
+(EPSG:4326) `GeoDataFrame` — ready for `edge_probabilities` or a map risk layer — plus a `Provenance`
+stamp (§36.7). Endpoints default to each source's public service and are overridable via an `endpoint=`
+argument or a `GRAVEL_{NFHL,SHAKEMAP,USDM,NRI}_ENDPOINT` environment variable. `shakemap.fetch` in
+search mode returns `(dict[event_id → GeoDataFrame], Provenance)` and skips events with no usable
+ShakeMap. Each module also exposes a `*_color(...)` helper (`nfhl.zone_color`, `shakemap.mmi_color`,
+`usdm.dm_color`, `nri` `RISK_COLORS`) giving an illustrative RGBA severity ramp for drawing the risk
+layer.
+
+**`edge_probabilities(graph, footprint, *, baseline=0.0, default_probability=None, …) → np.ndarray`.**
+Maps each footprint polygon's severity code to a probability (via the module's default table, or a
+caller-supplied one), then marks the graph edges inside it — an edge takes a zone's probability when
+**both** endpoints are inside (matching `edges_in_polygon`), overlaps take the **max**, edges outside
+every zone get `baseline`. Returns a `float64[edge_count]` array in CSR edge order. Delegates to the
+shared `gravel.datasets._hazard.edge_probabilities_from_frame` core (which reuses the C++
+`hazard_edge_probabilities` PIP kernel, §33.5). Each fetcher's per-code field/table keyword mirrors its
+source: `nfhl` (`zone_field="FLD_ZONE"`, `zone_probabilities=`), `shakemap` (`mmi_field="mmi"`,
+`mmi_probabilities=`), `usdm` (`category_field="DM"`, `category_probabilities=`), `nri`
+(`rating_field="RISK_RATNG"`, `rating_probabilities=`).
+
+```python
+import gravel
+from gravel import datasets as ds
+
+g, _ = ds.osm.load_with_metadata("county.osm.pbf")
+ch = gravel.build_ch(g); idx = gravel.ShortcutIndex(ch)
+
+flood, prov = ds.nfhl.fetch((-82.60, 35.55, -82.52, 35.64))   # (GeoDataFrame, Provenance)
+probs = ds.nfhl.edge_probabilities(g, flood)                  # float64[edge_count], CSR order
+res = gravel.stochastic_fragility(g, ch, idx, probs, gravel.StochasticFragilityConfig())
+print(prov.summary())                                         # cite the pull
+```
+
+### 36.7 Provenance
+
+The second element of every `fetch()` — a lean, citable stamp of what was pulled, from where, and when.
+Deliberately **not** full lineage: just enough to cite the pull in a methods section and re-request it.
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `dataset_id` | `str` | The catalog id (`"nfhl"`, `"shakemap"`, …). |
+| `endpoint` | `str` | The exact endpoint queried. |
+| `resolved_version` | `str` | The resolved version on the source's axis (flood effective date, `event_id/source/vN`, USDM valid Tuesday, NRI release). |
+| `pulled_at` | `str` | ISO-8601 UTC pull time (second precision). |
+
+| Member | Returns | Description |
+|--------|---------|-------------|
+| `to_dict()` | `dict` | Plain-dict record. |
+| `to_json(**kwargs)` | `str` | Record as JSON (`**kwargs` forwarded to `json.dumps`). |
+| `summary()` | `str` | One-line human-readable citation (`"{id}: {version} from {endpoint} @ {pulled_at}"`; also `str(prov)`). |
+
+### 36.8 Deprecated (removed in 3.0)
+
+The 2.6 relocation left back-compat shims: every old name below still works, emits a
+`DeprecationWarning`, and forwards to its `gravel.datasets` replacement. They are **removed in Gravel
+3.0**. A bare `import gravel` does not warn — only actual access to a deprecated name does (PEP 562).
+
+| Deprecated | Replacement |
+|------------|-------------|
+| `gravel.load_osm_graph` | `gravel.datasets.osm.load` |
+| `gravel.load_osm_graph_with_metadata` | `gravel.datasets.osm.load_with_metadata` |
+| `gravel.load_tiger_counties` | `gravel.datasets.tiger.counties` |
+| `gravel.load_tiger_states` | `gravel.datasets.tiger.states` |
+| `gravel.load_tiger_cbsas` | `gravel.datasets.tiger.cbsas` |
+| `gravel.load_tiger_places` | `gravel.datasets.tiger.places` |
+| `gravel.load_tiger_urban_areas` | `gravel.datasets.tiger.urban_areas` |
+| `gravel.hazards.fetch_nfhl_flood_zones(bbox)` | `gravel.datasets.nfhl.fetch(bbox)[0]` (new `fetch` returns `(gdf, provenance)`) |
+| `gravel.hazards.flood_edge_probabilities` | `gravel.datasets.nfhl.edge_probabilities` |
+| `gravel.hazards.hazard_edge_probabilities` | `gravel.datasets._hazard.hazard_edge_probabilities` |
+| `gravel.hazards.nfhl_zone_color` | `gravel.datasets.nfhl.zone_color` |
+| `gravel.hazards.NFHL_EVENT_CLOSURE` / `NFHL_ANNUAL_PROBABILITY` | `gravel.datasets.nfhl.EVENT_CLOSURE` / `.ANNUAL_PROBABILITY` |
+| `gravel.hazards.NFHL_ENDPOINT` / `NFHL_FLOOD_ZONE_LAYER` | `gravel.datasets.nfhl.ENDPOINT` / `.FLOOD_ZONE_LAYER` |
+| `gravel.hazards.NFHL_ZONE_COLORS` / `NFHL_DEFAULT_ZONE_COLOR` | `gravel.datasets.nfhl.ZONE_COLORS` / `._DEFAULT_ZONE_COLOR` |
