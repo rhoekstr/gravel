@@ -33,15 +33,19 @@ from .._gravel import (
     dataset_catalog,
 )
 
-from . import osm, tiger
+from . import nfhl, nri, osm, shakemap, tiger, usdm
 
 __all__ = [
     "Dataset",
     "list",
     "info",
     "summary",
+    "nfhl",
+    "nri",
     "osm",
+    "shakemap",
     "tiger",
+    "usdm",
     "Access",
     "Coverage",
     "DatasetInfo",

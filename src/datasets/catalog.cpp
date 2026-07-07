@@ -56,7 +56,7 @@ std::vector<DatasetInfo> dataset_catalog() {
             .coverage = Coverage::US,
             .versioning = "effective_date",
             .source_url = "https://www.fema.gov/flood-maps/national-flood-hazard-layer",
-            .field_docs_url = "https://www.fema.gov/glossary/flood-zones",
+            .field_docs_url = "https://www.fema.gov/about/glossary/flood-zones",
             .license = "public domain (US federal)",
             .access = Access::FETCHER,
         },
