@@ -49,7 +49,10 @@ def _edge_lookup(g):
 
 def test_catalog_lists_expected_datasets():
     ids = [d.id for d in datasets.list()]
-    assert set(ids) == {"osm", "tiger", "nfhl", "shakemap", "usdm", "nri"}
+    assert set(ids) == {
+        "osm", "tiger", "nfhl", "shakemap", "usdm", "nri",
+        "gridsfm", "opfdata", "caida", "openflights", "gtfs",
+    }
 
 
 def test_info_returns_dataset_and_raises_on_unknown():

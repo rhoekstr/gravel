@@ -33,15 +33,32 @@ from .._gravel import (
     dataset_catalog,
 )
 
-from . import nfhl, nri, osm, shakemap, tiger, usdm
+from . import (
+    caida,
+    gridsfm,
+    gtfs,
+    nfhl,
+    nri,
+    opfdata,
+    openflights,
+    osm,
+    shakemap,
+    tiger,
+    usdm,
+)
 
 __all__ = [
     "Dataset",
     "list",
     "info",
     "summary",
+    "caida",
+    "gridsfm",
+    "gtfs",
     "nfhl",
     "nri",
+    "opfdata",
+    "openflights",
     "osm",
     "shakemap",
     "tiger",
@@ -64,8 +81,8 @@ def _is_available(entry: DatasetInfo) -> bool:
         import gravel
 
         return bool(gravel.HAS_OSM)
-    if entry.access == Access.FETCHER:
-        # Hazard fetchers build GeoDataFrames.
+    if entry.kind == DatasetKind.HAZARD_OVERLAY:
+        # Hazard fetchers build GeoDataFrames; network loaders need only numpy.
         return importlib.util.find_spec("geopandas") is not None
     return True
 
