@@ -194,6 +194,19 @@ from ._gravel import (
     write_fragility_jsonl,
 )
 
+# --- Dataset catalog / info-pull (2.6) ---
+from ._gravel import (  # noqa: E402
+    Access,
+    Coverage,
+    DatasetInfo,
+    DatasetKind,
+    Domain,
+    Feature,
+    Geometry,
+    Temporal,
+    dataset_catalog,
+)
+
 # OSM loader availability depends on how the extension was built.
 # PyPI wheels from v2.2.2+ ship with OSM enabled on every platform; older
 # wheels and source builds without libosmium will have HAS_OSM = False.
@@ -233,6 +246,7 @@ if HAS_ARROW:
 #   hazards  — hazard footprints -> per-edge failure probabilities for stochastic_fragility
 #   viz      — fragility results -> plot-ready GeoDataFrames (visualization data bridge)
 from . import (  # noqa: E402
+    datasets,
     hazards,
     interop,
     viz,
@@ -309,7 +323,10 @@ __all__ = [
     "seasonal_weight_multipliers",
     # Export / interop / hazards / viz
     "HAS_ARROW", "route_to_geojson", "location_fragility_to_geojson",
-    "write_fragility_jsonl", "interop", "hazards", "viz",
+    "write_fragility_jsonl", "interop", "hazards", "viz", "datasets",
+    # Dataset catalog / info-pull (2.6)
+    "DatasetKind", "Domain", "Geometry", "Temporal", "Coverage", "Access", "Feature",
+    "DatasetInfo", "dataset_catalog",
     # Parallelism
     "HAS_OPENMP", "max_threads", "set_max_threads",
 ]
