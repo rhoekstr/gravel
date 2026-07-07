@@ -158,12 +158,6 @@ from ._gravel import (
     load_region_assignment,
     load_regions_geojson,
     load_srtm_elevation,
-    load_tiger_cbsas,
-    # --- TIGER loaders (US Census boundaries) ---
-    load_tiger_counties,
-    load_tiger_places,
-    load_tiger_states,
-    load_tiger_urban_areas,
     location_fragility,
     location_fragility_to_geojson,
     # --- Graph construction ---
@@ -222,8 +216,6 @@ try:
         OSMConfig,
         SpeedProfile,
         estimate_capacity,
-        load_osm_graph,
-        load_osm_graph_with_metadata,
     )
     HAS_OSM = True
 except ImportError:
@@ -308,9 +300,8 @@ __all__ = [
     "ReducedGraphConfig", "ReducedGraph", "build_reduced_geography_graph",
     "InterRegionFragilityConfig", "InterRegionLevel", "InterRegionPairResult",
     "InterRegionFragilityResult", "inter_region_fragility",
-    # TIGER loaders
-    "load_tiger_counties", "load_tiger_states", "load_tiger_cbsas",
-    "load_tiger_places", "load_tiger_urban_areas",
+    # (TIGER loaders + load_osm_graph* moved to gravel.datasets in 2.6; the deprecated
+    #  top-level aliases still work via __getattr__ below, and are removed in 3.0.)
     # Landmarks + sampling
     "LandmarkData", "precompute_landmarks", "SamplingConfig", "stratified_sample",
     # Snap
@@ -330,3 +321,34 @@ __all__ = [
     # Parallelism
     "HAS_OPENMP", "max_threads", "set_max_threads",
 ]
+
+
+# --- Deprecated top-level loaders (2.6) ------------------------------------------
+# Relocated under gravel.datasets; kept working as warning-emitting aliases and
+# removed in 3.0. Resolved lazily (PEP 562) so a bare `import gravel` never warns —
+# only actual access to a deprecated name does.
+_DEPRECATED_LOADERS = {
+    "load_osm_graph": ("osm", "load"),
+    "load_osm_graph_with_metadata": ("osm", "load_with_metadata"),
+    "load_tiger_counties": ("tiger", "counties"),
+    "load_tiger_states": ("tiger", "states"),
+    "load_tiger_cbsas": ("tiger", "cbsas"),
+    "load_tiger_places": ("tiger", "places"),
+    "load_tiger_urban_areas": ("tiger", "urban_areas"),
+}
+
+
+def __getattr__(name):  # PEP 562 module-level attribute hook
+    target = _DEPRECATED_LOADERS.get(name)
+    if target is not None:
+        import warnings
+
+        submodule, func = target
+        warnings.warn(
+            f"gravel.{name} is deprecated; use gravel.datasets.{submodule}.{func} "
+            "(removed in Gravel 3.0).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return getattr(getattr(datasets, submodule), func)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
