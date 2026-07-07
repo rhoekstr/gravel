@@ -7,7 +7,7 @@
 ///        -L build -lgravel -lz -llz4 -o build/test_appalachia
 /// Run:   build/test_appalachia <path.osm.pbf>
 
-#include "gravel/geo/osm_graph.h"
+#include "gravel/datasets/osm_graph.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/ch_query.h"
 #include "gravel/ch/shortcut_index.h"

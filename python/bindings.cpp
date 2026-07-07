@@ -47,8 +47,9 @@
 #include "gravel/geo/region_assignment.h"
 #include "gravel/geo/geojson_loader.h"
 #include "gravel/geo/boundary_nodes.h"
-#include "gravel/us/tiger_loader.h"
-#include "gravel/geo/osm_graph.h"
+#include "gravel/datasets/tiger_loader.h"
+#include "gravel/datasets/osm_graph.h"
+#include "gravel/datasets/catalog.h"
 #include "gravel/geo/border_edges.h"
 #include "gravel/geo/graph_coarsening.h"
 #include "gravel/geo/region_serialization.h"
@@ -1558,5 +1559,84 @@ PYBIND11_MODULE(_gravel, m) {
           py::arg("reduced"), py::arg("config") = InterRegionFragilityConfig{},
           "Progressive fragility analysis between adjacent regions on a ReducedGraph",
           py::call_guard<py::gil_scoped_release>());
+
+    // ===== Dataset catalog / info-pull (2.6) =====
+    py::enum_<DatasetKind>(m, "DatasetKind")
+        .value("NETWORK", DatasetKind::NETWORK)
+        .value("BOUNDARY", DatasetKind::BOUNDARY)
+        .value("HAZARD_OVERLAY", DatasetKind::HAZARD_OVERLAY)
+        .value("ATTRIBUTE_OVERLAY", DatasetKind::ATTRIBUTE_OVERLAY);
+
+    py::enum_<Domain>(m, "Domain")
+        .value("GENERIC", Domain::GENERIC)
+        .value("ADMINISTRATIVE", Domain::ADMINISTRATIVE)
+        .value("ROAD", Domain::ROAD)
+        .value("POWER", Domain::POWER)
+        .value("INTERNET", Domain::INTERNET)
+        .value("AIR", Domain::AIR)
+        .value("TRANSIT", Domain::TRANSIT)
+        .value("FLOOD", Domain::FLOOD)
+        .value("WILDFIRE", Domain::WILDFIRE)
+        .value("EARTHQUAKE", Domain::EARTHQUAKE)
+        .value("HURRICANE", Domain::HURRICANE)
+        .value("TORNADO", Domain::TORNADO)
+        .value("DROUGHT", Domain::DROUGHT)
+        .value("MULTI_HAZARD", Domain::MULTI_HAZARD);
+
+    py::enum_<Geometry>(m, "Geometry")
+        .value("NONE", Geometry::NONE)
+        .value("POINT", Geometry::POINT)
+        .value("LINE", Geometry::LINE)
+        .value("POLYGON", Geometry::POLYGON)
+        .value("RASTER", Geometry::RASTER);
+
+    // Temporal is a combinable bitmask (a source can be SNAPSHOT | HISTORICAL).
+    py::enum_<Temporal>(m, "Temporal", py::arithmetic())
+        .value("NONE", Temporal::NONE)
+        .value("SNAPSHOT", Temporal::SNAPSHOT)
+        .value("HISTORICAL", Temporal::HISTORICAL)
+        .value("ANNUALIZED", Temporal::ANNUALIZED);
+
+    py::enum_<Coverage>(m, "Coverage")
+        .value("NONE", Coverage::NONE)
+        .value("US", Coverage::US)
+        .value("GLOBAL", Coverage::GLOBAL);
+
+    py::enum_<Access>(m, "Access")
+        .value("FETCHER", Access::FETCHER)
+        .value("BYO", Access::BYO)
+        .value("BUNDLED", Access::BUNDLED);
+
+    // Feature is a combinable bitmask of per-edge/per-node capabilities.
+    py::enum_<Feature>(m, "Feature", py::arithmetic())
+        .value("NONE", Feature::NONE)
+        .value("NODE_COORDS", Feature::NODE_COORDS)
+        .value("EDGE_GEOMETRY", Feature::EDGE_GEOMETRY)
+        .value("CAPACITY", Feature::CAPACITY)
+        .value("LANES", Feature::LANES)
+        .value("SPEED", Feature::SPEED)
+        .value("ROAD_CLASS", Feature::ROAD_CLASS)
+        .value("ONEWAY", Feature::ONEWAY)
+        .value("SEVERITY", Feature::SEVERITY)
+        .value("HAZARD_PROB", Feature::HAZARD_PROB);
+
+    py::class_<DatasetInfo>(m, "DatasetInfo")
+        .def_readonly("id", &DatasetInfo::id)
+        .def_readonly("name", &DatasetInfo::name)
+        .def_readonly("kind", &DatasetInfo::kind)
+        .def_readonly("domain", &DatasetInfo::domain)
+        .def_readonly("features", &DatasetInfo::features)
+        .def_readonly("geometry", &DatasetInfo::geometry)
+        .def_readonly("temporal", &DatasetInfo::temporal)
+        .def_readonly("coverage", &DatasetInfo::coverage)
+        .def_readonly("versioning", &DatasetInfo::versioning)
+        .def_readonly("source_url", &DatasetInfo::source_url)
+        .def_readonly("field_docs_url", &DatasetInfo::field_docs_url)
+        .def_readonly("license", &DatasetInfo::license)
+        .def_readonly("access", &DatasetInfo::access);
+
+    m.def("dataset_catalog", &dataset_catalog,
+          "The catalog of natively-supported datasets, as a list of DatasetInfo. "
+          "Pure metadata; the Python gravel.datasets layer annotates runtime availability.");
 
 }

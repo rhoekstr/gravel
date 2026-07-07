@@ -6,7 +6,7 @@
 //            -L../../build -lgravel -losmium -lz -lbz2 -lexpat \
 //            -o location_fragility
 
-#include <gravel/geo/osm_graph.h>
+#include <gravel/datasets/osm_graph.h>
 #include <gravel/ch/contraction.h>
 #include <gravel/analysis/location_fragility.h>
 

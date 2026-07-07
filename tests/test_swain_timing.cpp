@@ -1,5 +1,5 @@
 #include <catch2/catch_test_macros.hpp>
-#include "gravel/geo/osm_graph.h"
+#include "gravel/datasets/osm_graph.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/shortcut_index.h"
 #include "gravel/fragility/route_fragility.h"

@@ -8,7 +8,7 @@
 #pragma once
 
 #include "gravel/geo/region_assignment.h"
-#include "gravel/us/tiger_loader.h"
+#include "gravel/datasets/tiger_loader.h"
 #include <string>
 
 namespace gravel {
