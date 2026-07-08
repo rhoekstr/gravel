@@ -21,10 +21,8 @@ from ._hazard import edge_probabilities_from_frame
 from ._provenance import Provenance
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    import geopandas as gpd
-    import numpy as np
 
-    from .._gravel import Graph
+    pass
 
 
 # FEMA NFHL flood-zone code -> per-event road-closure probability (design-flood

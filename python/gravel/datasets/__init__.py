@@ -32,15 +32,14 @@ from .._gravel import (
     Temporal,
     dataset_catalog,
 )
-
 from . import (
     caida,
     gridsfm,
     gtfs,
     nfhl,
     nri,
-    opfdata,
     openflights,
+    opfdata,
     osm,
     shakemap,
     t100,

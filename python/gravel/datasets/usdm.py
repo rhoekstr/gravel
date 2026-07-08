@@ -44,10 +44,8 @@ from ._hazard import edge_probabilities_from_frame
 from ._provenance import Provenance
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    import geopandas as gpd
-    import numpy as np
 
-    from .._gravel import Graph
+    pass
 
 
 # USDM drought category (``DM`` integer 0-4) -> per-week road-failure probability.

@@ -23,9 +23,8 @@ from .. import _gravel
 from .._gravel import Coord, Polygon
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
-    import geopandas as gpd
 
-    from .._gravel import Graph
+    pass
 
 
 def hazard_edge_probabilities(graph, zones, *, baseline: float = 0.0) -> np.ndarray:

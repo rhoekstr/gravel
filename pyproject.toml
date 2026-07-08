@@ -169,6 +169,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # __init__.py re-exports are intentional
 "python/gravel/__init__.py" = ["F401"]
+# The deprecation shim lists lazily-resolved (PEP 562 __getattr__) names in __all__
+"python/gravel/hazards.py" = ["F822"]
 # Scripts need to mutate sys.path before importing gravel
 "scripts/*.py" = ["E402"]
 

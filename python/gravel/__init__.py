@@ -32,11 +32,13 @@ Quick start::
     coarsened = gravel.coarsen_graph(g, assignment, border)
 """
 
-from ._gravel import (
+# --- Dataset catalog / info-pull (2.6) ---
+from ._gravel import (  # noqa: E402
     CH,
     # --- Export / interop + parallelism flags ---
     HAS_ARROW,
     HAS_OPENMP,
+    Access,
     AlternateRouteResult,
     AssignmentConfig,
     BernsteinConfig,
@@ -64,6 +66,10 @@ from ._gravel import (
     # --- County fragility ---
     CountyFragilityConfig,
     CountyFragilityResult,
+    Coverage,
+    DatasetInfo,
+    DatasetKind,
+    Domain,
     # --- Fragility ---
     EdgeFragility,
     # --- Edge geometry (2B) ---
@@ -71,12 +77,14 @@ from ._gravel import (
     EdgeSampler,
     # --- Elevation ---
     ElevationData,
+    Feature,
     FilterConfig,
     FilteredFragilityResult,
     FragilityResult,
     # --- Fragility validation ---
     FragilityValidationReport,
     GeoJSONLoadConfig,
+    Geometry,
     # --- Core types ---
     Graph,
     # --- Inter-region progressive fragility ---
@@ -125,6 +133,7 @@ from ._gravel import (
     StochasticTarget,
     # --- Network analysis ---
     SubgraphResult,
+    Temporal,
     # --- Validation ---
     ValidationReport,
     ViaPathConfig,
@@ -143,6 +152,7 @@ from ._gravel import (
     classify_closure_risk,
     coarsen_graph,
     county_fragility_index,
+    dataset_catalog,
     # --- Routing ---
     dijkstra_pair,
     edge_betweenness,
@@ -186,19 +196,6 @@ from ._gravel import (
     validate_fragility,
     validate_shortcut_interaction,
     write_fragility_jsonl,
-)
-
-# --- Dataset catalog / info-pull (2.6) ---
-from ._gravel import (  # noqa: E402
-    Access,
-    Coverage,
-    DatasetInfo,
-    DatasetKind,
-    Domain,
-    Feature,
-    Geometry,
-    Temporal,
-    dataset_catalog,
 )
 
 # OSM loader availability depends on how the extension was built.

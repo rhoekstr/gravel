@@ -23,7 +23,7 @@ class Provenance:
     pulled_at: str  # ISO-8601 UTC, second precision
 
     @staticmethod
-    def stamp(dataset_id: str, endpoint: str, resolved_version) -> "Provenance":
+    def stamp(dataset_id: str, endpoint: str, resolved_version) -> Provenance:
         """Create a record stamped at the current UTC time."""
         now = datetime.datetime.now(datetime.timezone.utc).replace(microsecond=0)
         return Provenance(
