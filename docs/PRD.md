@@ -62,12 +62,14 @@ counties, states, and regions.
 5. **Directional analysis** — reveal asymmetric vulnerability (e.g., a coastal town's evacuation
    routes north are fine but east is fragile)
 
-## What Gravel Computes Today (current capability, 2.2.3)
+## What Gravel Computes Today (current capability, 2.7.0)
 
-Gravel's fragility analysis is **purely topological**: it removes edges and recomputes
-shortest-paths / isolation. There is no flow, capacity, load, or congestion model — edge `Weight` is
-a fixed travel-time scalar. This is a deliberate, defensible position (see Design Decisions and
-Roadmap), not an omission.
+Gravel's **core fragility is topological**: it removes edges and recomputes shortest-paths /
+isolation, with no traffic-assignment flow, congestion, or user-equilibrium model — edge `Weight` is
+a fixed travel-time scalar. Where modeling depth is added (capacity-weighted criticality since 2.4.0,
+per-edge failure probabilities, the experimental cascade, and real substrate capacity since 2.7.0),
+it enters as **disclosed, sensitivity-tested input arrays**, never as a new simulated paradigm in the
+core. This is a deliberate, defensible position (see DD-6 and the Roadmap), not an omission.
 
 **Routing & core**
 - OSM PBF, CSV, and programmatic graph construction; binary serialize/deserialize
@@ -90,6 +92,26 @@ Roadmap), not an omission.
 **Geographic & US**
 - Point-in-polygon node assignment, GeoJSON boundary loading, border-edge summarization, coarsening
 - TIGER/Line loaders (counties, states, CBSAs, places, urban areas), FIPS crosswalks
+
+**Analytical depth** (2.4.0; disclosed, sweepable inputs — DD-6)
+- `estimate_capacity` — per-edge PCE from `highway`/`lanes`; capacity-weighted betweenness (criticality)
+- `stochastic_fragility` — Monte Carlo over per-edge failure probabilities → a fragility *distribution*
+- `cascade_fragility` — Motter–Lai load-redistribution cascade (experimental; matures in 3.0)
+
+**Visualization** (2.5.0; `gravel[viz]`, pure Python, downstream of `to_geodataframe`)
+- `plot_fragility` — static quantitative choropleth (colorblind-safe) for research artifacts
+- `interactive_map` / `animate_failure` (lonboard WebGL) + self-contained `animate_failure_html` /
+  `dashboard_html` for comprehension and public reach; real road-shape geometry from 2B
+
+**Datasets & hazards** (2.6.0; `gravel.datasets`, `gravel[datasets]`)
+- Queryable dataset catalog + info-pull (`list()` / `info(id)` / `summary()`); `DatasetInfo` in core
+- Four hazard fetchers — NFHL flood, USGS ShakeMap, US Drought Monitor, FEMA NRI — each
+  `fetch(...) → (GeoDataFrame, Provenance)` + `edge_probabilities(...) → np.ndarray` feeding `stochastic_fragility`
+
+**Network substrates** (2.7.0; the engine is network-agnostic — roads were the first example)
+- Five infrastructure networks as first-class fragility substrates, each `load(...) → (Graph, capacity)`:
+  GridSFM & OPFData (power), CAIDA ITDK (internet), OpenFlights (air), GTFS (transit; incl. NYC/DC/Chicago presets)
+- BTS T-100 airline capacity overlay (`t100`, key-join); catalog spans 12 datasets
 
 ### Current limitations
 
@@ -288,55 +310,14 @@ inputs** — never as a new simulated paradigm baked into the core. See Roadmap 
 
 ## Version History
 
-### v2.4.0 (2026-07-01) — Phase 2A research depth
-- HCM capacity model + capacity-aware betweenness (criticality + weighted importance);
-  `stochastic_fragility` (distribution over per-edge failures, floodplain-ready);
-  `cascade_fragility` (Motter–Lai, experimental). Modeling constants are disclosed, sweepable inputs.
+The authoritative, per-release changelog lives in [`CHANGELOG.md`](../CHANGELOG.md) (Keep-a-Changelog,
+SemVer) — this PRD does not duplicate it. The arc in brief:
 
-### v2.3.0 (June 2026)
-- **Interop keystone (Phase 1).** Python surface gains `Graph.node_coordinates` / `has_coordinates`,
-  `to_coo` / `from_coo`; per-edge OSM metadata via `load_osm_graph_with_metadata` → `EdgeMetadata`;
-  GeoJSON/JSONL/Parquet export bindings + `HAS_ARROW` flag; and the `gravel.interop` NetworkX /
-  GeoPandas adapter module (`gravel[interop]` extra). Backward compatible; DAG preserved.
-- **Performance & parallelism hardening.** macOS OpenMP detection (Homebrew `libomp`) — macOS
-  builds were previously silently serial; `HAS_OPENMP` / `max_threads()` / `set_max_threads()`
-  visibility + control; `route_fragility` parallelized over path edges (was serial); national
-  pipeline `--jobs` process pool with per-worker thread caps; GIL released on heavy calls;
-  `BetweennessConfig.deterministic` for reproducible, thread-count-invariant betweenness.
-
-### v2.2.3 (June 2026)
-- PyPI/README metadata linked to Awry Labs project pages
-
-### v2.2.2 (April 2026)
-- OSM ships in every published wheel (20 platforms); `HAS_OSM` feature flag;
-  `GRAVEL_USE_OSMIUM=AUTO` default
-
-### v2.2.1 (April 2026)
-- Windows support (CreateFileMappingW backend); CMake ≥3.24 (FetchContent FIND_PACKAGE_ARGS)
-
-### v2.2.0 (April 2026)
-- `ReducedGraph` (region collapse); inter-region fragility; national adjacency-driven inter-county
-  pipeline
-
-### v2.1 (April 2026)
-- **Major rewrite** of `location_fragility` using Dijkstra + IncrementalSSSP (~400x speedup)
-- Sub-library architecture (6 CMake targets with enforced dependency DAG)
-- New infrastructure: `EdgeSampler`, `IncrementalSSSP`, `RegionAssignment`, boundary-aware
-  simplification
-- New features: border edge summarization, graph coarsening, FIPS crosswalk, scenario fragility fast
-  path
-- Python API cleanup, region serialization, TIGER loaders
-- National US county fragility pipeline (3,221 counties in ~3 hours)
-
-### v2.0
-- Progressive elimination fragility with Monte Carlo / Greedy strategies
-- `AnalysisContext` performance cache
-- Scenario fragility (hazard footprint intersection)
-- Edge confidence scoring
-- Tiled fragility analysis
-
-### v1.0
-- Initial release: routing, CH, route fragility, county fragility index
+**2.0** topological fragility core → **2.1** sub-library DAG + Dijkstra/IncrementalSSSP rewrite (~400×)
+→ **2.2** published wheels / Windows / inter-region → **2.3** interop keystone + real parallelism →
+**2.4** research depth (capacity → stochastic → cascade seed) → **2.5** visualization → **2.6** dataset
+onboarding & catalog + hazard fetchers → **2.7** alternative network substrates + capacity overlays →
+**3.0** cascade maturation (the committed next milestone; see Roadmap Phase 5).
 
 ## Roadmap
 
@@ -537,9 +518,11 @@ capacity overlay; the catalog grows to 12.
   capacity-weighted analyses run on the new substrates through the same interfaces, capacity feeding
   the existing stochastic/cascade input array (consistent with DD-6).
 
-### Phase 5 — Cascade maturation (3.0, future state)
+### Phase 5 — Cascade maturation (3.0) — the committed next milestone
 
-**Premise: the cascade model exists; 3.0 makes it defensible.** `cascade_fragility` shipped
+With Phase 4 shipped (2.7.0), the real-capacity substrates the cascade was gated behind now exist, so
+this is Gravel's committed next step rather than a someday item. **Premise: the cascade model exists;
+3.0 makes it defensible.** `cascade_fragility` shipped
 experimental in 2.4.0 (Motter–Lai — load = betweenness, capacity = (1+α)×initial load,
 redistribute-and-iterate to a fixed point, reported as cascade-size-vs-α). It is this document's
 sanctioned alternative to traffic-assignment flow modeling (see Non-Goals). What keeps it
@@ -573,7 +556,7 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   nlohmann/json, pybind11, and Catch2 still `FetchContent`-clone from github at build time. Vendor or
   checksum-pin the rest so a release can never be blocked by an upstream host outage.
 - **conda-forge is stale (targets 2.2.x) — currently not a supported channel.** The README and docs no
-  longer advertise it. Either revive the feedstock and bump it to the current PyPI release (2.5.0), or
+  longer advertise it. Either revive the feedstock and bump it to the current PyPI release (2.7.0), or
   formally drop conda-forge; until then, PyPI is the only distribution.
 - ✅ **Refreshed headline performance numbers** (2026-07-01, `bench/baselines/routing_performance.md`).
   Re-benchmarked Release + OpenMP on real counties: distance matrix and `route_fragility` are ~5×
