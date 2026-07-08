@@ -3954,6 +3954,18 @@ apts = ds.openflights.fetch("data/")                     # airports.dat + routes
 g, cap, iata = ds.openflights.load(*apts, with_codes=True)   # (Graph, capacity, node->IATA)
 ```
 
+**GTFS major-city presets.** `gtfs.cities()` lists built-in city feeds; `gtfs.fetch_city(city, dest)`
+pulls one by name — `"nyc"` (MTA subway) and `"chicago"` (CTA bus + rail) are keyless direct pulls,
+`"dc"` (WMATA Metrorail) needs a free `api_key` (pass `apikey=` or set `GRAVEL_WMATA_APIKEY`, sent as
+WMATA's `api_key` header). Names are case-insensitive with aliases (`"new york"`, `"wmata"`, …). It is a
+thin preset over `fetch(feed_url=…)`; `fetch` also gained an `extra_headers=` argument for
+authenticated agency ZIP endpoints.
+
+```python
+feed, prov = ds.gtfs.fetch_city("nyc", "data/nyc")   # keyless
+g, cap = ds.gtfs.load(feed)                            # stops -> nodes, hops -> edges (persons/hr)
+```
+
 #### 36.9.2 Config structs (`ItdkConfig`, `GtfsConfig`, `GtfsCapacityModel`)
 
 Bound alongside the loaders. `caida.load` / `load_caida_itdk` take an `ItdkConfig`; `gtfs.load` /

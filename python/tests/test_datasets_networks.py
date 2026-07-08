@@ -75,3 +75,43 @@ def test_t100_edge_capacity_joins_by_iata():
     table = {(codes[int(src[e])], codes[int(tgt[e])]): 999.0}
     cap = gravel.datasets.t100.edge_capacity(graph, codes, table)
     assert cap.shape == (len(src),) and cap[e] == 999.0
+
+
+# --- GTFS major-city presets (no network; fetch() is stubbed) ---
+
+
+def test_gtfs_cities_registry_and_aliases():
+    from gravel.datasets import gtfs
+
+    c = gtfs.cities()
+    assert set(c) == {"nyc", "dc", "chicago"}
+    assert c["dc"]["needs_key"] is True and c["nyc"]["needs_key"] is False
+    assert gtfs._resolve_city("New York") == "nyc"
+    assert gtfs._resolve_city("WMATA") == "dc" and gtfs._resolve_city("cta") == "chicago"
+    with pytest.raises(KeyError):
+        gtfs._resolve_city("atlantis")
+
+
+def test_gtfs_fetch_city_wires_url_and_headers(monkeypatch, tmp_path):
+    from gravel.datasets import gtfs
+
+    seen = {}
+
+    def fake_fetch(dest, *, feed_url=None, extra_headers=None, timeout=120.0):
+        seen.update(dest=dest, feed_url=feed_url, extra_headers=extra_headers)
+        return "feed_dir", object()
+
+    monkeypatch.setattr(gtfs, "fetch", fake_fetch)
+    gtfs.fetch_city("new york", str(tmp_path))
+    assert "rrgtfsfeeds" in seen["feed_url"] and seen["extra_headers"] is None
+    gtfs.fetch_city("dc", str(tmp_path), apikey="SECRET")
+    assert seen["feed_url"].endswith("rail-gtfs-static.zip")
+    assert seen["extra_headers"] == {"api_key": "SECRET"}
+
+
+def test_gtfs_fetch_city_requires_key_for_dc(monkeypatch, tmp_path):
+    from gravel.datasets import gtfs
+
+    monkeypatch.delenv("GRAVEL_WMATA_APIKEY", raising=False)
+    with pytest.raises(ValueError, match="API key"):
+        gtfs.fetch_city("dc", str(tmp_path))

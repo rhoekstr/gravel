@@ -50,6 +50,7 @@ def fetch(
     feed_url=None,
     apikey=None,
     endpoint=None,
+    extra_headers=None,
     timeout=120.0,
 ):
     """Download a GTFS static feed ZIP and extract it into ``dest_dir``.
@@ -95,8 +96,10 @@ def fetch(
     zip_path = os.path.join(dest_dir, "feed.zip")
 
     if feed_url is not None:
-        # Keyless: fetch the ZIP straight from the given URL.
-        url, headers, source = feed_url, {}, feed_url
+        # Keyless (or caller-supplied auth via extra_headers): fetch the ZIP straight
+        # from the given URL — e.g. an agency portal link, or a WMATA endpoint with
+        # an ``api_key`` header (see :func:`fetch_city`).
+        url, auth, source = feed_url, {}, feed_url
     else:
         key = apikey or os.environ.get("GRAVEL_TRANSITLAND_APIKEY")
         if not key:
@@ -107,9 +110,9 @@ def fetch(
                 "direct agency ZIP link that needs no key."
             )
         source = f"{ep}/feeds/{onestop_id}/download_latest_feed_version"
-        url, headers = source, {"apikey": key}
+        url, auth = source, {"apikey": key}
 
-    headers = {"User-Agent": "gravel-fragility", **headers}
+    headers = {"User-Agent": "gravel-fragility", **auth, **(extra_headers or {})}
     req = Request(url, headers=headers)
     try:
         with urlopen(req, timeout=timeout) as resp:  # noqa: S310 - https feed source
@@ -139,6 +142,99 @@ def fetch(
         version = _transitland_latest_sha1(ep, onestop_id, apikey, timeout)
     prov = Provenance.stamp("gtfs", source, version or "latest")
     return feed_dir, prov
+
+
+# Major-city GTFS presets — direct agency feed URLs so a caller can pull a whole
+# city's transit network by name without hunting for the ZIP. NYC and Chicago are
+# keyless; WMATA (DC) needs a free ``api_key`` (developer.wmata.com), sent as a
+# header. Aliases route common names to the canonical key. Feeds move occasionally
+# — override with ``feed_url=`` on :func:`fetch` if an agency relocates its ZIP.
+CITY_FEEDS: dict[str, dict] = {
+    "nyc": {
+        "label": "New York City Subway (MTA)",
+        "feed_url": "https://rrgtfsfeeds.s3.amazonaws.com/gtfs_subway.zip",
+        "modes": "subway",
+        "license": "MTA open data — see https://www.mta.info/developers",
+        "aliases": ("new_york", "newyork", "new_york_city", "mta"),
+    },
+    "chicago": {
+        "label": "Chicago (CTA)",
+        "feed_url": "https://www.transitchicago.com/downloads/sch_data/google_transit.zip",
+        "modes": "bus+rail",
+        "license": "CTA open data — see https://www.transitchicago.com/developers/",
+        "aliases": ("cta", "chi"),
+    },
+    "dc": {
+        "label": "Washington Metrorail (WMATA)",
+        "feed_url": "https://api.wmata.com/gtfs/rail-gtfs-static.zip",
+        "modes": "rail",
+        "needs_key": True,
+        "key_header": "api_key",
+        "key_env": "GRAVEL_WMATA_APIKEY",
+        "license": "WMATA open data — free key at https://developer.wmata.com",
+        "aliases": ("washington", "wmata", "washington_dc"),
+    },
+}
+
+
+def _resolve_city(city):
+    """Map a city name/alias (case-insensitive) to a :data:`CITY_FEEDS` key."""
+    key = str(city).strip().lower().replace(" ", "_").replace("-", "_")
+    if key in CITY_FEEDS:
+        return key
+    for canonical, spec in CITY_FEEDS.items():
+        if key in spec.get("aliases", ()):
+            return canonical
+    raise KeyError(
+        f"unknown city {city!r}; known cities: {sorted(CITY_FEEDS)} "
+        f"(or pass feed_url= to gtfs.fetch for any agency)"
+    )
+
+
+def cities():
+    """Return the supported major-city GTFS presets (see :data:`CITY_FEEDS`).
+
+    A dict keyed by canonical city name (``"nyc"``, ``"dc"``, ``"chicago"``) with
+    the human label, modes, license note, and whether an API key is required.
+    """
+    return {
+        k: {
+            "label": v["label"],
+            "modes": v["modes"],
+            "needs_key": bool(v.get("needs_key")),
+            "license": v["license"],
+        }
+        for k, v in CITY_FEEDS.items()
+    }
+
+
+def fetch_city(city, dest_dir, *, apikey=None, timeout=120.0):
+    """Fetch + extract a major-city GTFS feed by name. Returns ``(feed_dir, Provenance)``.
+
+    ``city`` is a name or alias from :func:`cities` — ``"nyc"`` (MTA subway),
+    ``"chicago"`` (CTA bus + rail), or ``"dc"`` (WMATA Metrorail). NYC and Chicago
+    are keyless direct pulls; **DC (WMATA) requires a free API key** — pass
+    ``apikey=`` or set ``GRAVEL_WMATA_APIKEY`` (register at
+    https://developer.wmata.com), which is sent as WMATA's ``api_key`` header. The
+    returned directory is ready to hand to :func:`load`; record the per-feed license
+    (see :func:`cities`). Thin convenience over :func:`fetch` with a preset
+    ``feed_url``; for any other agency, call :func:`fetch` with your own ``feed_url``.
+    """
+    import os
+
+    spec = CITY_FEEDS[_resolve_city(city)]
+    extra_headers = None
+    if spec.get("needs_key"):
+        key = apikey or os.environ.get(spec["key_env"])
+        if not key:
+            raise ValueError(
+                f"{spec['label']} requires a free API key. Pass apikey= or set "
+                f"{spec['key_env']} (register at https://developer.wmata.com)."
+            )
+        extra_headers = {spec["key_header"]: key}
+    return fetch(
+        dest_dir, feed_url=spec["feed_url"], extra_headers=extra_headers, timeout=timeout
+    )
 
 
 def _gtfs_root(feed_dir):
