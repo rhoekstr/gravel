@@ -17,14 +17,23 @@ _AIRPORTS_URL = "https://raw.githubusercontent.com/jpatokal/openflights/master/d
 _ROUTES_URL = "https://raw.githubusercontent.com/jpatokal/openflights/master/data/routes.dat"
 
 
-def load(airports_path, routes_path, *, collapse_parallel=True, drop_codeshare=True):
+def load(
+    airports_path, routes_path, *, collapse_parallel=True, drop_codeshare=True, with_codes=False
+):
     """Load OpenFlights ``airports.dat`` + ``routes.dat``.
 
     Returns ``(Graph, capacity)`` — the graph carries per-airport coordinates and
     ``capacity`` is empty (OpenFlights has none). ``collapse_parallel`` merges
     duplicate airline/equipment rows over the same airport pair; ``drop_codeshare``
-    skips marketing-only codeshare rows.
+    skips marketing-only codeshare rows. With ``with_codes=True`` a third element is
+    returned: the node→IATA code list — the join key for the T-100 capacity overlay
+    (:mod:`gravel.datasets.t100`).
     """
+    if with_codes:
+        graph, capacity, codes = _gravel.load_openflights_network_ex(
+            airports_path, routes_path, collapse_parallel, drop_codeshare
+        )
+        return graph, np.asarray(capacity, dtype=np.float64), codes
     graph, capacity = _gravel.load_openflights_network(
         airports_path, routes_path, collapse_parallel, drop_codeshare
     )

@@ -18,9 +18,9 @@ const DatasetInfo* find(const std::vector<DatasetInfo>& cat, const std::string& 
 
 TEST_CASE("dataset_catalog lists the 2.6 datasets", "[datasets]") {
     const auto cat = dataset_catalog();
-    REQUIRE(cat.size() == 11);
+    REQUIRE(cat.size() == 12);
     for (const char* id : {"osm", "tiger", "nfhl", "shakemap", "usdm", "nri",
-                           "gridsfm", "opfdata", "caida", "openflights", "gtfs"}) {
+                           "gridsfm", "opfdata", "caida", "openflights", "gtfs", "t100"}) {
         REQUIRE(find(cat, id) != nullptr);
     }
     // every entry has an id, name, source, and license (metadata is complete).

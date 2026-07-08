@@ -51,7 +51,7 @@ def test_catalog_lists_expected_datasets():
     ids = [d.id for d in datasets.list()]
     assert set(ids) == {
         "osm", "tiger", "nfhl", "shakemap", "usdm", "nri",
-        "gridsfm", "opfdata", "caida", "openflights", "gtfs",
+        "gridsfm", "opfdata", "caida", "openflights", "gtfs", "t100",
     }
 
 

@@ -1698,6 +1698,19 @@ PYBIND11_MODULE(_gravel, m) {
           py::arg("collapse_parallel") = true, py::arg("drop_codeshare") = true,
           "Load OpenFlights airports.dat + routes.dat -> (Graph, empty capacity).");
 
+    m.def("load_openflights_network_ex",
+          [](const std::string& airports, const std::string& routes,
+             bool collapse_parallel, bool drop_codeshare) {
+              std::vector<std::string> node_iata;
+              NetworkGraph ng = load_openflights_network(airports, routes, collapse_parallel,
+                                                         drop_codeshare, &node_iata);
+              return py::make_tuple(std::shared_ptr<ArrayGraph>(std::move(ng.graph)),
+                                    ng.capacity, node_iata);
+          },
+          py::arg("airports_path"), py::arg("routes_path"),
+          py::arg("collapse_parallel") = true, py::arg("drop_codeshare") = true,
+          "OpenFlights load that also returns node->IATA codes for the T-100 overlay.");
+
     m.def("load_caida_itdk", [net_result](const ItdkConfig& config) {
         return net_result(load_caida_itdk(config));
     }, py::arg("config"), "Load a CAIDA ITDK release (ItdkConfig) -> (Graph, empty capacity).");

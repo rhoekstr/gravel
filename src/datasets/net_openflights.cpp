@@ -64,7 +64,8 @@ bool is_null(const std::string& s) { return s.empty() || s == "\\N"; }
 NetworkGraph load_openflights_network(const std::string& airports_path,
                                       const std::string& routes_path,
                                       bool collapse_parallel,
-                                      bool drop_codeshare) {
+                                      bool drop_codeshare,
+                                      std::vector<std::string>* node_iata) {
     std::ifstream airports_in(airports_path);
     if (!airports_in) {
         throw std::runtime_error("Cannot open OpenFlights airports file: " + airports_path);
@@ -73,6 +74,7 @@ NetworkGraph load_openflights_network(const std::string& airports_path,
     // Pass 1: airports.dat → dense node ids + coordinates, plus lookup indices.
     // airports.dat columns (1-indexed): 1=AirportID 5=IATA 7=Latitude 8=Longitude.
     std::vector<Coord> coords;
+    std::vector<std::string> node_iata_codes;              // node → IATA ("" if none), for the T-100 overlay
     std::unordered_map<std::string, NodeID> id_to_node;    // OpenFlights Airport ID → node
     std::unordered_map<std::string, NodeID> iata_to_node;  // IATA (non-null) → node
 
@@ -99,6 +101,7 @@ NetworkGraph load_openflights_network(const std::string& airports_path,
         if (id_to_node.emplace(airport_id, node).second) {
             coords.push_back({lat, lon});
             const std::string& iata = f[4];
+            node_iata_codes.push_back(is_null(iata) ? std::string() : iata);
             if (!is_null(iata)) {
                 iata_to_node.emplace(iata, node);  // first-seen IATA wins
             }
@@ -171,6 +174,8 @@ NetworkGraph load_openflights_network(const std::string& airports_path,
         targets[idx] = dst;
         weights[idx] = haversine_meters(coords[src], coords[dst]);
     }
+
+    if (node_iata) *node_iata = std::move(node_iata_codes);
 
     NetworkGraph result;
     result.graph = std::make_unique<ArrayGraph>(

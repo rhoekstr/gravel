@@ -43,6 +43,7 @@ from . import (
     openflights,
     osm,
     shakemap,
+    t100,
     tiger,
     usdm,
 )
@@ -61,6 +62,7 @@ __all__ = [
     "openflights",
     "osm",
     "shakemap",
+    "t100",
     "tiger",
     "usdm",
     "Access",

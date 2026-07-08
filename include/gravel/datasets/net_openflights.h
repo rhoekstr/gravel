@@ -5,6 +5,7 @@
 #include "gravel/datasets/network_graph.h"
 
 #include <string>
+#include <vector>
 
 namespace gravel {
 
@@ -44,9 +45,13 @@ namespace gravel {
 /// @return A NetworkGraph whose `graph` holds the directed air network with per-node
 ///         coordinates, and whose `capacity` is empty.
 /// @throws std::runtime_error if either file cannot be opened.
+/// @param node_iata  When non-null, filled with each node's IATA code ("" for
+///                   airports without one), index-aligned to the graph's nodes —
+///                   the join key for the BTS T-100 capacity overlay.
 NetworkGraph load_openflights_network(const std::string& airports_path,
                                       const std::string& routes_path,
                                       bool collapse_parallel = true,
-                                      bool drop_codeshare = true);
+                                      bool drop_codeshare = true,
+                                      std::vector<std::string>* node_iata = nullptr);
 
 }  // namespace gravel

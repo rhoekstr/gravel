@@ -119,7 +119,7 @@ std::vector<DatasetInfo> dataset_catalog() {
             .source_url = "https://huggingface.co/datasets/microsoft/GridSFM_US_power_grid",
             .field_docs_url = "https://github.com/microsoft/GridSFM/blob/main/PIPELINE_DETAILS.md",
             .license = "MIT",
-            .access = Access::BYO,
+            .access = Access::FETCHER,
         },
         DatasetInfo{
             .id = "opfdata",
@@ -134,7 +134,7 @@ std::vector<DatasetInfo> dataset_catalog() {
             .source_url = "https://console.cloud.google.com/storage/browser/gridopt-dataset",
             .field_docs_url = "https://arxiv.org/html/2406.07234v1",
             .license = "CC BY 4.0 (synthetic)",
-            .access = Access::BYO,
+            .access = Access::FETCHER,
         },
         DatasetInfo{
             .id = "caida",
@@ -179,6 +179,22 @@ std::vector<DatasetInfo> dataset_catalog() {
             .source_url = "https://www.transit.land/",
             .field_docs_url = "https://gtfs.org/documentation/schedule/reference/",
             .license = "per-feed (record from source portal)",
+            .access = Access::FETCHER,
+        },
+        // --- Capacity / attribute overlays (2.7) ---
+        DatasetInfo{
+            .id = "t100",
+            .name = "BTS T-100 Segment (air carrier traffic)",
+            .kind = DatasetKind::ATTRIBUTE_OVERLAY,
+            .domain = Domain::AIR,
+            .features = Feature::CAPACITY,
+            .geometry = Geometry::NONE,
+            .temporal = Temporal::HISTORICAL,
+            .coverage = Coverage::US,
+            .versioning = "year_month",
+            .source_url = "https://www.transtats.bts.gov/",
+            .field_docs_url = "https://www.transtats.bts.gov/TableInfo.asp?gnoyr_VQ=FIM",
+            .license = "public domain (US federal)",
             .access = Access::BYO,
         },
     };
