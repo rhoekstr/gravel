@@ -83,6 +83,52 @@ print(f"Reachable nodes: {result.reachable_nodes}")
 print(f"Directional coverage: {result.directional_coverage:.2f}")
 ```
 
+### Datasets (2.7.0)
+
+```python
+import gravel
+
+# Browse the catalog of supported datasets
+gravel.datasets.list()          # -> list[Dataset]
+print(gravel.datasets.summary())  # prints (and returns) a feature matrix
+
+# Load a road network via the OSM submodule
+graph = gravel.datasets.osm.load("county.osm.pbf")
+
+# Fetch a hazard footprint (needs the gravel[datasets] extra)
+gdf, provenance = gravel.datasets.nfhl.fetch(bbox=(-83.6, 35.3, -83.3, 35.6))
+print(provenance.summary())  # {dataset_id, endpoint, resolved_version, pulled_at}
+```
+The hazard fetchers (`nfhl`, `shakemap`, `usdm`, `nri`) require the `gravel[datasets]` extra
+(geopandas + shapely + pyproj); their `edge_probabilities(...)` output feeds `stochastic_fragility`.
+
+### Network substrates (2.7.0)
+
+Beyond roads, `gravel.datasets` onboards five infrastructure networks — power grids, internet
+router topology, air routes, and transit — each `load(...)` returning `(Graph, capacity)` where
+`capacity` is a per-edge numpy array (empty when the source has no native capacity). Fragility and
+cascade analyses consume these graphs (plus the capacity vector) exactly like a road graph.
+
+```python
+import gravel
+
+# Power grid (thermal limits in MVA; node coords)
+graph, capacity = gravel.datasets.gridsfm.load("case.json")
+
+# Air network via OpenFlights: fetch the raw tables, then load
+(airports, routes), prov = gravel.datasets.openflights.fetch("data/")
+graph, capacity = gravel.datasets.openflights.load(airports, routes, with_codes=False)
+
+# ...or with IATA codes, to key-join a BTS T-100 seat-capacity overlay
+graph, capacity, node_iata = gravel.datasets.openflights.load(airports, routes, with_codes=True)
+seats = gravel.datasets.t100.load("t100_segment.csv", value_field="SEATS")
+capacity = gravel.datasets.t100.edge_capacity(graph, node_iata, seats)
+```
+
+The network loaders need only numpy; fetchers use stdlib `urllib` (`gridsfm` optionally
+`huggingface_hub`; `gtfs` needs a free Transitland API key). `caida` (internet) and `t100` are
+bring-your-own-data — no fetcher — per their source licenses.
+
 ### C++
 
 ```cpp
@@ -103,7 +149,7 @@ std::cout << "Isolation risk: " << result.isolation_risk << "\n";
 ## Key Features
 
 ### Sub-library architecture
-Six independent libraries with a strict dependency DAG — link only what you need:
+Seven independent libraries with a strict dependency DAG — link only what you need:
 
 | Library | Purpose | Dependencies |
 |---------|---------|--------------|
@@ -111,8 +157,9 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 | `gravel-ch` | Contraction hierarchy + blocked queries | gravel-core |
 | `gravel-simplify` | Graph simplification, bridges | + gravel-ch |
 | `gravel-fragility` | All fragility analysis (Eigen/Spectra) | + gravel-simplify |
-| `gravel-geo` | OSM loading, regions, snapping (libosmium) | + gravel-simplify |
-| `gravel-us` | US TIGER/Census specializations | + gravel-geo |
+| `gravel-geo` | Regions, snapping, point-in-polygon | + gravel-simplify |
+| `gravel-datasets` | Dataset onboarding: OSM/TIGER loaders + catalog (libosmium) | + gravel-core, gravel-simplify, gravel-geo |
+| `gravel-us` | US TIGER/Census specializations | + gravel-geo, gravel-datasets |
 
 ### Analysis modules
 
@@ -126,6 +173,8 @@ Six independent libraries with a strict dependency DAG — link only what you ne
 - **Graph coarsening** — collapse regions into meta-nodes
 - **Research depth (2.4.0)** — capacity-aware importance (HCM PCE from OSM tags), stochastic fragility (Monte Carlo over per-edge failure probabilities, e.g. floodplain / FEMA-NFHL hazards), and experimental Motter–Lai cascading failure — all as disclosed, sweepable inputs
 - **Visualization (2.5.0)** — real per-edge road geometry plus static (`plot_fragility`), interactive (`interactive_map`), and animated (`animate_failure`, self-contained deck.gl HTML) maps via `gravel-fragility[viz]`
+- **Dataset onboarding (2.6.0)** — a unified `gravel.datasets` layer: a queryable catalog (`list()`/`info()`/`summary()`) plus per-dataset submodules with a consistent interface — `osm` and `tiger` loaders, and `nfhl`/`shakemap`/`usdm`/`nri` hazard overlays whose `fetch(...)` returns `(GeoDataFrame, Provenance)` and whose `edge_probabilities(...)` feeds `stochastic_fragility`. Hazard fetchers need the `gravel[datasets]` extra (geopandas + shapely + pyproj)
+- **Network substrates (2.7.0)** — five non-road infrastructure networks in `gravel.datasets`, each `load(...)` returning `(Graph, capacity)`: `gridsfm` and `opfdata` (power grids, capacity in MVA), `caida` (internet router topology), `openflights` (air routes), and `gtfs` (transit, persons/hour capacity), plus the `t100` BTS seat-capacity overlay for air graphs. Fragility and cascade analyses run on these graphs (and their per-edge capacity) exactly like a road graph. The catalog now spans 12 datasets; loaders need only numpy
 
 ### Performance
 
@@ -224,7 +273,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.5.0}
+  version = {2.7.0}
 }
 ```
 

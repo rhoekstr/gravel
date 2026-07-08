@@ -142,7 +142,7 @@ def test_cascade_experimental_capacity_enum():
 @requires_osm
 def test_estimate_capacity_from_osm():
     assert SWAIN_PBF.exists()
-    g, md = gravel.load_osm_graph_with_metadata(str(SWAIN_PBF))
+    g, md = gravel.datasets.osm.load_with_metadata(str(SWAIN_PBF))
     cap = gravel.estimate_capacity(md, gravel.CapacityConfig.hcm())
     assert len(cap) == g.edge_count
     assert all(c > 0.0 for c in cap)

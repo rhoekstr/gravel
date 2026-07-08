@@ -17,7 +17,7 @@
 
 #pragma once
 #include "gravel/core/array_graph.h"
-#include "gravel/geo/osm_graph.h"
+#include "gravel/core/edge_metadata.h"
 #include <vector>
 
 namespace gravel {

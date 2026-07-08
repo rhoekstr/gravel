@@ -1,4 +1,4 @@
-#include "gravel/geo/osm_graph.h"
+#include "gravel/datasets/osm_graph.h"
 #include "gravel/core/geo_math.h"
 #include <stdexcept>
 

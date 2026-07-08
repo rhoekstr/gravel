@@ -207,14 +207,28 @@ add_library(gravel-geo
 )
 target_link_libraries(gravel-geo PUBLIC gravel-core gravel-simplify nlohmann_json::nlohmann_json)
 
+# --- gravel-datasets: dataset loaders + catalog (OSM, TIGER, hazard-source catalog) ---
+# Sits above geo (TIGER wraps geo's geojson_loader; the catalog is pure metadata). OSM's
+# parser needs only core + libosmium, but the library links geo PUBLIC so the TIGER header
+# (which includes geo/geojson_loader.h) propagates to consumers such as gravel-us.
+add_library(gravel-datasets
+    src/datasets/catalog.cpp
+    src/datasets/net_gridsfm.cpp
+    src/datasets/net_opfdata.cpp
+    src/datasets/net_caida.cpp
+    src/datasets/net_openflights.cpp
+    src/datasets/net_gtfs.cpp
+)
+target_link_libraries(gravel-datasets PUBLIC gravel-core gravel-geo)
+
 if(GRAVEL_OSMIUM_ENABLED)
     # GRAVEL_OSMIUM_ENABLED / GRAVEL_OSMIUM_INCLUDE_DIRS / GRAVEL_OSMIUM_VERSION
     # are set by cmake/OsmiumDetect.cmake — it runs find_package + header
     # fallback + version check + status messaging in one place, so this block
     # just has to wire up the library.
-    target_sources(gravel-geo PRIVATE src/geo/osm_graph.cpp)
-    target_include_directories(gravel-geo PUBLIC ${GRAVEL_OSMIUM_INCLUDE_DIRS})
-    target_compile_definitions(gravel-geo PUBLIC GRAVEL_HAS_OSMIUM)
+    target_sources(gravel-datasets PRIVATE src/datasets/osm_graph.cpp)
+    target_include_directories(gravel-datasets PUBLIC ${GRAVEL_OSMIUM_INCLUDE_DIRS})
+    target_compile_definitions(gravel-datasets PUBLIC GRAVEL_HAS_OSMIUM)
 
     # libosmium's OSM readers need these at runtime. zlib is required by
     # PBF; expat drives XML parsing; bz2 and lz4 are optional compression
@@ -222,12 +236,12 @@ if(GRAVEL_OSMIUM_ENABLED)
     find_package(ZLIB REQUIRED)
     find_package(BZip2 QUIET)
     find_package(EXPAT QUIET)
-    target_link_libraries(gravel-geo PUBLIC ZLIB::ZLIB)
+    target_link_libraries(gravel-datasets PUBLIC ZLIB::ZLIB)
     if(BZip2_FOUND)
-        target_link_libraries(gravel-geo PUBLIC BZip2::BZip2)
+        target_link_libraries(gravel-datasets PUBLIC BZip2::BZip2)
     endif()
     if(EXPAT_FOUND)
-        target_link_libraries(gravel-geo PUBLIC ${EXPAT_LIBRARIES})
+        target_link_libraries(gravel-datasets PUBLIC ${EXPAT_LIBRARIES})
     endif()
     # lz4 is an optional PBF compression codec. Off by default on wheels
     # because on GHA's macos runners /opt/homebrew/lib/liblz4.dylib targets
@@ -237,19 +251,19 @@ if(GRAVEL_OSMIUM_ENABLED)
     if(GRAVEL_OSMIUM_LZ4)
         find_library(LZ4_LIBRARY lz4 PATHS /opt/homebrew/lib /usr/local/lib)
         if(LZ4_LIBRARY)
-            target_link_libraries(gravel-geo PUBLIC ${LZ4_LIBRARY})
+            target_link_libraries(gravel-datasets PUBLIC ${LZ4_LIBRARY})
         endif()
     endif()
 endif()
 
 # --- gravel-us: US-specific specializations (placeholder) ---
 add_library(gravel-us INTERFACE)
-target_link_libraries(gravel-us INTERFACE gravel-geo)
+target_link_libraries(gravel-us INTERFACE gravel-geo gravel-datasets)
 
 # --- gravel: convenience target linking all sub-libraries ---
 add_library(gravel INTERFACE)
 target_link_libraries(gravel INTERFACE
-    gravel-core gravel-ch gravel-simplify gravel-fragility gravel-geo gravel-us
+    gravel-core gravel-ch gravel-simplify gravel-fragility gravel-geo gravel-datasets gravel-us
 )
 
 if(GRAVEL_BUILD_CLI)

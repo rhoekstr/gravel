@@ -1,0 +1,5 @@
+stop_id,stop_name,stop_lat,stop_lon,location_type,parent_station
+S1,"Main St, NW ""Downtown""",37.776390,-122.394992,0,
+S2,22nd Street,37.757692,-122.392318,,
+S3,Bayshore,37.707150,-122.401940,0,
+STN,Central Station,37.760000,-122.393000,1,

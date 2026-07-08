@@ -4,6 +4,129 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] — 2026-07-08
+
+**Phase 4 — alternative network substrates.** `gravel.datasets` grows past roads: five
+infrastructure-network parsers (power grid, internet router topology, air, transit) plus an airline
+capacity overlay, each returning a `Graph` and an optional per-edge capacity array that
+fragility/cascade analyses consume exactly like a road graph. Additive on top of 2.6 — no existing
+symbol or signature changes.
+
+### Added
+- **`NetworkGraph` type (`gravel-datasets`, `gravel/datasets/network_graph.h`).**
+  `struct NetworkGraph { std::unique_ptr<ArrayGraph> graph; std::vector<double> capacity; }` — an
+  infrastructure-network graph plus an optional CSR-aligned per-edge capacity (empty when the source
+  carries none).
+- **Five infrastructure-network C++ parsers, each returning `NetworkGraph`.**
+  `load_gridsfm_network(path)`, `load_opfdata_graph(path)`,
+  `load_openflights_network(airports, routes, collapse_parallel, drop_codeshare, node_iata*)`,
+  `load_caida_itdk(ItdkConfig)`, and `load_gtfs_network(GtfsConfig)`. Bound to Python; each returns
+  `(Graph, capacity)`, with `capacity` a per-edge NumPy array. The config structs `ItdkConfig`
+  (`nodes_path` / `links_path` / `nodes_geo_path` / `expansion` [`CLIQUE` | `STAR`] /
+  `drop_placeholder_nodes`) and `GtfsConfig` (`dir` / `capacity_model` [`GtfsCapacityModel`, per-mode]
+  / `window_hours`) are bound too.
+- **Five `gravel.datasets` submodules, each `load(...) -> (Graph, capacity)`.**
+  - **`gridsfm`** — US power grid; `capacity` = thermal limits (MVA); node coords.
+    `fetch(dest, name, hour)` pulls a case JSON from the Hugging Face dataset
+    `microsoft/GridSFM_US_power_grid` (public; prefers `huggingface_hub`, stdlib fallback). MIT.
+  - **`opfdata`** — synthetic AC-OPF power; `capacity` in MVA; **no coords**.
+    `fetch(dest, case_name, group, n_minus_one)` downloads + extracts a tar group from the public
+    `gridopt-dataset` GCS bucket. CC BY 4.0.
+  - **`caida`** — internet router topology; no capacity; coords via optional `nodes_geo_path`.
+    BYO only (CAIDA Acceptable Use Agreement — no fetcher).
+  - **`openflights`** — air network; node coords; no native capacity. `fetch(dest)` downloads
+    `airports.dat` + `routes.dat`; `load(..., with_codes=True)` also returns the node→IATA code list.
+    ODbL.
+  - **`gtfs`** — transit; node coords + schedule-derived persons/hour capacity.
+    `fetch(dest, onestop_id, apikey|feed_url)` downloads + extracts a Transitland feed (needs a free
+    Transitland API key via `apikey=` or `GRAVEL_TRANSITLAND_APIKEY`, or a keyless direct `feed_url`).
+    Per-feed license.
+  The network loaders need only NumPy; the fetchers use stdlib `urllib` (`gridsfm` optionally
+  `huggingface_hub`; `gtfs` needs a Transitland key).
+- **GTFS major-city presets (`gravel.datasets.gtfs.fetch_city` / `cities`).** Pull a whole city's
+  transit feed by name: `"nyc"` (MTA subway), `"chicago"` (CTA), `"bart"` (SF Bay Area), and `"boston"`
+  (MBTA) are keyless; `"dc"` (WMATA Metrorail) needs a free `api_key` (`apikey=` or `GRAVEL_WMATA_APIKEY`).
+  Case-insensitive with aliases. `gtfs.fetch` also gained an `extra_headers=` argument for authenticated
+  agency ZIP endpoints.
+- **BTS T-100 airline capacity overlay (`gravel.datasets.t100`, `DatasetKind.ATTRIBUTE_OVERLAY`).**
+  `t100.load(csv, value_field='SEATS') -> {(origin, dest): value}` and
+  `t100.edge_capacity(graph, node_iata, table) -> np.ndarray` build a per-edge capacity array for an
+  OpenFlights graph, key-joined on the ordered IATA pair. BYO CSV from BTS TranStats (public domain).
+
+### Changed
+- **The dataset catalog now lists 12 datasets** — 2.6's `osm` / `tiger` / `nfhl` / `shakemap` /
+  `usdm` / `nri` plus the new `gridsfm` / `opfdata` / `caida` / `openflights` / `gtfs` / `t100`.
+  Network geometry is `POINT` (`NONE` for `opfdata`, which has no coords); `access` is `FETCHER` for
+  `gridsfm` / `opfdata` / `openflights` / `gtfs` and `BYO` for `caida` and `t100`.
+
+### Fixed
+- **Build:** renamed the removed scikit-build-core `cmake.verbose` key to `build.verbose`, so
+  source and wheel builds succeed under scikit-build-core ≥ 0.10 (the stale key aborted
+  `pip install` / wheel builds with a hard `Getting requirements to build editable` error).
+
+## [2.6.0] — 2026-07-08
+
+**Unified dataset onboarding.** A single `gravel.datasets` package now answers "what can I load, and
+how?" and does the loading — road networks, administrative boundaries, and four hazard overlays behind
+one consistent interface, with a self-describing catalog and a citable provenance stamp on every remote
+pull. A file/library relocation, not an API break: the existing C++ symbols and their signatures are
+unchanged, and the old Python entry points still work (with a deprecation warning) through 3.0.
+
+### Added
+- **`gravel-datasets` (7th linkable library).** A new dataset-onboarding layer above `gravel-geo`:
+  depends on `gravel-core`, `gravel-simplify`, and (public) `gravel-geo`, plus optional libosmium; must
+  not depend on `gravel-fragility` or `gravel-us`. The relocated OSM/TIGER loaders and the new dataset
+  catalog live here. The sub-library DAG is now **seven** libraries, not six.
+- **`gravel.datasets` info-pull API.** `gravel.datasets.list() -> list[Dataset]`,
+  `.info(id) -> Dataset` (`KeyError` on an unknown id), and `.summary()` (prints and returns a
+  feature-matrix string) let a user discover the supported datasets before loading anything. A `Dataset`
+  wrapper exposes `id`, `name`, `kind`, `domain`, `geometry`, `temporal`, `coverage`, `features`,
+  `versioning`, `source_url`, `field_docs_url`, `license`, `access`, plus `available`, `feature_names()`,
+  `temporal_names()`, `has_feature(feature)`, `to_dict()`, and `to_json()`.
+- **`DatasetInfo` catalog + enums (`gravel-core`, `gravel/core/dataset_info.h`).** A `DatasetInfo` POD
+  with enums `DatasetKind`, `Domain`, `Geometry`, `Coverage`, `Access` (plain) and `Temporal`, `Feature`
+  (combinable bitmasks). `dataset_catalog()` (implemented in `gravel-datasets`, `src/datasets/catalog.cpp`)
+  returns the six supported datasets. `DatasetInfo`, `dataset_catalog`, and the enums are re-exported at
+  the Python top level (`gravel.DatasetKind` / `Domain` / `Geometry` / `Temporal` / `Coverage` / `Access`
+  / `Feature` / `DatasetInfo` / `dataset_catalog`).
+- **Four hazard-overlay fetchers (`gravel.datasets.{nfhl, shakemap, usdm, nri}`).** Each exposes a
+  consistent `fetch(...) -> (GeoDataFrame, Provenance)` and
+  `edge_probabilities(graph, footprint, …) -> np.ndarray` (feeds `gravel.stochastic_fragility`), backed
+  by a disclosed, sweepable severity → probability table (illustrative, **not** authoritative rates):
+  - **`nfhl`** — FEMA National Flood Hazard Layer (relocated from `gravel.hazards`).
+  - **`shakemap`** — USGS ShakeMap via ComCat, by event id + version.
+  - **`usdm`** — US Drought Monitor, by week.
+  - **`nri`** — FEMA National Risk Index (annualized baseline).
+  These need the new **`gravel[datasets]`** extra (geopandas + shapely + pyproj).
+- **`Provenance` stamp.** `fetch()`'s second return value: a lean, citable
+  `{dataset_id, endpoint, resolved_version, pulled_at}` with `to_dict()`, `to_json()`, and `summary()`.
+  Deliberately a citation stamp, not full lineage.
+- **OSM / TIGER dataset submodules.** `gravel.datasets.osm.load(pbf_path, speed_profile=None)` and
+  `.load_with_metadata(pbf_path, speed_profile=None, bidirectional=True)`;
+  `gravel.datasets.tiger.counties` / `states` / `cbsas` / `places` / `urban_areas(geojson_path)` — one
+  consistent per-dataset interface alongside the hazard overlays.
+- **`gravel[datasets]` pip extra.** Pulls in geopandas + shapely + pyproj for the hazard fetchers.
+
+### Changed
+- **`osm_graph` and `tiger_loader` relocated into `gravel-datasets`.** Moved (with git history) from
+  `gravel-geo` and `gravel-us` respectively, alongside the new dataset catalog. The public C++ and Python
+  symbols are **unchanged** — `gravel::load_osm_graph`, `gravel::load_tiger_counties`, etc. keep their
+  flat `gravel::` namespace and signatures; this is a file/library move, not an API break. `gravel-us`
+  now depends on `gravel-datasets` (its county/CBSA-assignment headers use the relocated `tiger_loader`).
+- **The sub-library DAG is now seven libraries.** `gravel-datasets` sits above `gravel-geo`; the
+  "six libraries" invariant becomes seven. The hazard point-in-polygon kernel
+  (`edges_in_polygon` / `hazard_edge_probabilities`) did **not** move — it stays in `gravel-fragility`.
+
+### Deprecated
+- **`gravel.hazards.*`** — now a shim forwarding to `gravel.datasets` (`fetch_nfhl_flood_zones` →
+  `datasets.nfhl.fetch()[0]`; `flood_edge_probabilities` → `datasets.nfhl.edge_probabilities`;
+  `hazard_edge_probabilities` → `datasets._hazard.hazard_edge_probabilities`; `NFHL_*` constants +
+  `nfhl_zone_color` → `datasets.nfhl.*`). Still works, emits `DeprecationWarning`, **removed in 3.0**.
+- **`gravel.load_osm_graph` / `gravel.load_osm_graph_with_metadata`** — use
+  `gravel.datasets.osm.load` / `load_with_metadata`. Deprecated, **removed in 3.0**.
+- **`gravel.load_tiger_counties` / `states` / `cbsas` / `places` / `urban_areas`** — use
+  `gravel.datasets.tiger.*`. Deprecated, **removed in 3.0**.
+
 ## [2.5.0] — 2026-07-03
 
 **Phase 2B — real edge geometry.** Foundation for faithful maps: a simplified graph can now be drawn

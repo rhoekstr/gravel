@@ -4,13 +4,13 @@ The single reference for working in this repository — what Gravel is, its arch
 invariants, and how to build/test it. **Canonical, version-controlled copy.** Keep it in sync with
 the code (and with `REFERENCE.md` / `CHANGELOG.md` / `docs/PRD.md`).
 
-> Gravel is **published** on PyPI (`gravel-fragility`; current **2.5.0**). Changes here ship to real
+> Gravel is **published** on PyPI (`gravel-fragility`; current **2.7.0**). Changes here ship to real
 > users — preserve the public API and the wheel build, or bump versions deliberately. (conda-forge is
 > stale/unmaintained — PyPI is the only live channel.)
 
 ## The one rule that can't bend (READ FIRST): the sub-library DAG
 
-Gravel is **six linkable libraries with a strict, one-directional dependency DAG**. An include that
+Gravel is **seven linkable libraries with a strict, one-directional dependency DAG**. An include that
 crosses a boundary the wrong way is a **build error**, not a style note. Link/compile only what you
 need; put new code in the lowest layer that suffices and never reach upward.
 
@@ -21,7 +21,8 @@ need; put new code in the lowest layer that suffices and never reach upward.
 | `gravel-simplify` | core, ch | fragility, geo, us |
 | `gravel-fragility` | core, ch, simplify | geo, us |
 | `gravel-geo` | core, simplify | fragility, us |
-| `gravel-us` | geo | fragility |
+| `gravel-datasets` | core, simplify, geo | fragility, us |
+| `gravel-us` | geo, datasets | fragility |
 
 Full rationale in [`docs/PRD.md`](docs/PRD.md) → "Architecture Overview".
 
@@ -37,16 +38,17 @@ disaster-sociology dissertation covariate; that tie ended with a null result —
 ## Architecture — where code lives
 
 Public headers in `include/gravel/<module>/`, implementations in `src/<module>/` (parallel trees).
-Modules map onto the six linkable libraries above:
+Modules map onto the seven linkable libraries above:
 
 | Path | What |
 |---|---|
-| `core/` | graph representation (structure-of-arrays), basic routing, OpenMP, optional per-edge polyline geometry (`edge_geometry.h` + `simplify_edge_geometry` Douglas–Peucker), endpoint→CSR node snapping (`graph_build.h`) |
+| `core/` | graph representation (structure-of-arrays), basic routing, OpenMP, optional per-edge polyline geometry (`edge_geometry.h` + `simplify_edge_geometry` Douglas–Peucker), endpoint→CSR node snapping (`graph_build.h`), dataset-catalog types (`dataset_info.h`) |
 | `ch/` | contraction hierarchy + blocked queries |
 | `simplify/` | graph simplification, bridges, degree-2 collapse |
 | `fragility/` | all fragility analysis (route / location / county / scenario / progressive / tiled); Eigen + Spectra |
-| `geo/` | OSM loading (libosmium), regions, snapping, point-in-polygon |
-| `us/` | US TIGER/Census specializations |
+| `geo/` | regions, snapping, point-in-polygon (`osm_graph` moved to `datasets/`) |
+| `datasets/` | dataset loaders + catalog: `osm_graph` (from `geo/`), `tiger_loader` (from `us/`), the hazard-source catalog (`dataset_catalog`); five infrastructure-network parsers (`net_gridsfm`, `net_opfdata`, `net_caida`, `net_openflights`, `net_gtfs`) returning `NetworkGraph` (`network_graph.h` — an `ArrayGraph` plus optional CSR-aligned per-edge `capacity`), and the T-100 airline capacity overlay (`t100`) |
+| `us/` | US TIGER/Census specializations (`tiger_loader` moved to `datasets/`) |
 | `algo/ · analysis/ · io/ · snap/ · validation/` | shared algorithms, analysis orchestration (incl. `network_disruption` — connectivity curve + stranded edges for viz — plus `edge_failure_round` and seeded `failure_sequence_from_probabilities`), I/O (incl. optional Arrow/Parquet), snapping, input validation |
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |

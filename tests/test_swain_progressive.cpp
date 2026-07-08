@@ -1,6 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 #include <catch2/matchers/catch_matchers_floating_point.hpp>
-#include "gravel/geo/osm_graph.h"
+#include "gravel/datasets/osm_graph.h"
 #include "gravel/ch/contraction.h"
 #include "gravel/ch/shortcut_index.h"
 #include "gravel/analysis/progressive_fragility.h"

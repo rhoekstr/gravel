@@ -96,7 +96,7 @@ def failure_sequence_from_probabilities(
 ) -> np.ndarray:
     """Build a per-edge ``failure_round`` from per-edge failure probabilities (CSR order).
 
-    Turns a hazard probability array (e.g. from :func:`gravel.hazards.flood_edge_probabilities`)
+    Turns a hazard probability array (e.g. from :func:`gravel.datasets.nfhl.edge_probabilities`)
     into an animatable removal order — so a flood/hazard scenario can drive
     :func:`animate_failure_html`, :func:`animate_failure`, or :func:`dashboard_html`.
 
@@ -840,7 +840,7 @@ def dashboard_html(
     (e.g. a flood order from :func:`failure_sequence_from_probabilities`) — a stochastic result
     has no order and is rejected. ``edge_geometry`` draws real road shape; ``hazard`` is a base
     layer, and ``hazard_zone_field`` (e.g. ``"FLD_ZONE"``) colors it by
-    :func:`gravel.hazards.nfhl_zone_color` severity instead of a flat fill.
+    :func:`gravel.datasets.nfhl.zone_color` severity instead of a flat fill.
 
     Returns
     -------
@@ -889,7 +889,7 @@ def dashboard_html(
     if hazard is not None:
         hz = hazard.to_crs(crs)
         if hazard_zone_field and hazard_zone_field in hz.columns:
-            from .hazards import nfhl_zone_color
+            from .datasets.nfhl import zone_color as nfhl_zone_color
             hz = hz.copy()
             hz["_color"] = [nfhl_zone_color(z) for z in hz[hazard_zone_field]]
         hazard_json = hz.to_json()

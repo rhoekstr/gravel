@@ -112,7 +112,7 @@ def test_edge_geometry_length_mismatch_raises():
 @requires_osm
 @requires_geopandas
 def test_swain_real_geometry():
-    g, _ = gravel.load_osm_graph_with_metadata(str(SWAIN_PBF))
+    g, _ = gravel.datasets.osm.load_with_metadata(str(SWAIN_PBF))
     res = _simplify(g, emit_geometry=True)
     geom = res.edge_geometry
     assert geom.edge_count == res.simplified_edges
