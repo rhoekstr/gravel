@@ -44,9 +44,10 @@ symbol or signature changes.
   The network loaders need only NumPy; the fetchers use stdlib `urllib` (`gridsfm` optionally
   `huggingface_hub`; `gtfs` needs a Transitland key).
 - **GTFS major-city presets (`gravel.datasets.gtfs.fetch_city` / `cities`).** Pull a whole city's
-  transit feed by name: `"nyc"` (MTA subway) and `"chicago"` (CTA bus + rail) are keyless; `"dc"`
-  (WMATA Metrorail) needs a free `api_key` (`apikey=` or `GRAVEL_WMATA_APIKEY`). Case-insensitive with
-  aliases. `gtfs.fetch` also gained an `extra_headers=` argument for authenticated agency ZIP endpoints.
+  transit feed by name: `"nyc"` (MTA subway), `"chicago"` (CTA), `"bart"` (SF Bay Area), and `"boston"`
+  (MBTA) are keyless; `"dc"` (WMATA Metrorail) needs a free `api_key` (`apikey=` or `GRAVEL_WMATA_APIKEY`).
+  Case-insensitive with aliases. `gtfs.fetch` also gained an `extra_headers=` argument for authenticated
+  agency ZIP endpoints.
 - **BTS T-100 airline capacity overlay (`gravel.datasets.t100`, `DatasetKind.ATTRIBUTE_OVERLAY`).**
   `t100.load(csv, value_field='SEATS') -> {(origin, dest): value}` and
   `t100.edge_capacity(graph, node_iata, table) -> np.ndarray` build a per-edge capacity array for an

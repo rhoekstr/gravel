@@ -84,10 +84,12 @@ def test_gtfs_cities_registry_and_aliases():
     from gravel.datasets import gtfs
 
     c = gtfs.cities()
-    assert set(c) == {"nyc", "dc", "chicago"}
+    assert set(c) == {"nyc", "dc", "chicago", "bart", "boston"}
     assert c["dc"]["needs_key"] is True and c["nyc"]["needs_key"] is False
+    assert c["bart"]["needs_key"] is False and c["boston"]["needs_key"] is False
     assert gtfs._resolve_city("New York") == "nyc"
     assert gtfs._resolve_city("WMATA") == "dc" and gtfs._resolve_city("cta") == "chicago"
+    assert gtfs._resolve_city("SF") == "bart" and gtfs._resolve_city("mbta") == "boston"
     with pytest.raises(KeyError):
         gtfs._resolve_city("atlantis")
 

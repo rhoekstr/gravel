@@ -174,6 +174,21 @@ CITY_FEEDS: dict[str, dict] = {
         "license": "WMATA open data — free key at https://developer.wmata.com",
         "aliases": ("washington", "wmata", "washington_dc"),
     },
+    "bart": {
+        "label": "San Francisco Bay Area Rapid Transit (BART)",
+        "feed_url": "https://www.bart.gov/dev/schedules/google_transit.zip",
+        "modes": "regional rail",
+        "license": "BART open data (Developer License Agreement; no key) — "
+        "https://www.bart.gov/schedules/developers/gtfs",
+        "aliases": ("sf", "san_francisco", "bay_area", "sf_bart"),
+    },
+    "boston": {
+        "label": "Boston (MBTA — subway + commuter rail + bus)",
+        "feed_url": "https://cdn.mbta.com/MBTA_GTFS.zip",
+        "modes": "subway+commuter rail+bus",
+        "license": "MBTA open data (keyless) — https://www.mbta.com/developers/gtfs",
+        "aliases": ("mbta", "the_t"),
+    },
 }
 
 

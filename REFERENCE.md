@@ -3955,9 +3955,10 @@ g, cap, iata = ds.openflights.load(*apts, with_codes=True)   # (Graph, capacity,
 ```
 
 **GTFS major-city presets.** `gtfs.cities()` lists built-in city feeds; `gtfs.fetch_city(city, dest)`
-pulls one by name — `"nyc"` (MTA subway) and `"chicago"` (CTA bus + rail) are keyless direct pulls,
-`"dc"` (WMATA Metrorail) needs a free `api_key` (pass `apikey=` or set `GRAVEL_WMATA_APIKEY`, sent as
-WMATA's `api_key` header). Names are case-insensitive with aliases (`"new york"`, `"wmata"`, …). It is a
+pulls one by name — `"nyc"` (MTA subway), `"chicago"` (CTA), `"bart"` (SF Bay Area), and `"boston"`
+(MBTA) are keyless direct pulls, `"dc"` (WMATA Metrorail) needs a free `api_key` (pass `apikey=` or set
+`GRAVEL_WMATA_APIKEY`, sent as WMATA's `api_key` header). Names are case-insensitive with aliases
+(`"new york"`, `"wmata"`, `"sf"`, …). It is a
 thin preset over `fetch(feed_url=…)`; `fetch` also gained an `extra_headers=` argument for
 authenticated agency ZIP endpoints.
 
