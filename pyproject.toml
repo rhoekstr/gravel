@@ -204,6 +204,11 @@ test-command = 'python -c "import gravel; assert gravel.HAS_OSM, \"OSM missing\"
 
 [tool.cibuildwheel.linux]
 archs = ["x86_64", "aarch64"]
+# Build on manylinux_2_28 (AlmaLinux 8, GCC 12): NumPy ships cp312/cp313 wheels only for
+# 2_28, so on the older 2_17 image cibuildwheel's post-build test install compiled NumPy
+# from source and failed ("NumPy requires GCC >= 10.3").
+manylinux-x86_64-image = "manylinux_2_28"
+manylinux-aarch64-image = "manylinux_2_28"
 # manylinux_2_17 (Rocky Linux 8) ships with zlib-devel and expat-devel,
 # but NOT bzip2-devel — libosmium's bzip2_compression.hpp fails without
 # it. lz4-devel is optional; its absence means we lose lz4-compressed
@@ -212,7 +217,8 @@ archs = ["x86_64", "aarch64"]
 # /usr/local/include where cmake/OsmiumDetect.cmake's find_path picks
 # them up. (Eigen is vendored at third_party/eigen — no fetch needed.)
 before-all = """
-yum install -y bzip2-devel lz4-devel || true
+yum install -y bzip2-devel || true
+yum install -y lz4-devel || true
 cd /tmp
 curl -sL https://github.com/osmcode/libosmium/archive/refs/tags/v2.20.0.tar.gz | tar xz
 cp -r libosmium-2.20.0/include/osmium /usr/local/include/
