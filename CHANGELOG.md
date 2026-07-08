@@ -4,7 +4,7 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [2.7.0] — Unreleased
+## [2.7.0] — 2026-07-07
 
 **Phase 4 — alternative network substrates.** `gravel.datasets` grows past roads: five
 infrastructure-network parsers (power grid, internet router topology, air, transit) plus an airline
@@ -59,7 +59,12 @@ symbol or signature changes.
   Network geometry is `POINT` (`NONE` for `opfdata`, which has no coords); `access` is `FETCHER` for
   `gridsfm` / `opfdata` / `openflights` / `gtfs` and `BYO` for `caida` and `t100`.
 
-## [2.6.0] — Unreleased
+### Fixed
+- **Build:** renamed the removed scikit-build-core `cmake.verbose` key to `build.verbose`, so
+  source and wheel builds succeed under scikit-build-core ≥ 0.10 (the stale key aborted
+  `pip install` / wheel builds with a hard `Getting requirements to build editable` error).
+
+## [2.6.0] — 2026-07-07
 
 **Unified dataset onboarding.** A single `gravel.datasets` package now answers "what can I load, and
 how?" and does the loading — road networks, administrative boundaries, and four hazard overlays behind
