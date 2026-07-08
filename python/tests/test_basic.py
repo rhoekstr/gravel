@@ -74,7 +74,7 @@ def test_coarsening_config_defaults():
 
 
 @pytest.mark.skipif(
-    not hasattr(gravel, "load_osm_graph"),
+    not gravel.HAS_OSM,
     reason="OSM support not built",
 )
 def test_osm_imports_available():
