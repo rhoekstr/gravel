@@ -4,6 +4,56 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] — Unreleased
+
+**Phase 4 — alternative network substrates.** `gravel.datasets` grows past roads: five
+infrastructure-network parsers (power grid, internet router topology, air, transit) plus an airline
+capacity overlay, each returning a `Graph` and an optional per-edge capacity array that
+fragility/cascade analyses consume exactly like a road graph. Additive on top of 2.6 — no existing
+symbol or signature changes.
+
+### Added
+- **`NetworkGraph` type (`gravel-datasets`, `gravel/datasets/network_graph.h`).**
+  `struct NetworkGraph { std::unique_ptr<ArrayGraph> graph; std::vector<double> capacity; }` — an
+  infrastructure-network graph plus an optional CSR-aligned per-edge capacity (empty when the source
+  carries none).
+- **Five infrastructure-network C++ parsers, each returning `NetworkGraph`.**
+  `load_gridsfm_network(path)`, `load_opfdata_graph(path)`,
+  `load_openflights_network(airports, routes, collapse_parallel, drop_codeshare, node_iata*)`,
+  `load_caida_itdk(ItdkConfig)`, and `load_gtfs_network(GtfsConfig)`. Bound to Python; each returns
+  `(Graph, capacity)`, with `capacity` a per-edge NumPy array. The config structs `ItdkConfig`
+  (`nodes_path` / `links_path` / `nodes_geo_path` / `expansion` [`CLIQUE` | `STAR`] /
+  `drop_placeholder_nodes`) and `GtfsConfig` (`dir` / `capacity_model` [`GtfsCapacityModel`, per-mode]
+  / `window_hours`) are bound too.
+- **Five `gravel.datasets` submodules, each `load(...) -> (Graph, capacity)`.**
+  - **`gridsfm`** — US power grid; `capacity` = thermal limits (MVA); node coords.
+    `fetch(dest, name, hour)` pulls a case JSON from the Hugging Face dataset
+    `microsoft/GridSFM_US_power_grid` (public; prefers `huggingface_hub`, stdlib fallback). MIT.
+  - **`opfdata`** — synthetic AC-OPF power; `capacity` in MVA; **no coords**.
+    `fetch(dest, case_name, group, n_minus_one)` downloads + extracts a tar group from the public
+    `gridopt-dataset` GCS bucket. CC BY 4.0.
+  - **`caida`** — internet router topology; no capacity; coords via optional `nodes_geo_path`.
+    BYO only (CAIDA Acceptable Use Agreement — no fetcher).
+  - **`openflights`** — air network; node coords; no native capacity. `fetch(dest)` downloads
+    `airports.dat` + `routes.dat`; `load(..., with_codes=True)` also returns the node→IATA code list.
+    ODbL.
+  - **`gtfs`** — transit; node coords + schedule-derived persons/hour capacity.
+    `fetch(dest, onestop_id, apikey|feed_url)` downloads + extracts a Transitland feed (needs a free
+    Transitland API key via `apikey=` or `GRAVEL_TRANSITLAND_APIKEY`, or a keyless direct `feed_url`).
+    Per-feed license.
+  The network loaders need only NumPy; the fetchers use stdlib `urllib` (`gridsfm` optionally
+  `huggingface_hub`; `gtfs` needs a Transitland key).
+- **BTS T-100 airline capacity overlay (`gravel.datasets.t100`, `DatasetKind.ATTRIBUTE_OVERLAY`).**
+  `t100.load(csv, value_field='SEATS') -> {(origin, dest): value}` and
+  `t100.edge_capacity(graph, node_iata, table) -> np.ndarray` build a per-edge capacity array for an
+  OpenFlights graph, key-joined on the ordered IATA pair. BYO CSV from BTS TranStats (public domain).
+
+### Changed
+- **The dataset catalog now lists 12 datasets** — 2.6's `osm` / `tiger` / `nfhl` / `shakemap` /
+  `usdm` / `nri` plus the new `gridsfm` / `opfdata` / `caida` / `openflights` / `gtfs` / `t100`.
+  Network geometry is `POINT` (`NONE` for `opfdata`, which has no coords); `access` is `FETCHER` for
+  `gridsfm` / `opfdata` / `openflights` / `gtfs` and `BYO` for `caida` and `t100`.
+
 ## [2.6.0] — Unreleased
 
 **Unified dataset onboarding.** A single `gravel.datasets` package now answers "what can I load, and

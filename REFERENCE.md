@@ -71,6 +71,7 @@ Gravel is a C++ library (with Python bindings) for road network routing and vuln
 34. [Visualizing Results (data bridge)](#34-visualizing-results-data-bridge)
 35. [Edge geometry — real road shape](#35-edge-geometry--real-road-shape-gravelcoreedge_geometryh)
 36. [gravel.datasets — dataset catalog & fetchers (2.6)](#36-graveldatasets--dataset-catalog--fetchers-26)
+    - 36.9 [Network substrates (2.7)](#369-network-substrates-27)
 
 ---
 
@@ -3708,11 +3709,14 @@ Top-level functions on `gravel.datasets`:
 import gravel.datasets as ds
 ds.summary()                       # prints the feature matrix, also returns it
 entry = ds.info("shakemap")        # one Dataset (KeyError if unknown)
-[d.id for d in ds.list()]          # ['osm', 'tiger', 'nfhl', 'shakemap', 'usdm', 'nri']
+[d.id for d in ds.list()]          # ['osm', 'tiger', 'nfhl', 'shakemap', 'usdm', 'nri',
+                                   #  'gridsfm', 'opfdata', 'caida', 'openflights', 'gtfs', 't100']
 ```
 
-The catalog has **six** datasets: `osm` (network / road), `tiger` (boundary / administrative), and the
-four hazard overlays `nfhl` / `shakemap` / `usdm` / `nri`.
+The catalog has **twelve** datasets (as of 2.7): `osm` (network / road), `tiger` (boundary /
+administrative), the four hazard overlays `nfhl` / `shakemap` / `usdm` / `nri`, the five network
+substrates `gridsfm` / `opfdata` / `caida` / `openflights` / `gtfs` (§36.9), and the `t100` capacity
+overlay.
 
 ### 36.2 Dataset (catalog-entry wrapper)
 
@@ -3777,7 +3781,7 @@ free-form fields (id, name, URLs, license, version axis) are strings.
 serialization library (JSON/rendering live in Python). Fields: `id`, `name`, `kind`, `domain`,
 `features`, `geometry`, `temporal`, `coverage`, `versioning`, `source_url`, `field_docs_url`, `license`,
 `access`. `gravel.dataset_catalog()` (implemented in `gravel-datasets`, `src/datasets/catalog.cpp`)
-returns the six supported entries as `list[DatasetInfo]`.
+returns the twelve supported entries as `list[DatasetInfo]`.
 
 The `Temporal` and `Feature` bitmasks support `|`/`&` and an `has_temporal(set, query)` / `has_feature(set, query)`
 containment test in C++ (`dataset_info.h`); in Python, `Dataset.has_feature()` / `.feature_names()` /
@@ -3895,3 +3899,102 @@ The 2.6 relocation left back-compat shims: every old name below still works, emi
 | `gravel.hazards.NFHL_EVENT_CLOSURE` / `NFHL_ANNUAL_PROBABILITY` | `gravel.datasets.nfhl.EVENT_CLOSURE` / `.ANNUAL_PROBABILITY` |
 | `gravel.hazards.NFHL_ENDPOINT` / `NFHL_FLOOD_ZONE_LAYER` | `gravel.datasets.nfhl.ENDPOINT` / `.FLOOD_ZONE_LAYER` |
 | `gravel.hazards.NFHL_ZONE_COLORS` / `NFHL_DEFAULT_ZONE_COLOR` | `gravel.datasets.nfhl.ZONE_COLORS` / `._DEFAULT_ZONE_COLOR` |
+
+### 36.9 Network substrates (2.7)
+
+*Added in v2.7.0.* Gravel's fragility and cascade analyses were never road-specific — any graph with an
+optional per-edge capacity works. v2.7 adds five **alternative network substrates** (realizing PRD
+"Phase 4 — Alternative network substrates") plus an airline capacity overlay, all under
+`gravel.datasets`. Each substrate loads to the same `(Graph, capacity)` shape a road graph does, so it
+drops straight into `build_ch` / fragility / `stochastic_fragility` / cascade. The network loaders need
+only numpy; the fetchers use stdlib `urllib` (`gridsfm` optionally `huggingface_hub`; `gtfs` needs a
+free Transitland API key). In the catalog these carry `geometry=POINT` (or `NONE` for `opfdata`, which
+ships no coordinates) and `access=FETCHER` for `gridsfm` / `opfdata` / `openflights` / `gtfs`, `BYO`
+for `caida` and `t100`.
+
+**C++ type — `NetworkGraph` (`gravel/datasets/network_graph.h`, in `gravel-datasets`).** The shared return
+of every native parser: an infrastructure-network graph plus an optional CSR-aligned per-edge capacity.
+
+```cpp
+struct NetworkGraph {
+    std::unique_ptr<ArrayGraph> graph;
+    std::vector<double> capacity;  // CSR edge order; empty when the source carries no capacity
+};
+```
+
+Five parsers each return a `NetworkGraph` and are bound to Python, where each returns `(Graph, capacity)`
+with `capacity` as a per-edge numpy array (empty/`float64[0]` when the source has none):
+`load_gridsfm_network(path)`, `load_opfdata_graph(path)`, `load_openflights_network(airports, routes,
+collapse_parallel, drop_codeshare, node_iata*)`, `load_caida_itdk(ItdkConfig)`,
+`load_gtfs_network(GtfsConfig)`. The `ItdkConfig` and `GtfsConfig` (+ `GtfsCapacityModel`) structs below
+are bound too.
+
+#### 36.9.1 Loaders (`gravel.datasets.{gridsfm, opfdata, caida, openflights, gtfs}`)
+
+Every submodule exposes `load(...) -> (Graph, capacity)` — `Graph` is the usual `ArrayGraph`, `capacity`
+a `float64[edge_count]` numpy array in CSR edge order (empty when the substrate has no native capacity).
+The four fetch-backed substrates also expose `fetch(...)`; `caida` is bring-your-own only (CAIDA
+Acceptable Use Agreement forbids a redistributing fetcher).
+
+| Submodule | Domain | `load(...)` capacity | Node coords | `fetch(...)` | License |
+|-----------|--------|----------------------|-------------|--------------|---------|
+| `gridsfm` | power grid | thermal limits (MVA) | yes | `fetch(dest, name, hour)` — pulls a case JSON from the Hugging Face dataset `microsoft/GridSFM_US_power_grid` (prefers `huggingface_hub`, stdlib fallback). | MIT |
+| `opfdata` | synthetic AC-OPF power | branch limits (MVA) | **none** | `fetch(dest, case_name, group, n_minus_one)` — downloads + extracts a tar group from the public `gridopt-dataset` GCS bucket. | CC BY 4.0 |
+| `caida` | internet router topology | none | via optional `nodes_geo_path` | — (BYO only) | CAIDA AUA |
+| `openflights` | air network | none (native) | yes | `fetch(dest)` — downloads `airports.dat` + `routes.dat`. | ODbL |
+| `gtfs` | transit | schedule-derived persons/hour | yes | `fetch(dest, onestop_id, apikey \| feed_url)` — downloads + extracts a Transitland feed (needs a free Transitland key via `apikey=` or `GRAVEL_TRANSITLAND_APIKEY`, or a keyless direct `feed_url`). | per-feed |
+
+`openflights.load(...)` takes an optional `with_codes=True`: it then returns a **third** element, the
+node → IATA code list, alongside `(Graph, capacity)`.
+
+```python
+from gravel import datasets as ds
+
+apts = ds.openflights.fetch("data/")                     # airports.dat + routes.dat
+g, cap, iata = ds.openflights.load(*apts, with_codes=True)   # (Graph, capacity, node->IATA)
+```
+
+#### 36.9.2 Config structs (`ItdkConfig`, `GtfsConfig`, `GtfsCapacityModel`)
+
+Bound alongside the loaders. `caida.load` / `load_caida_itdk` take an `ItdkConfig`; `gtfs.load` /
+`load_gtfs_network` take a `GtfsConfig`.
+
+**`ItdkConfig`** (CAIDA Internet Topology Data Kit):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `nodes_path` | `str` | ITDK `.nodes` file. |
+| `links_path` | `str` | ITDK `.links` file. |
+| `nodes_geo_path` | `str` | Optional `.nodes.geo` file; populates node coordinates when present. |
+| `expansion` | enum `CLIQUE` / `STAR` | How a multi-access link (a hyperedge over its interfaces) is expanded into node-to-node edges. |
+| `drop_placeholder_nodes` | `bool` | Drop ITDK placeholder / no-address nodes. |
+
+**`GtfsConfig`** (GTFS transit feed):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `dir` | `str` | Directory of the unzipped GTFS feed. |
+| `capacity_model` | `GtfsCapacityModel` | Per-mode nominal vehicle capacity used to turn scheduled trips into a persons/hour edge capacity. |
+| `window_hours` | `double` | Service window (hours) over which scheduled trips are counted to derive the hourly capacity. |
+
+`GtfsCapacityModel` is the per-mode nominal-capacity table (persons per vehicle by GTFS route type)
+that, combined with `window_hours`, yields the schedule-derived persons/hour capacity on each edge.
+
+#### 36.9.3 T-100 airline capacity overlay (`gravel.datasets.t100`)
+
+An `ATTRIBUTE_OVERLAY` (catalog kind), **not** a graph source: it carries seat/passenger capacity for the
+`openflights` air network. Bring-your-own CSV — a BTS T-100 Segment export from BTS TranStats (US
+public domain); there is no fetcher.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `load(csv, value_field='SEATS')` | `dict[(origin, dest), value]` | Parse a T-100 Segment CSV into a per-airport-pair table keyed on the `(origin, dest)` IATA pair. `value_field` selects the column (e.g. `'SEATS'`, `'PASSENGERS'`). |
+| `edge_capacity(graph, node_iata, table)` | `np.ndarray` | Per-edge capacity for an OpenFlights graph, key-joined on the ordered IATA pair. `node_iata` is the node → IATA list from `openflights.load(..., with_codes=True)`; returns `float64[edge_count]` in CSR edge order. |
+
+```python
+from gravel import datasets as ds
+
+g, cap, iata = ds.openflights.load(*ds.openflights.fetch("data/"), with_codes=True)
+t100 = ds.t100.load("T_T100_SEGMENT.csv", value_field="SEATS")   # {(origin, dest): seats}
+seat_cap = ds.t100.edge_capacity(g, iata, t100)                  # float64[edge_count], CSR order
+```

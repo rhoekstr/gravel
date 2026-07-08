@@ -1,6 +1,6 @@
 # Gravel — Product Requirements Document
 
-**PRD revision 2.5 — reflects Gravel 2.5.0 (shipped); roadmap through 3.0 | Last updated: 2026-07-07**
+**PRD revision 2.7 — reflects Gravel 2.7.0 (shipped); roadmap through 3.0 | Last updated: 2026-07-07**
 
 ## Executive Summary
 
@@ -10,7 +10,7 @@ replacement-path fragility analysis to produce composite isolation scores for ge
 supporting disaster-preparedness research, infrastructure planning, and transportation-equity
 analysis.
 
-Gravel is **published and in use** — PyPI (`gravel-fragility`), currently **2.5.0**, Apache-2.0.
+Gravel is **published and in use** — PyPI (`gravel-fragility`), currently **2.7.0**, Apache-2.0.
 (conda-forge is not a current channel; the feedstock is out of date — install via pip.) It is
 deliberately **dual-purpose**:
 
@@ -485,32 +485,57 @@ the `gravel.datasets` Python package, four hazard fetchers, and back-compat depr
   module now forward through deprecation shims — still working, emitting `DeprecationWarning`, slated
   for removal in 3.0.
 
-### Phase 4 — Alternative network substrates (2.7, planned)
+### Phase 4 — Alternative network substrates (2.7) ✅ shipped in 2.7.0
 
 Acts on the fragility engine being **network-agnostic** — road networks were the first example, not
 the boundary. Adds infrastructure networks beyond roads as first-class fragility substrates, each
 carrying real capacity so the Phase 5 cascade has ground truth to consume and validate against.
+Landed as five C++ parsers in `gravel-datasets` and matching `gravel.datasets` load submodules,
+each returning a `NetworkGraph` (graph + optional CSR-aligned per-edge capacity), plus an airline
+capacity overlay; the catalog grows to 12.
 
-- **Five substrates.**
-  - *Power* — Microsoft Research US Transmission Grid (**GridSFM**): topology + solved AC-OPF thermal
-    limits + OSM-derived geography, the one source that ships all three natively — the anchor. Plus
-    **OPFData** (PGLib-OPF synthetic, pre-applied N-1, geography-free) as the degradation-math
-    validation companion.
-  - *Internet* — **CAIDA ITDK**: router topology, Hoiho-inferred geography, no capacity; AUP-gated →
-    catalog + BYO only, no auto-fetcher.
-  - *Air* — **OpenFlights**: airport nodes + O-D routes (great-circle edge geometry approximated).
-  - *Transit* — **GTFS** via Transitland: fixed routes + `shapes.txt` geometry, ingested as
-    fixed-route infrastructure for fragility (**not** live routing — see Non-Goals).
-- **Capacity / attribute overlays (`DatasetKind = attribute-overlay`).** Tabular per-edge joins that
-  feed the existing capacity input array (2.4.0 interface) — the non-geometric sibling of hazard
-  overlays (key-join, not point-in-polygon):
-  - **BTS T-100** → airline segment capacity (seats/passengers per O-D pair). OpenFlights + T-100 =
-    topology + geography + real capacity, i.e. the airline analog of what GridSFM provides natively.
-  - **GTFS schedule → average historic capacity** (headway/frequency × vehicle capacity as a static
-    throughput proxy) — the *scheduled* capacity, deliberately not the live GTFS-RT alert signal.
-- **Scope boundary.** Substrates are analyzed *independently*; interdependent multi-layer coupling
+- ✅ **Shared network type.** `include/gravel/datasets/network_graph.h` —
+  `struct NetworkGraph { std::unique_ptr<ArrayGraph> graph; std::vector<double> capacity; }`: an
+  infrastructure-network graph plus an optional per-edge capacity array (empty when the source has
+  none). Bound to Python so each loader returns `(Graph, capacity)` with capacity as a per-edge
+  numpy array.
+- ✅ **Five substrates** (each a `gravel.datasets` submodule with `load(...) → (Graph, capacity)`;
+  fetchers follow the Phase 3 integration-tier rule):
+  - *Power* — **GridSFM** (`load_gridsfm_network`; capacity = thermal limits in MVA, node coords).
+    `gravel.datasets.gridsfm.fetch(dest, name, hour)` pulls a case JSON from the public Hugging Face
+    dataset `microsoft/GridSFM_US_power_grid` (prefers `huggingface_hub`, stdlib fallback). MIT.
+  - *Power* — **OPFData** (`load_opfdata_graph`; PGLib-OPF synthetic AC-OPF, capacity in MVA, **no
+    coords**) as the degradation-math validation companion. `opfdata.fetch(dest, case_name, group,
+    n_minus_one)` downloads + extracts a tar group from the public gridopt-dataset GCS bucket.
+    CC BY 4.0.
+  - *Internet* — **CAIDA ITDK** (`load_caida_itdk(ItdkConfig)`; router topology, no capacity, coords
+    via optional `nodes_geo_path`). BYO only — CAIDA Acceptable Use Agreement, no fetcher.
+  - *Air* — **OpenFlights** (`load_openflights_network`; airport nodes + O-D routes, node coords, no
+    native capacity). `openflights.fetch(dest)` downloads `airports.dat` + `routes.dat`;
+    `load(..., with_codes=True)` also returns the node→IATA code list. ODbL.
+  - *Transit* — **GTFS** via Transitland (`load_gtfs_network(GtfsConfig)`; fixed routes, node coords
+    + schedule-derived persons/hour capacity — the *scheduled* throughput proxy, **not** live
+    routing; see Non-Goals). `gtfs.fetch(dest, onestop_id, apikey|feed_url)` downloads + extracts a
+    Transitland feed (needs a free Transitland API key via `apikey=` / `GRAVEL_TRANSITLAND_APIKEY`,
+    or a keyless direct `feed_url`). Per-feed license.
+  - Config structs `ItdkConfig` (`nodes_path` / `links_path` / `nodes_geo_path` /
+    `expansion` [CLIQUE|STAR] / `drop_placeholder_nodes`) and `GtfsConfig` (`dir` / `capacity_model`
+    [`GtfsCapacityModel`, per-mode] / `window_hours`) are bound to Python. Network loaders need only
+    numpy; fetchers use stdlib `urllib` (GridSFM optionally `huggingface_hub`).
+- ✅ **Capacity / attribute overlay (`DatasetKind = ATTRIBUTE_OVERLAY`).** `gravel.datasets.t100`
+  (BTS T-100 Segment) — the non-geometric sibling of hazard overlays (key-join, not
+  point-in-polygon): `t100.load(csv, value_field='SEATS') → {(origin, dest): value}` and
+  `t100.edge_capacity(graph, node_iata, table) → per-edge capacity array` for an OpenFlights graph,
+  key-joined on the ordered IATA pair. OpenFlights + T-100 = topology + geography + real capacity,
+  the airline analog of what GridSFM provides natively. BYO CSV from BTS TranStats (public domain).
+- ✅ **Catalog grows to 12.** The 2.6 six (osm / tiger / nfhl / shakemap / usdm / nri) plus
+  gridsfm / opfdata / caida / openflights / gtfs / t100. Network geometry is `POINT` (or `NONE` for
+  opfdata, which has no coords); access is `FETCHER` for gridsfm / opfdata / openflights / gtfs and
+  BYO for caida + t100.
+- ✅ **Scope boundary.** Substrates are analyzed *independently*; interdependent multi-layer coupling
   remains a non-goal (see Non-Goals). No new fragility paradigm — the existing topological and
-  capacity-weighted analyses run on the new substrates through the same interfaces.
+  capacity-weighted analyses run on the new substrates through the same interfaces, capacity feeding
+  the existing stochastic/cascade input array (consistent with DD-6).
 
 ### Phase 5 — Cascade maturation (3.0, future state)
 
