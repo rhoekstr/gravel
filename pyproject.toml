@@ -80,6 +80,11 @@ datasets = [
     "shapely>=2.0",
     "pyproj>=3.6",
 ]
+# gravel.flow — demand-driven traffic assignment (User Equilibrium). The solver itself needs only
+# numpy (core); this extra adds the theta-calibration / realtime-diversion tooling (phase F3).
+sue = [
+    "scipy>=1.11",
+]
 dev = [
     "pytest>=7.0",
     "ruff>=0.4",
