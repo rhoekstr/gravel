@@ -135,6 +135,7 @@ target_link_libraries(gravel-simplify PUBLIC gravel-core gravel-ch)
 # --- gravel-fragility: all fragility/analysis, spectral metrics, io output ---
 add_library(gravel-fragility
     src/fragility/route_fragility.cpp
+    src/fragility/edge_fragility.cpp
     src/fragility/hershberger_suri.cpp
     src/fragility/via_path.cpp
     src/fragility/bernstein_approx.cpp

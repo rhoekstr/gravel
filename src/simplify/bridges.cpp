@@ -129,6 +129,121 @@ BridgeResult find_bridges(const ArrayGraph& graph) {
     return result;
 }
 
+EdgeBridgeInfo bridge_edge_info(const ArrayGraph& graph) {
+    const NodeID n = graph.node_count();
+    const EdgeID m = graph.edge_count();
+    EdgeBridgeInfo out;
+    out.is_bridge.assign(m, 0);
+    out.cut_size.assign(m, 0);
+    if (n == 0) return out;
+
+    const auto& off = graph.raw_offsets();
+    const auto& tgt = graph.raw_targets();
+
+    // Group directed edges into undirected edges by sorting on the canonical (min,max) key —
+    // no hash maps, no per-node vectors. After the sort `es` is grouped: each run of equal keys
+    // is one undirected edge, and its entries carry that edge's CSR ids.
+    struct KeyEdge { uint64_t key; uint32_t csr; };
+    std::vector<KeyEdge> es;
+    es.reserve(static_cast<size_t>(m));
+    for (NodeID u = 0; u < n; ++u) {
+        for (uint32_t e = off[u]; e < off[u + 1]; ++e) {
+            const NodeID v = tgt[e];
+            if (u == v) continue;  // self-loops are never bridges
+            const NodeID lo = std::min(u, v), hi = std::max(u, v);
+            es.push_back({(static_cast<uint64_t>(lo) << 32) | hi, e});
+        }
+    }
+    std::sort(es.begin(), es.end(),
+              [](const KeyEdge& a, const KeyEdge& b) { return a.key < b.key; });
+
+    // One undirected edge per run of equal keys: endpoints, directed count, and the run's
+    // start index into `es` (ue_run[id]..ue_run[id+1] are that edge's CSR ids).
+    std::vector<NodeID> ue_u, ue_v;
+    std::vector<uint32_t> ue_count, ue_run;
+    for (size_t i = 0; i < es.size();) {
+        size_t j = i;
+        while (j < es.size() && es[j].key == es[i].key) ++j;
+        ue_u.push_back(static_cast<NodeID>(es[i].key >> 32));
+        ue_v.push_back(static_cast<NodeID>(es[i].key & 0xffffffffu));
+        ue_count.push_back(static_cast<uint32_t>(j - i));
+        ue_run.push_back(static_cast<uint32_t>(i));
+        i = j;
+    }
+    ue_run.push_back(static_cast<uint32_t>(es.size()));
+    const uint32_t nu = static_cast<uint32_t>(ue_u.size());
+
+    // CSR-flattened undirected adjacency (counting sort): per node -> (neighbor, undirected id).
+    std::vector<uint32_t> adj_off(n + 1, 0);
+    for (uint32_t id = 0; id < nu; ++id) { ++adj_off[ue_u[id] + 1]; ++adj_off[ue_v[id] + 1]; }
+    for (NodeID i = 0; i < n; ++i) adj_off[i + 1] += adj_off[i];
+    std::vector<NodeID> adj_nbr(adj_off[n]);
+    std::vector<uint32_t> adj_id(adj_off[n]);
+    std::vector<uint32_t> fill(adj_off.begin(), adj_off.end() - 1);
+    for (uint32_t id = 0; id < nu; ++id) {
+        const NodeID a = ue_u[id], b = ue_v[id];
+        adj_nbr[fill[a]] = b; adj_id[fill[a]] = id; ++fill[a];
+        adj_nbr[fill[b]] = a; adj_id[fill[b]] = id; ++fill[b];
+    }
+
+    // Iterative Tarjan on the CSR adjacency, carrying DFS subtree sizes; cut sizes finalize
+    // per connected component. All working state is vector-indexed.
+    std::vector<uint32_t> disc(n, UINT32_MAX), low(n, UINT32_MAX), subtree(n, 0);
+    uint32_t timer = 0;
+    struct Frame { NodeID node; uint32_t parent_id; uint32_t cur; };  // cur = index into adj_nbr/adj_id
+    std::vector<Frame> stk;
+    std::vector<std::pair<uint32_t, uint32_t>> comp_bridges;  // (undirected id, subtree[child])
+
+    for (NodeID start = 0; start < n; ++start) {
+        if (disc[start] != UINT32_MAX) continue;
+        disc[start] = low[start] = timer++;
+        subtree[start] = 1;
+        stk.push_back({start, UINT32_MAX, adj_off[start]});
+        comp_bridges.clear();
+
+        while (!stk.empty()) {
+            Frame& f = stk.back();
+            const NodeID u = f.node;
+            if (f.cur < adj_off[u + 1]) {
+                const uint32_t idx = f.cur++;
+                const uint32_t eid = adj_id[idx];
+                if (eid == f.parent_id) continue;  // don't reuse the tree edge (by id, so parallels count)
+                const NodeID v = adj_nbr[idx];
+                if (disc[v] == UINT32_MAX) {
+                    disc[v] = low[v] = timer++;
+                    subtree[v] = 1;
+                    stk.push_back({v, eid, adj_off[v]});  // f may dangle after this; not used below
+                } else {
+                    low[u] = std::min(low[u], disc[v]);
+                }
+            } else {
+                const NodeID child = f.node;
+                const uint32_t child_id = f.parent_id;
+                stk.pop_back();
+                if (!stk.empty()) {
+                    const NodeID p = stk.back().node;
+                    low[p] = std::min(low[p], low[child]);
+                    subtree[p] += subtree[child];
+                    // A single (non-parallel) tree edge whose subtree can't reach above p is a bridge.
+                    if (low[child] > disc[p] && ue_count[child_id] <= 2) {
+                        comp_bridges.push_back({child_id, subtree[child]});
+                    }
+                }
+            }
+        }
+
+        const uint32_t comp_size = subtree[start];
+        for (const auto [id, sub] : comp_bridges) {
+            const uint32_t cut = std::min(sub, comp_size - sub);
+            for (uint32_t p = ue_run[id]; p < ue_run[id + 1]; ++p) {
+                out.is_bridge[es[p].csr] = 1;
+                out.cut_size[es[p].csr] = cut;
+            }
+        }
+    }
+    return out;
+}
+
 void compute_bridge_costs(
     BridgeResult& bridges,
     const ArrayGraph& graph,
