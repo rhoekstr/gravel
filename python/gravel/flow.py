@@ -174,6 +174,79 @@ def assign(graph, capacity, demand, config=None):
     )
 
 
+# --- Scenario fragility (F2): what a failure costs, region-wide -------------------------------
+
+
+@dataclass
+class FlowFragilityResult:
+    """Impact of failing a set of edges, after demand re-equilibrates around the damage."""
+
+    delta_tstt: float          # scenario TSTT - intact TSTT, over trips still servable
+    delta_tstt_frac: float     # delta_tstt / intact_tstt
+    intact_tstt: float
+    scenario_tstt: float
+    stranded_demand: float     # trips whose O-D pair is disconnected by the scenario
+    intact: FlowResult
+    scenario: FlowResult
+
+
+def flow_fragility(graph, capacity, demand, scenario_edges, config=None):
+    """Region-wide delay impact (ΔTSTT) of failing ``scenario_edges``, demand re-equilibrating.
+
+    Parameters
+    ----------
+    scenario_edges : iterable of (u, v)
+        Directed node pairs to remove from the network.
+
+    Returns
+    -------
+    FlowFragilityResult
+
+    Notes
+    -----
+    Read ``delta_tstt`` **together with** ``stranded_demand``: a closure that severs O-D pairs shows
+    up as stranded demand, not (or not only) as added travel time — and because unservable trips drop
+    out of TSTT, a severing closure can even *lower* scenario TSTT. ΔTSTT alone is the reroute cost
+    for trips that remain connected; stranded demand is the disconnection severity. (Intact and
+    scenario flow arrays are on different edge sets, so only the scalar TSTTs are directly comparable.)
+    """
+    config = config or FlowConfig()
+    intact = assign(graph, capacity, demand, config)
+
+    src, tgt, t0 = (np.asarray(a) for a in graph.to_coo())
+    cap = np.asarray(capacity, dtype=float)
+    if cap.size == 0:
+        cap = np.full(src.size, np.inf)
+    remove = {(int(u), int(v)) for u, v in scenario_edges}
+    keep = np.fromiter(
+        ((int(src[k]), int(tgt[k])) not in remove for k in range(src.size)),
+        dtype=bool,
+        count=src.size,
+    )
+    n = int(graph.node_count)
+    sub = Graph.from_coo(n, src[keep].astype(np.uint32), tgt[keep].astype(np.uint32), t0[keep])
+    scenario = assign(sub, cap[keep], demand, config)
+
+    # Demand whose O-D pair is disconnected once the scenario edges are gone.
+    stranded = 0.0
+    for o, dests in demand.items():
+        dist = np.asarray(dijkstra(sub, int(o)).distances)
+        for d, vol in dests.items():
+            if not np.isfinite(dist[int(d)]):
+                stranded += vol
+
+    dt = scenario.total_travel_time - intact.total_travel_time
+    return FlowFragilityResult(
+        delta_tstt=dt,
+        delta_tstt_frac=dt / intact.total_travel_time if intact.total_travel_time > 0 else 0.0,
+        intact_tstt=intact.total_travel_time,
+        scenario_tstt=scenario.total_travel_time,
+        stranded_demand=stranded,
+        intact=intact,
+        scenario=scenario,
+    )
+
+
 # --- Standard benchmark I/O (TNTP format) -------------------------------------------------------
 # The TNTP format is the de-facto standard for traffic-assignment test networks
 # (github.com/bstabler/TransportationNetworks). Node ids in files are 1-based; we store 0-based.

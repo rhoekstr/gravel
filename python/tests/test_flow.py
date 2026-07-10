@@ -65,3 +65,31 @@ def test_sioux_falls_reproduces_known_ue():
     assert r.relative_gap < 1e-3      # converged
     assert corr > 0.9999              # matches the published equilibrium
     assert mape < 1.0                 # within 1% mean absolute error per link
+
+
+def test_flow_fragility_reroute_raises_delay():
+    # Diamond again: removing route B's entry (0->2) forces all demand onto route A, which is still
+    # connected -- nothing stranded, but the region gets slower (ΔTSTT > 0).
+    src = np.array([0, 1, 0, 2], dtype=np.uint32)
+    tgt = np.array([1, 3, 2, 3], dtype=np.uint32)
+    t0 = np.array([10.0, 1.0, 12.0, 1.0])
+    cap = np.array([1000.0, 1e9, 1000.0, 1e9])
+    g = gravel.Graph.from_coo(4, src, tgt, t0)
+
+    r = flow.flow_fragility(g, cap, {0: {3: 1500.0}}, [(0, 2)],
+                            flow.FlowConfig(gap_tol=1e-7, max_iterations=800))
+    assert r.stranded_demand == 0.0    # 0->3 still connected via route A
+    assert r.delta_tstt > 0.0          # forcing everyone onto A raises total travel time
+
+
+def test_flow_fragility_counts_stranded_demand():
+    # Chain 0->1->2; removing (1,2) severs the only path to node 2.
+    src = np.array([0, 1], dtype=np.uint32)
+    tgt = np.array([1, 2], dtype=np.uint32)
+    t0 = np.array([5.0, 5.0])
+    cap = np.array([1000.0, 1000.0])
+    g = gravel.Graph.from_coo(3, src, tgt, t0)
+
+    r = flow.flow_fragility(g, cap, {0: {2: 100.0}}, [(1, 2)], flow.FlowConfig())
+    assert r.stranded_demand == 100.0
+    assert r.scenario_tstt == 0.0      # the only demand is now unservable

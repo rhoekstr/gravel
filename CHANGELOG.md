@@ -6,18 +6,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-**Flow layer (3.0.0, in progress) — Phase F1.** First code for the demand-driven traffic-assignment
+**Flow layer (3.0.0, in progress) — Phases F1–F2.** First code for the demand-driven traffic-assignment
 consumer layer specified in `docs/FLOW_LAYER.md`.
 
 ### Added
-- **`gravel.flow`** — deterministic User Equilibrium via Frank-Wolfe + BPR volume-delay:
+- **`gravel.flow` (F1)** — deterministic User Equilibrium via Frank-Wolfe + BPR volume-delay:
   `flow.assign(graph, capacity, demand, FlowConfig()) → FlowResult` (per-edge equilibrium flows/times,
   TSTT, relative gap), the `bpr(...)` cost function, and `load_tntp(...)` for standard benchmark
   networks. Solves by rebuilding the graph with congested costs each iteration and loading all-or-nothing
   via the one-to-many `dijkstra` (DD-F2) — the CH is deliberately not used. Needs only numpy; the `[sue]`
   extra is reserved for the θ-calibration/realtime-diversion tooling (Phase F3). **Tier-1 validated:**
-  reproduces the published Sioux Falls UE solution (MAPE ≈ 0.04%, correlation ≈ 1.0000). Stochastic
-  (logit) UE and the ΔTSTT scenario-fragility payoff are the next phases.
+  reproduces the published Sioux Falls UE solution (MAPE ≈ 0.04%, correlation ≈ 1.0000).
+- **`flow.flow_fragility(graph, capacity, demand, scenario_edges, config)` (F2)** — the payoff: the
+  region-wide delay cost of a failure. Returns **ΔTSTT** (increase in total system travel time after
+  demand re-equilibrates around the removed edges) and its fraction, plus **stranded demand** (trips whose
+  O-D pair the closure disconnects). Read together, they separate reroute cost from disconnection. Next:
+  logit (stochastic) UE, and composing with the hazard-footprint machinery.
 
 ## [2.10.0] — 2026-07-10
 

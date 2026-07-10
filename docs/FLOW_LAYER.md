@@ -291,10 +291,13 @@ Ships `load_tntp` for standard benchmark networks. **Exit criterion met:** repro
 *Known limit:* the node-pair loading assumes no parallel edges between the same node pair; benchmark and
 simplified networks satisfy this, dual-carriageway OSM needs edge-level path recovery (a later refinement).
 
-### Phase F2 — Scenario fragility (the payoff)
-`flow.flow_fragility(..., scenario_edges)` → ΔTSTT and ΔTSTT-fraction under edge failure with demand
-re-equilibration; compose with the existing scenario / hazard-footprint machinery so a flood or a
-failure set maps to a region-wide delay cost.
+### Phase F2 — Scenario fragility (the payoff) · ✅ implemented
+`flow.flow_fragility(graph, capacity, demand, scenario_edges, config)` → ΔTSTT and ΔTSTT-fraction under
+edge failure with demand re-equilibration, plus **stranded demand** (trips whose O-D pair the closure
+severs). The two are read together: a severing closure shows up as stranded demand, not only as added
+delay — and because unservable trips leave TSTT, ΔTSTT alone would understate it. Next: compose with the
+existing scenario / hazard-footprint machinery so a flood footprint maps straight to a region-wide delay
+cost.
 
 ### Phase F3 — Realtime diversion calibration & validation (the phase that validates 3.0.0)
 Build the measurement, not just the model. Ingest closure events (511 / Waze for Cities) and observed
