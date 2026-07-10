@@ -1078,23 +1078,19 @@ PYBIND11_MODULE(_gravel, m) {
           "Feed floodplain / hazard-derived probabilities in as the array.",
           py::call_guard<py::gil_scoped_release>());
 
-    // --- Cascading failure (Motter-Lai, experimental) ---
-    py::enum_<CascadeCapacity>(m, "CascadeCapacity")
-        .value("BETWEENNESS_TOLERANCE", CascadeCapacity::BETWEENNESS_TOLERANCE)
-        .value("PCE_WEIGHTED", CascadeCapacity::PCE_WEIGHTED);
-
+    // --- Cascading failure (Motter-Lai, experimental topological stress test) ---
     py::class_<CascadeFragilityConfig>(m, "CascadeFragilityConfig")
         .def(py::init<>())
         .def_readwrite("alpha", &CascadeFragilityConfig::alpha)
         .def_readwrite("trigger_edges", &CascadeFragilityConfig::trigger_edges)
-        .def_readwrite("capacity_source", &CascadeFragilityConfig::capacity_source)
-        .def_readwrite("edge_pce", &CascadeFragilityConfig::edge_pce)
         .def_readwrite("betweenness_config", &CascadeFragilityConfig::betweenness_config)
         .def_readwrite("max_iterations", &CascadeFragilityConfig::max_iterations);
 
     py::class_<CascadeFragilityResult>(m, "CascadeFragilityResult")
         .def_readonly("cascade_size", &CascadeFragilityResult::cascade_size)
         .def_readonly("cascade_fraction", &CascadeFragilityResult::cascade_fraction)
+        .def_readonly("largest_component_fraction",
+                      &CascadeFragilityResult::largest_component_fraction)
         .def_readonly("iterations", &CascadeFragilityResult::iterations)
         .def_readonly("trigger_size", &CascadeFragilityResult::trigger_size)
         .def_readonly("failed_edges", &CascadeFragilityResult::failed_edges);
@@ -1106,8 +1102,9 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("cascade_fragility", &cascade_fragility,
           py::arg("graph"), py::arg("config") = CascadeFragilityConfig{},
-          "Motter-Lai cascading edge failure (experimental). Load = betweenness, "
-          "capacity = (1+alpha)*initial_load (or PCE-weighted); iterate to a fixed point.",
+          "Motter-Lai cascading edge failure (experimental, topological). Load = betweenness, "
+          "capacity = (1+alpha)*initial_load; iterate to a fixed point. Reports cascade "
+          "fraction and largest_component_fraction. NOT a physical/flow model (see DD-6).",
           py::call_guard<py::gil_scoped_release>());
 
     m.def("cascade_vs_alpha", &cascade_vs_alpha,

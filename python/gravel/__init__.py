@@ -49,9 +49,8 @@ from ._gravel import (  # noqa: E402
     BorderEdgeResult,
     BorderEdgeSummary,
     BridgeResult,
-    # --- Cascading failure (Motter-Lai) ---
+    # --- Cascading failure (Motter-Lai, experimental topological stress test) ---
     CascadeAlphaPoint,
-    CascadeCapacity,
     CascadeFragilityConfig,
     CascadeFragilityResult,
     CHBuildConfig,
@@ -246,7 +245,7 @@ from . import (  # noqa: E402
     viz,
 )
 
-__version__ = "2.9.0"
+__version__ = "2.10.0"
 
 __all__ = [
     # Feature flags
@@ -287,7 +286,7 @@ __all__ = [
     "StochasticFragilityConfig", "StochasticFragilityResult", "StochasticTarget",
     "stochastic_fragility",
     # Cascading failure (Motter-Lai, experimental)
-    "CascadeCapacity", "CascadeFragilityConfig", "CascadeFragilityResult",
+    "CascadeFragilityConfig", "CascadeFragilityResult",
     "CascadeAlphaPoint", "cascade_fragility", "cascade_vs_alpha",
     # Edge sampling
     "SamplingStrategy", "SamplerConfig", "EdgeSampler",

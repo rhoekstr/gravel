@@ -3,7 +3,6 @@
 #include "gravel/analysis/cascade_fragility.h"
 #include "gravel/validation/synthetic_graphs.h"
 
-#include <stdexcept>
 #include <vector>
 
 using namespace gravel;
@@ -76,10 +75,27 @@ TEST_CASE("Cascade: explicit trigger edge is honored", "[cascade]") {
     CHECK(r.cascade_size >= 1);
 }
 
-TEST_CASE("Cascade: PCE_WEIGHTED requires edge_pce of correct length", "[cascade]") {
-    auto g = make_grid_graph(4, 4);
-    auto cfg = base_cfg();
-    cfg.capacity_source = CascadeCapacity::PCE_WEIGHTED;
-    cfg.edge_pce = {1.0, 2.0};  // wrong length
-    CHECK_THROWS_AS(cascade_fragility(*g, cfg), std::invalid_argument);
+TEST_CASE("Cascade: largest_component_fraction tracks fragmentation", "[cascade]") {
+    // A tree with a few redundant edges: robust enough that a contained cascade leaves it
+    // whole, fragile enough that a tight-tolerance cascade shatters it.
+    auto g = make_tree_with_bridges(63, 4, 42);
+    auto whole = base_cfg();
+    whole.alpha = 100.0;  // contained cascade
+    whole.betweenness_config.deterministic = true;  // stable near the capacity threshold
+    auto shatter = base_cfg();
+    shatter.alpha = 0.01;  // shattering cascade
+    shatter.betweenness_config.deterministic = true;
+
+    auto rw = cascade_fragility(*g, whole);
+    auto rs = cascade_fragility(*g, shatter);
+
+    // Valid fraction in (0, 1].
+    CHECK(rs.largest_component_fraction > 0.0);
+    CHECK(rw.largest_component_fraction <= 1.0);
+    // A contained cascade leaves the network essentially whole...
+    CHECK(rw.largest_component_fraction >= 0.99);
+    // ...while a tight tolerance shatters it (largest surviving component well under whole)...
+    CHECK(rs.largest_component_fraction < 0.9);
+    // ...and less tolerance never fragments less than more.
+    CHECK(rs.largest_component_fraction <= rw.largest_component_fraction);
 }
