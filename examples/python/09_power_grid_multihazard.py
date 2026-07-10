@@ -1,16 +1,14 @@
-"""Multi-state transmission grid, branches colored by disconnection fragility, over a hazard tint.
+"""Multi-state transmission grid, branches colored by per-edge fragility, over a hazard tint.
 
-End-to-end use of the 2.6 + 2.7 datasets stack, across a whole region:
+End-to-end use of the 2.6 + 2.7 datasets stack plus the 2.8 fragility caller:
 
   GridSFM power grids  (gravel.datasets.gridsfm — one model per state, buses/branches
                         with coordinates), loaded and merged into one graph
-  +  per-branch FRAGILITY = how much of the grid it strands if it fails. GridSFM's
-     transmission models are near-radial, so most lines are bridges: removing one
-     disconnects part of the grid. Each branch is scored by the number of buses cut
-     off (0 if a redundant/looped line, up to ~half the state for a backbone bridge),
-     using gravel's blocked-edge query (gravel.BlockedCHQuery) to find bridges and a
-     bridge-tree to size each cut. Backbone lines whose loss strands a large share
-     glow; redundant and leaf lines stay dim.
+  +  per-branch FRAGILITY via gravel.edge_fragility(ch, idx, graph): for every edge, how
+     much the shortest path between its endpoints inflates when it is removed (the
+     path-inflation ratio), and, for the genuine single-points-of-failure (bridges),
+     how many buses it strands. Meshed lines with cheap detours stay dim; lines whose
+     loss forces a long reroute glow; bridges (which disconnect) are the top tier.
   +  FEMA NRI multi-hazard county surface  (gravel.datasets.nri) as a faint tint backdrop
   ->  one standalone HTML file: a faint county choropleth + the grid overlay colored by
       fragility, a hazard-layer toggle (recolors the county tint), hover, and pan/zoom.
@@ -38,7 +36,6 @@ import math
 import os
 import sys
 import tempfile
-from collections import defaultdict
 
 import gravel
 import numpy as np
@@ -67,8 +64,8 @@ RANK = {
     "Very Low": 1, "Relatively Low": 2, "Relatively Moderate": 3,
     "Relatively High": 4, "Very High": 5,
 }
-# Fragility buckets by share of the state grid a branch strands if it fails.
-FRAG_LABELS = ["Redundant", "Leaf / local", "Moderate", "Major", "Critical"]
+# Fragility buckets: detour severity for meshed lines, with bridges as the top tier.
+FRAG_LABELS = ["Redundant", "Minor detour", "Moderate detour", "Major detour", "Bridge (disconnects)"]
 
 
 def ridx(r) -> int:
@@ -87,93 +84,25 @@ def _nri_state_name(s):
     )
 
 
-def frag_bucket(stranded, n):
-    """Bucket a branch by the share of its state's ``n`` buses it strands on failure."""
-    if stranded <= 0:
-        return 0  # redundant / looped — removal disconnects nothing
-    frac = stranded / n
-    if frac <= 0.01:
+def frag_bucket(ratio, is_bridge):
+    """Bucket a branch: bridges (disconnect) are the top tier; others by detour ratio."""
+    if is_bridge:
+        return 4  # removing it disconnects its endpoints — an infinite detour
+    if ratio <= 1.5:
+        return 0  # a same-or-near-length alternate remains
+    if ratio <= 3.0:
         return 1
-    if frac <= 0.05:
+    if ratio <= 6.0:
         return 2
-    if frac <= 0.15:
-        return 3
-    return 4  # a backbone bridge: strands > 15% of the state grid
-
-
-def branch_stranded(g):
-    """Per undirected branch, buses stranded if it fails (0 if it is not a bridge).
-
-    A branch is a bridge iff blocking it makes its endpoints unreachable
-    (``BlockedCHQuery`` returns ``inf``). The non-bridge edges partition the graph into
-    2-edge-connected components; the bridges form a tree over those components, and each
-    bridge's cut is the smaller total node-count of the two sides.
-    """
-    src, tgt, _w = (np.asarray(a) for a in g.to_coo())
-    n = g.node_count
-    ch = gravel.build_ch(g)
-    bq = gravel.BlockedCHQuery(ch, gravel.ShortcutIndex(ch), g)
-    is_bridge = {}
-    for e in range(len(src)):
-        u, v = int(src[e]), int(tgt[e])
-        k = (u, v) if u < v else (v, u)
-        if k not in is_bridge:
-            is_bridge[k] = not np.isfinite(bq.distance_blocking(u, v, [(u, v)]))
-
-    parent = list(range(n))
-
-    def find(x):
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
-
-    for (u, v), br in is_bridge.items():
-        if not br:
-            ru, rv = find(u), find(v)
-            if ru != rv:
-                parent[ru] = rv
-    comp = [find(x) for x in range(n)]
-    csize = defaultdict(int)
-    for x in range(n):
-        csize[comp[x]] += 1
-    tree = defaultdict(list)  # bridge tree: component -> [(component, branch_key)]
-    for (u, v), br in is_bridge.items():
-        if br:
-            tree[comp[u]].append((comp[v], (u, v)))
-            tree[comp[v]].append((comp[u], (u, v)))
-
-    stranded = dict.fromkeys(is_bridge, 0)
-    seen = set()
-    for root in set(comp):
-        if root in seen:
-            continue
-        order, par, pbridge, stk = [], {root: None}, {}, [root]
-        seen.add(root)
-        while stk:
-            c = stk.pop()
-            order.append(c)
-            for c2, bk in tree[c]:
-                if c2 not in par:
-                    par[c2], pbridge[c2] = c, bk
-                    seen.add(c2)
-                    stk.append(c2)
-        tree_n = sum(csize[c] for c in order)
-        sub = {c: csize[c] for c in order}
-        for c in reversed(order):
-            p = par[c]
-            if p is not None:
-                sub[p] += sub[c]
-                stranded[pbridge[c]] = min(sub[c], tree_n - sub[c])
-    return stranded
+    return 3  # a long reroute, but still connected
 
 
 def main(states, out_path, region_label) -> None:
     cache = os.path.join(tempfile.gettempdir(), "gravel-gridsfm-cache")
 
-    # ---- 1. load each state's grid; per branch, fragility = buses stranded on failure ----
+    # ---- 1. load each state's grid; per branch, fragility = gravel.edge_fragility ----
     coords_parts = []
-    branches = []  # (u, v, capacity, stranded, state_n), global node indices
+    branches = []  # (u, v, capacity, ratio, is_bridge, stranded), global node indices
     offset = 0
     loaded = []
     for st in states:
@@ -185,15 +114,25 @@ def main(states, out_path, region_label) -> None:
             continue
         src, tgt, _w = (np.asarray(a) for a in g.to_coo())
         cap = np.asarray(cap, dtype=np.float64)
-        stranded = branch_stranded(g)
+        ch = gravel.build_ch(g)
+        ef = gravel.edge_fragility(ch, gravel.ShortcutIndex(ch), g)
+        ratio = np.asarray(ef.fragility_ratio)   # per CSR edge; INF for bridges
+        is_br = np.asarray(ef.is_bridge)
+        strand = np.asarray(ef.stranded_count)
         coords_parts.append(np.asarray(g.node_coordinates()))  # (n, 2) = (lat, lon)
-        st_cap = {}
+        # dedupe directed edges into undirected branches (both halves share fragility values).
+        st_branch = {}
         for e in range(len(src)):
             u, v = int(src[e]), int(tgt[e])
             k = (u, v) if u < v else (v, u)
-            st_cap[k] = max(st_cap.get(k, 0.0), float(cap[e]) if e < len(cap) else 0.0)
-        for (u, v), s in stranded.items():
-            branches.append((u + offset, v + offset, st_cap.get((u, v), 0.0), s, g.node_count))
+            c = float(cap[e]) if e < len(cap) else 0.0
+            rec = st_branch.get(k)
+            if rec:
+                rec[0] = max(rec[0], c)
+            else:
+                st_branch[k] = [c, float(ratio[e]), int(is_br[e]), int(strand[e])]
+        for (u, v), (c, rt, ib, sd) in st_branch.items():
+            branches.append((u + offset, v + offset, c, rt, ib, sd))
         offset += g.node_count
         loaded.append(st)
         print(f"  {st}: {g.node_count} buses, {g.edge_count} edges", flush=True)
@@ -253,7 +192,7 @@ def main(states, out_path, region_label) -> None:
               for _, f, _ in LAYERS]
         counties.append({"d": " ".join(d), "n": str(row["COUNTY"]), "r": rr})
 
-    # ---- 5. edges: width by capacity, color by disconnection-fragility bucket ----
+    # ---- 5. edges: width by capacity, color by fragility bucket ----
     capvals = [b[2] for b in branches if b[2] > 0]
     cmax = max(capvals) if capvals else 1.0
 
@@ -261,18 +200,19 @@ def main(states, out_path, region_label) -> None:
         return round(0.35 + 2.4 * math.sqrt(max(c, 0.0) / cmax), 2)
 
     edges = []
-    for u, v, c, s, n in branches:
+    for u, v, c, rt, ib, sd in branches:
         x1, y1 = px(coords[u, 0], coords[u, 1])
         x2, y2 = px(coords[v, 0], coords[v, 1])
         edges.append({"a": [x1, y1], "b": [x2, y2], "w": width(c),
-                      "u": int(u), "v": int(v), "c": round(c),
-                      "f": frag_bucket(s, n), "s": int(s), "pct": round(100.0 * s / n, 1)})
-    edges.sort(key=lambda e: e["f"])  # draw critical branches last (on top)
+                      "u": int(u), "v": int(v), "c": round(c), "f": frag_bucket(rt, ib),
+                      "br": int(ib), "sd": int(sd),
+                      "r": (round(rt, 1) if math.isfinite(rt) else None)})
+    edges.sort(key=lambda e: e["f"])  # draw the most fragile last (on top)
 
     stats = {
         "buses": int(len(coords)), "branches": len(branches), "states": len(loaded),
         "cap_gw": round(sum(b[2] for b in branches) / 1000.0, 1),
-        "critical": sum(1 for e in edges if e["f"] == 4), "counties": len(counties),
+        "bridges": sum(1 for b in branches if b[4]), "counties": len(counties),
     }
     print("  stats:", stats, flush=True)
 
@@ -283,7 +223,7 @@ def main(states, out_path, region_label) -> None:
         "counties": counties, "edges": edges, "stats": stats,
         "title": f"{region_label} Transmission Grid — Branch Fragility over Hazard",
         "prov": {
-            "grid": f"GridSFM · {len(loaded)} states · fragility = buses stranded on failure",
+            "grid": f"GridSFM · {len(loaded)} states · fragility = gravel.edge_fragility",
             "nri": f"FEMA NRI counties · {nprov.resolved_version}",
         },
         "attribution": nri.ATTRIBUTION,
@@ -305,8 +245,8 @@ TEMPLATE = r"""<!doctype html>
     --line:#252b34; --accent:#6ea8fe;
     /* hazard tint ramp (counties) */
     --r0:#9aa5b1; --r1:#1a9850; --r2:#91cf60; --r3:#fee08b; --r4:#fc8d59; --r5:#d73027;
-    /* fragility ramp (branches): redundant -> critical */
-    --f0:#3a4654; --f1:#4f7bb0; --f2:#57bccb; --f3:#ffd24d; --f4:#ff7a1a;
+    /* fragility ramp (branches): redundant -> long detour -> bridge */
+    --f0:#3a4654; --f1:#4f7bb0; --f2:#57bccb; --f3:#ffd24d; --f4:#ff4d4d;
   }
   *{box-sizing:border-box}
   html,body{margin:0;height:100%}
@@ -361,7 +301,7 @@ TEMPLATE = r"""<!doctype html>
     <div id="fraglegend"></div>
     <h4 id="legtitle">Hazard tint</h4>
     <div id="legrows"></div>
-    <div class="fine">Line color = buses stranded if it fails.<br>Line width = branch capacity (MVA).<br>County tint = NRI hazard rating.</div>
+    <div class="fine">Line color = path inflation if it fails (bridges = disconnect).<br>Line width = branch capacity (MVA).<br>County tint = NRI hazard rating.</div>
   </div>
   <div class="tip" id="tip"></div>
 </main>
@@ -374,7 +314,7 @@ const DATA = __DATA__;
 const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const RC = ["--r0","--r1","--r2","--r3","--r4","--r5"].map(cssv);
 const FC = ["--f0","--f1","--f2","--f3","--f4"].map(cssv);
-const FOP = [0.5, 0.72, 0.85, 0.95, 1.0];  // higher fragility = brighter
+const FOP = [0.5, 0.72, 0.85, 0.95, 1.0];  // more fragile = brighter
 const RLAB = ["No rating","Very Low","Relatively Low","Relatively Moderate","Relatively High","Very High"];
 const svg = document.getElementById("map");
 svg.setAttribute("viewBox", `0 0 ${DATA.W} ${DATA.H}`);
@@ -444,8 +384,10 @@ const tip=document.getElementById("tip");
 function place(e){const r=svg.getBoundingClientRect();
   tip.style.left=(e.clientX-r.left+14)+"px"; tip.style.top=(e.clientY-r.top+14)+"px"; tip.style.opacity=1;}
 function tipEdge(e,ed){
-  const impact = ed.f===0 ? "redundant — an alternate path remains"
-    : `strands ${ed.s} buses (${ed.pct}% of the state grid)`;
+  let impact;
+  if(ed.br) impact = `bridge — disconnects, strands ${ed.sd} bus${ed.sd===1?'':'es'}`;
+  else if(ed.r === null || ed.r <= 1.05) impact = "redundant — a same-length alternate remains";
+  else impact = `detour ×${ed.r} if it fails`;
   tip.innerHTML=`<b>Branch ${ed.u} ↔ ${ed.v}</b><br>`+
     `<span class="k">capacity</span> ${ed.c} MVA<br>`+
     `<span class="k">if it fails</span> ${impact}`;
@@ -474,7 +416,7 @@ document.getElementById("title").textContent = DATA.title;
 const s=DATA.stats;
 document.getElementById("sub").innerHTML =
   `<b>${s.states}</b> states · <b>${s.buses}</b> buses · <b>${s.branches}</b> branches · `+
-  `<b>${s.cap_gw}</b> GW · <b>${s.critical}</b> critical branches (each strands >15% of its state grid)`;
+  `<b>${s.cap_gw}</b> GW · <b>${s.bridges}</b> bridges (single points of failure)`;
 document.getElementById("attr").textContent = DATA.attribution;
 document.getElementById("prov").innerHTML =
   `${DATA.prov.grid} &nbsp;·&nbsp; ${DATA.prov.nri} &nbsp;·&nbsp; built with Gravel 2.7`;
