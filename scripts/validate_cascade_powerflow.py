@@ -162,10 +162,10 @@ def main(cases, n_states=60):
     print("flow, so the topological Motter–Lai cascade is NOT a validated physical model")
     print("of grid contingencies. It remains EXPERIMENTAL. The proxy that WOULD track the")
     print("physics is current-flow (Laplacian) betweenness — i.e. essentially a DC power-")
-    print("flow solve, which Gravel does not do by design (docs/PRD.md, DD-6). Real per-")
-    print("edge robustness (e.g. thermal headroom) can be fed to the cascade as a")
-    print("PCE_WEIGHTED tolerance weight, but that reweights the tolerance, not the load,")
-    print("so it cannot rescue a load proxy this weak. See docs/PRD.md 'Phase 5'.")
+    print("flow solve, which Gravel does not do by design (docs/PRD.md, DD-6). Feeding real")
+    print("per-edge robustness (e.g. thermal headroom) into the tolerance cannot rescue a")
+    print("load proxy this weak — so 2.10 removed that path and kept the cascade a plain")
+    print("topological stress test. See docs/PRD.md 'Phase 5' and docs/FLOW_LAYER.md.")
 
 
 if __name__ == "__main__":

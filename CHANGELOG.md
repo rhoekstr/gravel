@@ -4,6 +4,38 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.10.0] — 2026-07-10
+
+**Cascade, simplified to its honest core.** Acting on the 2.9 verdict — the Motter–Lai
+`cascade_fragility` is a *topological* model, not a physical one — this release removes the part that
+cosplayed physics and adds a purely-topological severity metric. The cascade is now unambiguously one
+thing: a betweenness-tolerance overload stress test.
+
+> **Version note (maintainer's call at tag time):** the removal below is a breaking change, but only to
+> the **experimental** cascade surface, which the README/REFERENCE explicitly exclude from the stability
+> contract. Under that scope this is a **minor** bump (2.10.0), consistent with the 2.9 "minor-not-3.0"
+> reasoning. Retag as a major if you'd rather treat any public-symbol removal as breaking.
+
+### Changed (breaking — experimental cascade surface only)
+- **Removed `CascadeCapacity` / `PCE_WEIGHTED` and `CascadeFragilityConfig.capacity_source` /
+  `.edge_pce`.** The PCE-weighted capacity source reweighted the *tolerance*, not the *load*, so it
+  dressed a topological model in capacity-looking inputs without making it physical — and 2.9 established
+  the underlying load proxy is too weak to rescue. `cascade_fragility` is now classic
+  betweenness-tolerance Motter–Lai only.
+
+### Added
+- **`CascadeFragilityResult.largest_component_fraction`** — nodes in the largest surviving connected
+  component ÷ node_count, on the undirected graph of non-failed edges (1.0 = still fully connected,
+  small = shattered). A purely topological severity signal, more meaningful than the raw failed-edge
+  count.
+
+### Documented
+- **`docs/FLOW_LAYER.md`** — a design spec for a separate, demand-driven flow/assignment *consumer*
+  layer (Stochastic User Equilibrium: BPR congestion delay + logit rerouting, solved by MSA), living on
+  top of Gravel and explicitly outside DD-6. This is the honest home for the "congestion cascade"
+  questions the topological cascade cannot answer — congestion as slow-down, not blockage; some drivers
+  taking a longer path to avoid a jam. **Spec only; no implementation in this release.**
+
 ## [2.9.0] — 2026-07-09
 
 **Cascade validation — the honest verdict.** The 3.0 plan was to graduate the experimental Motter–Lai
