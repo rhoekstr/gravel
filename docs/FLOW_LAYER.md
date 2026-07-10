@@ -299,15 +299,18 @@ delay — and because unservable trips leave TSTT, ΔTSTT alone would understate
 existing scenario / hazard-footprint machinery so a flood footprint maps straight to a region-wide delay
 cost.
 
-### Phase F3 — Realtime diversion calibration & validation (the phase that validates 3.0.0)
-Build the measurement, not just the model. Ingest closure events (511 / Waze for Cities) and observed
-volumes/speeds (PeMS / NPMRDS) via new `gravel.datasets` adapters; for each closure, measure the
-observed diversion rate; run `flow_fragility` for the same closure to get the predicted diversion; fit θ
-to minimize predicted-vs-observed error on a training set and report out-of-sample error on a held-out
-set (a `flow.calibrate_theta(closures, observations)` harness). **Exit criterion / graduation gate:**
-diversion validates within a disclosed band (→ 3.0.0 *supported*), or the gap is characterized and
-documented (→ 3.0.0 ships *experimental*, 2.9-style). This is the phase that makes 3.0.0 a validated
-release rather than a correct-solver one.
+### Phase F3 — Realtime diversion calibration & validation (the phase that validates 3.0.0) · ◐ harness built (synthetic-validated); PeMS ingestion pending access
+Build the measurement, not just the model. **Done:** the stochastic (logit) UE model — `flow.assign`
+with finite `theta`, Dial STOCH loading + MSA, which sharpens to the deterministic UE as `theta`→∞ —
+and the calibration harness: `flow.diversion_flows(...)` (predicted post-closure flows) +
+`flow.calibrate_theta(graph, capacity, demand, observations, ...)` → best-fit θ with the full
+error-vs-θ curve, plus `ClosureObservation`/`CalibrationResult`. **Synthetic-validated:** recovers a
+known θ from model-generated closure observations (`test_calibrate_recovers_known_theta`). **Pending
+(Robert's PeMS access, ~1 day):** a `gravel.datasets` adapter turning **PeMS** loop-detector volumes +
+511/Waze closure events into `ClosureObservation`s (planned closures as natural experiments, matched
+before/after windows), then the train/test split + out-of-sample error band on real data.
+**Exit criterion / graduation gate:** real diversion validates within a disclosed band (→ 3.0.0
+*supported*), or the gap is characterized and documented (→ 3.0.0 ships *experimental*, 2.9-style).
 
 ### Phase F4 — Transit (multi-modal, genuinely novel)
 The same logit machinery on the GTFS transit graph, with **GTFS-Realtime** closures reweighting live: a

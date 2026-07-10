@@ -6,8 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
-**Flow layer (3.0.0, in progress) — Phases F1–F2.** First code for the demand-driven traffic-assignment
-consumer layer specified in `docs/FLOW_LAYER.md`.
+**Flow layer (3.0.0, in progress) — Phases F1–F3 (synthetic).** First code for the demand-driven
+traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
 
 ### Added
 - **`gravel.flow` (F1)** — deterministic User Equilibrium via Frank-Wolfe + BPR volume-delay:
@@ -20,8 +20,15 @@ consumer layer specified in `docs/FLOW_LAYER.md`.
 - **`flow.flow_fragility(graph, capacity, demand, scenario_edges, config)` (F2)** — the payoff: the
   region-wide delay cost of a failure. Returns **ΔTSTT** (increase in total system travel time after
   demand re-equilibrates around the removed edges) and its fraction, plus **stranded demand** (trips whose
-  O-D pair the closure disconnects). Read together, they separate reroute cost from disconnection. Next:
-  logit (stochastic) UE, and composing with the hazard-footprint machinery.
+  O-D pair the closure disconnects). Read together, they separate reroute cost from disconnection.
+- **Stochastic (logit) UE + the θ-calibration harness (F3, synthetic)** — `FlowConfig(theta=...)` now
+  solves stochastic UE by Dial STOCH loading + MSA (sharpens to the deterministic UE as θ→∞; spreads flow
+  as θ→0). `flow.diversion_flows(...)` gives model-predicted post-closure flows, and
+  `flow.calibrate_theta(graph, capacity, demand, observations, ...)` fits θ to observed diversion (RMSE
+  over monitored links), returning the best-fit θ and the full error-vs-θ curve (`ClosureObservation`,
+  `CalibrationResult`). This is the 3.0.0 graduation gate (DD-F5: measure θ, don't assume it). Validated
+  on synthetic data — recovers a known θ from model-generated observations; the real-PeMS ingestion
+  adapter lands next. No version bump — 3.0.0 is tagged only once it validates on real diversion.
 
 ## [2.10.0] — 2026-07-10
 
