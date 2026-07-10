@@ -235,6 +235,50 @@ def test_nfhl_fetch_halves_page_on_500(monkeypatch):
     assert sizes[0] == 100 and min(sizes) <= 25
 
 
+@requires_geopandas
+def test_query_layer_shrinks_page_on_truncation(monkeypatch):
+    """A mid-stream truncation (IncompleteRead) on a too-big page is self-healed by
+    halving the page and retrying that offset — not raised — like the HTTP 500 path."""
+    import urllib.parse as up
+    from http.client import IncompleteRead
+
+    sizes = []
+
+    def fake_urlopen(req, timeout=None):
+        q = dict(up.parse_qsl(req.full_url.split("?", 1)[1]))
+        n = int(q["resultRecordCount"])
+        sizes.append(n)
+        if n > 25:  # a big page's payload gets cut off before it finishes
+            raise IncompleteRead(b"", 999)
+        return _FakeResp(_json.dumps({"features": [_feature("AE")],
+                                      "exceededTransferLimit": False}).encode())
+
+    monkeypatch.setattr(_arcgis, "urlopen", fake_urlopen)
+    gdf = _arcgis.query_layer("https://x/FeatureServer", 0, page_size=100)
+    assert len(gdf) == 1
+    assert sizes[0] == 100 and min(sizes) <= 25
+
+
+@requires_geopandas
+def test_query_layer_forwards_geometry_simplification(monkeypatch):
+    """max_allowable_offset / geometry_precision reach the ArcGIS query as
+    maxAllowableOffset / geometryPrecision (server-side polygon simplification)."""
+    seen = {}
+
+    def fake_urlopen(req, timeout=None):
+        seen["url"] = req.full_url
+        return _FakeResp(_json.dumps({"features": [_feature("AE")],
+                                      "exceededTransferLimit": False}).encode())
+
+    monkeypatch.setattr(_arcgis, "urlopen", fake_urlopen)
+    _arcgis.query_layer(
+        "https://x/FeatureServer", 3,
+        max_allowable_offset=0.006, geometry_precision=5,
+    )
+    assert "maxAllowableOffset=0.006" in seen["url"]
+    assert "geometryPrecision=5" in seen["url"]
+
+
 # --- ShakeMap / USDM / NRI edge_probabilities (severity mapping) -------------
 
 

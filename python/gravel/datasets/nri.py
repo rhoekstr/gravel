@@ -159,6 +159,8 @@ def fetch(
     out_fields: str = DEFAULT_FIELDS,
     timeout: float = 120.0,
     page_size: int | None = None,
+    max_allowable_offset: float | None = None,
+    geometry_precision: int | None = None,
 ):
     """Fetch NRI risk polygons. Returns ``(GeoDataFrame, Provenance)``.
 
@@ -191,6 +193,8 @@ def fetch(
     gdf = query_layer(
         service_url, layer, where=where, out_fields=out_fields,
         timeout=timeout, page_size=page,
+        max_allowable_offset=max_allowable_offset,
+        geometry_precision=geometry_precision,
     )
     release = _resolve_release(item_id, gdf, timeout=timeout)
     prov = Provenance.stamp("nri", f"{service_url}/{layer}/query", release)

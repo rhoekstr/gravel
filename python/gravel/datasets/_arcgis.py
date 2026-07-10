@@ -8,8 +8,9 @@ is geopandas, for the returned frame.
 from __future__ import annotations
 
 import json
+from http.client import IncompleteRead
 from typing import TYPE_CHECKING
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 
@@ -17,6 +18,13 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
     import geopandas as gpd
 
 _UA = {"User-Agent": "gravel-fragility"}
+
+# The response failures that a smaller page fixes: HTTP 500 (server chokes rendering
+# a large-geometry page), and mid-stream truncation / timeout when a single page's
+# payload is too big to deliver (survey-grade county polygons run ~2 MB each, so a
+# 100-feature page can exceed 200 MB and get cut off).
+_SHRINKABLE = (IncompleteRead, TimeoutError, URLError)
+_MIN_PAGE = 10
 
 
 def query_layer(
@@ -28,15 +36,23 @@ def query_layer(
     out_fields: str = "*",
     timeout: float = 60.0,
     page_size: int = 100,
+    max_allowable_offset: float | None = None,
+    geometry_precision: int | None = None,
     extra_params: dict | None = None,
 ) -> gpd.GeoDataFrame:
     """Fetch an ArcGIS feature layer as an EPSG:4326 ``GeoDataFrame`` (paginated).
 
     ``bbox`` = ``(min_lon, min_lat, max_lon, max_lat)`` envelope filter, or ``None``
     for the whole layer subject to ``where``. Pagination follows
-    ``exceededTransferLimit``; on HTTP 500 (large-geometry responses) the page size
-    is halved and the offset retried. ``extra_params`` merges additional ArcGIS
-    query knobs (e.g. a date filter). Requires geopandas.
+    ``exceededTransferLimit``; when a page is too large to deliver — HTTP 500, or a
+    truncated / timed-out read — the page size is halved (down to 10) and that
+    offset retried, so a heavy-geometry layer self-heals instead of erroring out.
+
+    ``max_allowable_offset`` (in ``outSR`` units — degrees here) asks the server to
+    Douglas–Peucker-simplify geometry before sending (e.g. ``0.005`` ≈ 500 m, plenty
+    for a regional choropleth and 10–100× smaller than survey-grade polygons);
+    ``geometry_precision`` caps coordinate decimal places. ``extra_params`` merges
+    additional ArcGIS query knobs (e.g. a date filter). Requires geopandas.
     """
     try:
         import geopandas as gpd
@@ -61,6 +77,10 @@ def query_layer(
             "resultRecordCount": str(page),
             "f": "geojson",
         }
+        if max_allowable_offset is not None:
+            params["maxAllowableOffset"] = str(float(max_allowable_offset))
+        if geometry_precision is not None:
+            params["geometryPrecision"] = str(int(geometry_precision))
         if bbox is not None:
             minx, miny, maxx, maxy = (float(v) for v in bbox)
             params.update(
@@ -78,8 +98,13 @@ def query_layer(
             with urlopen(req, timeout=timeout) as resp:  # noqa: S310 - fixed https endpoint
                 payload = json.loads(resp.read().decode("utf-8"))
         except HTTPError as exc:
-            if exc.code == 500 and page > 20:
-                page = max(20, page // 2)
+            if exc.code == 500 and page > _MIN_PAGE:
+                page = max(_MIN_PAGE, page // 2)
+                continue
+            raise
+        except _SHRINKABLE:
+            if page > _MIN_PAGE:
+                page = max(_MIN_PAGE, page // 2)
                 continue
             raise
         features = payload.get("features", [])

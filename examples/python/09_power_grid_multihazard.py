@@ -150,7 +150,13 @@ def main(states, out_path, region_label) -> None:
     names = sorted({_nri_state_name(s) for s in states})
     where = "STATE IN (" + ",".join(f"'{n}'" for n in names) + ")"
     print(f"fetching NRI counties for {len(names)} regions ...", flush=True)
-    gdf, nprov = nri.fetch(geography="county", where=where, out_fields=fields)
+    # A faint county tint doesn't need survey-grade polygons: ask the server to
+    # simplify geometry (~500 m tolerance) so a multi-state pull stays deliverable
+    # instead of timing out on ~2 MB-per-county boundaries.
+    gdf, nprov = nri.fetch(
+        geography="county", where=where, out_fields=fields,
+        max_allowable_offset=0.006, geometry_precision=5, page_size=40,
+    )
     gdf = gdf.to_crs("EPSG:4326").reset_index(drop=True)
     print(f"  NRI: {len(gdf)} counties, release {nprov.resolved_version}", flush=True)
 
