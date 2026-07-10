@@ -19,6 +19,7 @@ add_executable(gravel_tests
     test_bridges.cpp
     test_blocked_ch_query.cpp
     test_route_fragility.cpp
+    test_edge_fragility.cpp
     test_hershberger_suri.cpp
     test_via_path.cpp
     test_bernstein.cpp
