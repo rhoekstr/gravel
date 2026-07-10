@@ -16,6 +16,15 @@
 /// on large graphs, and set BetweennessConfig.deterministic for reproducible cascades
 /// (tiny FP differences near the capacity threshold can otherwise flip a marginal edge).
 /// Report cascade size as a function of α, not a single α.
+///
+/// VALIDATION (2.9): this is a *topological* model, not a physical one. Validated against
+/// solved AC-OPF power flows (scripts/validate_cascade_powerflow.py, docs/PRD.md Phase 5),
+/// edge betweenness — this model's "load" — correlates only weakly with real per-line power
+/// flow (Spearman ρ ≲ 0.35, often ≈ 0), reproducing Hines et al. (Chaos 2010). It therefore
+/// does NOT predict real electrical-grid contingencies and stays experimental. Real per-edge
+/// robustness (e.g. thermal headroom) can inform the tolerance via PCE_WEIGHTED, but that
+/// reweights the tolerance, not the load; a faithful grid model needs a power-flow solve
+/// (out of scope by design — see DD-6).
 
 #pragma once
 #include "gravel/core/array_graph.h"

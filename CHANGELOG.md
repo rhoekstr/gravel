@@ -4,6 +4,37 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] — 2026-07-09
+
+**Cascade validation — the honest verdict.** The 3.0 plan was to graduate the experimental Motter–Lai
+`cascade_fragility` to a validated physical model by wiring real per-edge capacity and scoring against
+ground-truth contingencies. We ran the validation; the model **does not graduate**. This release ships
+the validation (so the finding is reproducible) and documents the boundary, rather than shipping a
+graduation that the evidence does not support. No API changes; no breaking changes.
+
+> **Version note (maintainer's call at tag time):** this is a *non-graduation* — additive (a study
+> script + docs), no new validated feature and no breaking change, so SemVer makes it a **minor** bump
+> (2.9.0), not the 3.0.0 major the roadmap pencilled in. 3.0.0 should be reserved for an actual cascade
+> graduation, which would require adding a power-flow model (a deliberate DD-6 decision). Retag if you
+> disagree.
+
+### Added
+- **`scripts/validate_cascade_powerflow.py`** — validates the cascade's core assumption against
+  DeepMind OPFData solved AC-OPF states: for each solved state it correlates Gravel edge betweenness
+  (the cascade's "load") with the real per-branch apparent power flow |S| = √(pf²+qf²), and measures
+  whether the most-between lines are the most-loaded. Finding: betweenness barely tracks power flow
+  (Spearman ρ ≲ 0.35, often ≈ 0, sometimes negative; critical-line overlap at/below chance) across
+  IEEE-14/118 and GOC-500 — reproducing Hines et al. (*Chaos* 2010) on modern data.
+
+### Documented
+- **`cascade_fragility` is a topological model, not a physical one** — recorded in the header, in
+  `REFERENCE.md` §33.4, and in `docs/PRD.md` Phase 5 (methodology, results table, verdict). It stays
+  **experimental**. Real per-edge robustness (e.g. thermal headroom) can inform the tolerance via
+  `PCE_WEIGHTED`, but that reweights the tolerance, not the load, so it cannot make the cascade
+  physical. A faithful grid model would need a power-flow solve, out of scope by design (DD-6). The
+  purpose-built dataset for a true single-line-outage N-1 harness is **PFΔ** (arXiv 2510.22048),
+  noted as the recommended next step.
+
 ## [2.8.0] — 2026-07-09
 
 **Whole-graph edge fragility.** A standard caller that ranks *every* edge in a network by criticality,
