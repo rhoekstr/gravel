@@ -354,6 +354,34 @@ struct RouteResult {
 | `route(snap_from, snap_to)` | Phantom-to-phantom with path unpacking. | O(k + path_length) |
 | `distance_matrix(origins, dests)` | Returns flat row-major vector of size `|O| * |D|`. | O(\|O\| * \|D\| * k) with OpenMP parallelism |
 
+#### One-to-many Dijkstra (`gravel/core/dijkstra.h`)
+
+Plain single-source shortest paths on the graph itself (not the CH). Use it when weights change between
+queries — the CH is baked at build time and cannot be re-queried under new weights — or when you need
+the full shortest-path *tree*, e.g. whole-graph flow loading (the primitive the flow layer relies on;
+see [`docs/FLOW_LAYER.md`](docs/FLOW_LAYER.md)).
+
+```cpp
+struct DijkstraResult {
+    std::vector<Weight> distances;     // per node; INF_WEIGHT if unreachable
+    std::vector<NodeID> predecessors;  // shortest-path tree; INVALID_NODE at source/unreachable
+};
+
+DijkstraResult      dijkstra(const ArrayGraph& graph, NodeID source);          // one-to-many, heap-based
+Weight              dijkstra_pair(const ArrayGraph& graph, NodeID s, NodeID t); // early-stop single pair
+std::vector<NodeID> reconstruct_path(const DijkstraResult&, NodeID s, NodeID t);// empty if unreachable
+```
+
+Python: `gravel.dijkstra(graph, source)` returns a `DijkstraResult` with numpy `distances` (float64) and
+`predecessors` (uint32), both indexed by node id; plus `gravel.dijkstra_pair(graph, s, t)` and
+`gravel.reconstruct_path(result, s, t)`.
+
+| Function | Description | Complexity |
+|--------|-------------|------------|
+| `dijkstra(graph, source)` | One-to-many SSSP: distances + shortest-path tree from `source`. | O((V+E) log V) |
+| `dijkstra_pair(graph, s, t)` | Single-pair, stops when `t` is settled. | O((V+E) log V) worst case |
+| `reconstruct_path(result, s, t)` | Node path from a `DijkstraResult`; empty if unreachable. | O(path_length) |
+
 ---
 
 ## 4. Route Fragility
@@ -3526,12 +3554,15 @@ like (§33.5 turns a FEMA floodplain into one).
 `cascade_fragility(graph, config) → CascadeFragilityResult` and
 `cascade_vs_alpha(graph, config, alphas) → [CascadeAlphaPoint]`.
 
-- Load = edge betweenness; `capacity = (1+α)·initial_load` (`BETWEENNESS_TOLERANCE`) or
-  `(1 + α·pce/mean_pce)·initial_load` (`PCE_WEIGHTED`, needs `edge_pce`).
+An **experimental, purely topological** overload stress test — not a physical or traffic model.
+
+- Load = edge betweenness; `capacity = (1+α)·initial_load`.
 - Trigger via `trigger_edges` (or the highest-load edge if empty); recompute betweenness on the
   degraded graph each round (failed edges masked with ∞ weight — edge indexing preserved); fail edges
   whose load exceeds capacity; iterate to a fixed point. Zero-initial-load edges never overload.
-- Result: `cascade_size`, `cascade_fraction`, `iterations`, `failed_edges`.
+- Result: `cascade_size`, `cascade_fraction`, `largest_component_fraction` (nodes in the largest
+  surviving connected component / node_count — 1.0 = still fully connected, small = shattered),
+  `iterations`, `failed_edges`.
 - **Experimental & costly** (betweenness per round): use sampled betweenness on large graphs, set
   `BetweennessConfig.deterministic` for reproducibility, and report `cascade_vs_alpha` (which can be
   non-monotone near the transition — a genuine property of the model), not a single α.
@@ -3540,10 +3571,14 @@ like (§33.5 turns a FEMA floodplain into one).
   [`docs/PRD.md`](docs/PRD.md) Phase 5), edge betweenness — the model's "load" — tracks real per-line
   power flow only weakly (Spearman ρ ≲ 0.35, often ≈ 0; critical-line overlap at/below chance),
   reproducing Hines et al. (*Chaos* 2010). It therefore does **not** predict real grid contingencies
-  and stays experimental. You can feed real per-edge robustness (e.g. thermal headroom
-  `(rate_a−|S|)/|S|`) as the `PCE_WEIGHTED` `edge_pce` weight, but that reweights the *tolerance*, not
-  the *load*, so it cannot make a topological cascade physical — a faithful grid model needs a
-  power-flow solve, which is out of scope by design (DD-6).
+  and stays experimental; a faithful grid model would need a power-flow solve, out of scope by design
+  (DD-6). Read the output as a structural what-if, not a forecast.
+- **2.10 simplification.** The `PCE_WEIGHTED` capacity source and its `edge_pce` input were removed —
+  they reweighted the *tolerance*, not the *load*, dressing the topological model in capacity-looking
+  inputs without making it physical. The model is now honestly one thing: classic betweenness-tolerance
+  Motter–Lai. For demand-driven congestion cascades (probabilistic rerouting under capacity, with real
+  slow-down delay rather than binary blockage), see the separate flow layer,
+  [`docs/FLOW_LAYER.md`](docs/FLOW_LAYER.md).
 
 ### 33.5 Floodplain / hazard ingestion (`gravel.hazards`, Python)
 

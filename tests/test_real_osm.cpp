@@ -8,6 +8,7 @@
 #include "gravel/simplify/bridges.h"
 #include "gravel/analysis/algebraic_connectivity.h"
 #include "gravel/analysis/betweenness.h"
+#include "gravel/analysis/cascade_fragility.h"
 #include "gravel/analysis/county_fragility.h"
 #include "gravel/analysis/location_fragility.h"
 #include "gravel/snap/snapper.h"
@@ -73,6 +74,49 @@ TEST_CASE("Real OSM: load Swain County graph", "[real_osm]") {
 
     std::cerr << "  Nodes: " << f.graph->node_count()
               << ", Edges: " << f.graph->edge_count() << "\n";
+}
+
+TEST_CASE("Real OSM: cascade fragments a real road network", "[real_osm]") {
+    if (!data_available()) { SKIP("Swain County PBF not found"); }
+    auto& f = SwainFixture::instance();
+    const ArrayGraph& g = *f.graph;
+    const EdgeID m = g.edge_count();
+
+    // Real road networks are overwhelmingly bridges (a grid has none): most edges are
+    // single points of failure. This is exactly why the fragmentation metric is meaningful
+    // on real data where it would be trivially 1.0 on a synthetic mesh.
+    const EdgeBridgeInfo bi = bridge_edge_info(g);
+    std::size_t n_bridge = 0;
+    EdgeID worst = 0;
+    uint32_t worst_cut = 0;
+    for (EdgeID e = 0; e < m; ++e) {
+        n_bridge += bi.is_bridge[e];
+        if (bi.cut_size[e] > worst_cut) { worst_cut = bi.cut_size[e]; worst = e; }
+    }
+    CHECK(static_cast<double>(n_bridge) / static_cast<double>(m) > 0.5);
+    REQUIRE(worst_cut > 0);
+
+    // Endpoints of the single worst bridge (largest stranded cut).
+    const auto& off = g.raw_offsets();
+    const auto& tgt = g.raw_targets();
+    NodeID wu = 0;
+    for (NodeID u = 0; u + 1 < off.size(); ++u)
+        if (worst >= off[u] && worst < off[u + 1]) { wu = u; break; }
+    const NodeID wv = tgt[worst];
+
+    // Remove that one road (both directions), no propagation: a real county fragments,
+    // unlike a bridge-free grid that stays pinned at largest_component_fraction == 1.0.
+    CascadeFragilityConfig cfg;
+    cfg.trigger_edges = {{wu, wv}, {wv, wu}};
+    cfg.max_iterations = 0;                     // pure scenario removal, no cascade rounds
+    cfg.betweenness_config.sample_sources = 1;  // initial load is unused here; keep it cheap
+    const CascadeFragilityResult r = cascade_fragility(g, cfg);
+
+    std::cerr << "  bridges=" << n_bridge << "/" << m
+              << " worst_cut=" << worst_cut
+              << " lcf=" << r.largest_component_fraction << "\n";
+    CHECK(r.largest_component_fraction < 0.98);  // it genuinely fragments
+    CHECK(r.largest_component_fraction > 0.3);   // but the bulk stays connected
 }
 
 TEST_CASE("Real OSM: CH query produces valid distances", "[real_osm]") {

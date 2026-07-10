@@ -130,9 +130,22 @@ def test_cascade_vs_alpha_curve():
     assert pts[0].cascade_fraction >= pts[-1].cascade_fraction - 1e-12
 
 
-def test_cascade_experimental_capacity_enum():
-    assert gravel.CascadeCapacity.BETWEENNESS_TOLERANCE is not None
-    assert gravel.CascadeCapacity.PCE_WEIGHTED is not None
+def test_cascade_largest_component_fraction():
+    # Purely topological severity. A tree with a few redundant edges: a contained cascade
+    # leaves it whole; a tight-tolerance one shatters it.
+    g = gravel.make_tree_with_bridges(63, 4, 42)
+
+    def cfg(a):
+        c = _cascade_cfg(a)
+        c.betweenness_config.deterministic = True  # stable near the capacity threshold
+        return c
+
+    r_whole = gravel.cascade_fragility(g, cfg(100.0))
+    r_shatter = gravel.cascade_fragility(g, cfg(0.01))
+    assert 0.0 < r_shatter.largest_component_fraction <= 1.0
+    assert r_whole.largest_component_fraction >= 0.99          # contained: still whole
+    assert r_shatter.largest_component_fraction < 0.9          # tight tolerance: shattered
+    assert r_shatter.largest_component_fraction <= r_whole.largest_component_fraction
 
 
 # --------------------------------------------------------------------------

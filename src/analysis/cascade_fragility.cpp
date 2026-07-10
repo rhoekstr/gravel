@@ -1,9 +1,8 @@
 #include "gravel/analysis/cascade_fragility.h"
 
-#include <algorithm>
 #include <limits>
-#include <stdexcept>
 #include <unordered_set>
+#include <vector>
 
 namespace gravel {
 
@@ -41,26 +40,13 @@ CascadeFragilityResult cascade_fragility(const ArrayGraph& graph,
     const BetweennessResult init = edge_betweenness(graph, config.betweenness_config);
     const std::vector<double>& load0 = init.edge_scores;
 
-    // Capacity. Zero-initial-load edges get infinite capacity (never overloaded — they
-    // carry no load in normal operation), which avoids a degenerate runaway cascade.
+    // Capacity = (1+α)·initial_load. Zero-initial-load edges get infinite capacity (never
+    // overloaded — they carry no load in normal operation), which avoids a degenerate
+    // runaway cascade.
     std::vector<double> capacity(m, std::numeric_limits<double>::infinity());
-    if (config.capacity_source == CascadeCapacity::PCE_WEIGHTED) {
-        if (config.edge_pce.size() != static_cast<std::size_t>(m)) {
-            throw std::invalid_argument(
-                "cascade_fragility: edge_pce length must equal edge_count for PCE_WEIGHTED");
-        }
-        double sum = 0.0;
-        std::size_t cnt = 0;
-        for (double p : config.edge_pce) if (p > 0.0) { sum += p; ++cnt; }
-        const double mean_pce = cnt > 0 ? sum / static_cast<double>(cnt) : 1.0;
-        for (EdgeID e = 0; e < m; ++e)
-            if (load0[e] > 0.0)
-                capacity[e] = (1.0 + config.alpha * (config.edge_pce[e] / mean_pce)) * load0[e];
-    } else {
-        for (EdgeID e = 0; e < m; ++e)
-            if (load0[e] > 0.0)
-                capacity[e] = (1.0 + config.alpha) * load0[e];
-    }
+    for (EdgeID e = 0; e < m; ++e)
+        if (load0[e] > 0.0)
+            capacity[e] = (1.0 + config.alpha) * load0[e];
 
     // Trigger the initial failure(s).
     std::unordered_set<EdgeID> failed;
@@ -100,8 +86,32 @@ CascadeFragilityResult cascade_fragility(const ArrayGraph& graph,
         result.iterations = it + 1;
     }
 
+    // Fragmentation severity: the largest connected component of the surviving (non-failed)
+    // undirected graph, as a fraction of all nodes. Union-find over the endpoints of every
+    // edge that did not fail; a purely topological reading of how shattered the network is.
+    const NodeID n = graph.node_count();
+    std::vector<NodeID> parent(n);
+    for (NodeID v = 0; v < n; ++v) parent[v] = v;
+    auto find = [&](NodeID x) {
+        while (parent[x] != x) { parent[x] = parent[parent[x]]; x = parent[x]; }
+        return x;
+    };
+    for (EdgeID e = 0; e < m; ++e) {
+        if (failed.count(e)) continue;
+        const NodeID a = find(src_of_edge[e]), b = find(targets[e]);
+        if (a != b) parent[a] = b;
+    }
+    std::vector<uint32_t> comp_size(n, 0);
+    uint32_t largest = 0;
+    for (NodeID v = 0; v < n; ++v) {
+        const uint32_t s = ++comp_size[find(v)];
+        if (s > largest) largest = s;
+    }
+
     result.cascade_size = static_cast<uint32_t>(failed.size());
     result.cascade_fraction = static_cast<double>(failed.size()) / static_cast<double>(m);
+    result.largest_component_fraction =
+        n ? static_cast<double>(largest) / static_cast<double>(n) : 1.0;
     result.failed_edges.reserve(failed.size());
     for (EdgeID e : failed) result.failed_edges.push_back({src_of_edge[e], targets[e]});
     return result;

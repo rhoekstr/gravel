@@ -96,8 +96,9 @@ core. This is a deliberate, defensible position (see DD-6 and the Roadmap), not 
 **Analytical depth** (2.4.0; disclosed, sweepable inputs — DD-6)
 - `estimate_capacity` — per-edge PCE from `highway`/`lanes`; capacity-weighted betweenness (criticality)
 - `stochastic_fragility` — Monte Carlo over per-edge failure probabilities → a fragility *distribution*
-- `cascade_fragility` — Motter–Lai load-redistribution cascade (experimental; validated in 2.9 against
-  solved power flow — stays topological, does not graduate; see Phase 5)
+- `cascade_fragility` — Motter–Lai load-redistribution cascade (experimental, purely topological;
+  validated in 2.9 against solved power flow — does not graduate; simplified to its honest core in 2.10
+  with a `largest_component_fraction` severity metric; see Phase 5)
 
 **Visualization** (2.5.0; `gravel[viz]`, pure Python, downstream of `to_geodataframe`)
 - `plot_fragility` — static quantitative choropleth (colorblind-safe) for research artifacts
@@ -558,11 +559,16 @@ excludes.
 
 **Verdict.** `cascade_fragility` remains **experimental**. The necessary condition fails across three
 standard systems, so the sufficient condition (predicting real contingency propagation) cannot hold.
-Kept honest in the API and docs: the cascade is a topological covariate, clearly labeled; real per-edge
-robustness (e.g. thermal headroom `(rate_a−|S|)/|S|`) can be fed as a `PCE_WEIGHTED` per-edge tolerance
-weight, but that reweights the *tolerance*, not the *load*, so it cannot rescue a load proxy this weak.
-A true graduation would require adding a power-flow (DC/Laplacian) model — a deliberate DD-6 reversal
-and a scope decision for the maintainer, not a default.
+Kept honest in the API and docs: the cascade is a topological covariate, clearly labeled. A true
+graduation would require adding a power-flow (DC/Laplacian) model — a deliberate DD-6 reversal and a
+scope decision for the maintainer, not a default.
+
+**2.10 follow-through.** Acting on this verdict, 2.10 simplified the model to its honest core: the
+`PCE_WEIGHTED` capacity source and its `edge_pce` input were removed — they reweighted the *tolerance*,
+not the *load*, dressing a topological model in capacity-looking inputs without making it physical — and
+a purely-topological `largest_component_fraction` severity metric (how connected the surviving graph
+stays) was added. The cascade is now unambiguously one thing: classic betweenness-tolerance Motter–Lai
+as a structural stress test.
 
 **Recommended next step for a real N-1 harness.** OPFData's "N-1" re-solves a full AC-OPF with
 generators *re-dispatched* (and drops a generator half the time), and GridSFM's "N-1" is
@@ -574,7 +580,9 @@ worth doing once a physical redistribution model exists to test against it.
 
 - **Boundary (unchanged; stays inside DD-6):** the cascade is the *complex-networks* load-redistribution
   model, **not** traffic-assignment/user-equilibrium or power-flow physics. Domain-specific flow physics
-  (DC/AC power flow, transit headway dynamics) stay out of the core by design.
+  (DC/AC power flow, transit headway dynamics) stay out of the core by design. The demand-driven
+  congestion-cascade direction (probabilistic rerouting under capacity, with real slow-down delay) is
+  specified as a separate consumer layer in [`FLOW_LAYER.md`](FLOW_LAYER.md), explicitly outside DD-6.
 
 ### Hardening & operational (surfaced during the 2.3.0 release)
 
@@ -605,6 +613,11 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   way to relax the "static-topology CH" non-goal below. Preferred over hand-rolled incremental CH
   updates (intricate, quality-eroding); today `BlockedCHQuery` already covers fixed-topology edge
   blocking without a rebuild, so CCH is warranted only if a true editable-network use case emerges.
+- **Flow / assignment layer (external consumer).** Demand-driven congestion cascades — Stochastic User
+  Equilibrium (BPR slow-down delay + logit rerouting, solved by MSA) as a `gravel.flow` layer *on top
+  of* the core, importing it one-directionally and leaving DD-6 intact. The honest home for "how much
+  slower does the region get when this fails" (ΔTSTT), which the topological cascade cannot answer.
+  Fully specified in [`FLOW_LAYER.md`](FLOW_LAYER.md) — design only, not yet built.
 - Temporal fragility (degradation over construction schedules)
 - International road-network support (non-TIGER boundaries)
 - ML-assisted edge-importance ranking
@@ -621,9 +634,14 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   built once and is not incrementally mutated. (Fragility analysis still removes edges — by
   recomputation on the degraded graph, not by editing the CH.)
 - Gravel is **not a traffic-assignment / user-equilibrium engine.** Full flow modeling (BPR cost
-  functions plus an origin-destination demand matrix solved to equilibrium) is out of scope: it
-  requires data Gravel cannot calibrate and would trade a defensible topological covariate for a
-  parameter-laden one. The complex-networks cascade model in Phase 2A is the supported alternative.
+  functions plus an origin-destination demand matrix solved to equilibrium) is out of scope *for the
+  core*: it requires data Gravel cannot calibrate and would trade a defensible topological covariate for
+  a parameter-laden one. The complex-networks cascade model in Phase 2A is the supported topological
+  alternative. Where a genuine equilibrium answer *is* wanted — congestion as slow-down rather than
+  blockage, some travelers taking a longer path to avoid a jam — it belongs in a **separate consumer
+  layer** that imports Gravel as a routing/capacity/sampling engine without changing the core. That
+  layer is specified in [`FLOW_LAYER.md`](FLOW_LAYER.md) (Stochastic User Equilibrium; explicitly
+  outside DD-6, so the core's topological stance is unaffected).
 - Gravel does **not yet** model interdependent multi-layer infrastructure as a first-class graph. When
   needed, coupled failures are expressed as an externally-built edge set fed to `scenario_fragility`;
   a true multi-layer core is reserved for a research need that demands interdependency covariates.

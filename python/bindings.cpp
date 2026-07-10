@@ -335,6 +335,28 @@ PYBIND11_MODULE(_gravel, m) {
         return dijkstra_pair(g, src, tgt);
     }, py::arg("graph"), py::arg("source"), py::arg("target"));
 
+    // One-to-many single-source shortest paths (distances + shortest-path tree). The primitive
+    // for whole-graph flow loading (e.g. the future SUE flow layer, docs/FLOW_LAYER.md) and any
+    // one-origin-to-many-destinations query. Heap-based; O((V+E) log V).
+    py::class_<DijkstraResult>(m, "DijkstraResult")
+        .def_property_readonly("distances", [](const DijkstraResult& r) {
+            return py::array_t<Weight>(r.distances.size(), r.distances.data());
+        })
+        .def_property_readonly("predecessors", [](const DijkstraResult& r) {
+            return py::array_t<NodeID>(r.predecessors.size(), r.predecessors.data());
+        });
+    m.def("dijkstra", [](const ArrayGraph& g, NodeID src) {
+        return dijkstra(g, src);
+    }, py::arg("graph"), py::arg("source"),
+       "One-to-many Dijkstra from source. Returns a DijkstraResult with per-node distances "
+       "(INF if unreachable) and predecessors (shortest-path tree; INVALID_NODE at the source "
+       "and at unreachable nodes), both indexed by node id.",
+       py::call_guard<py::gil_scoped_release>());
+    m.def("reconstruct_path", [](const DijkstraResult& r, NodeID src, NodeID tgt) {
+        return reconstruct_path(r, src, tgt);
+    }, py::arg("result"), py::arg("source"), py::arg("target"),
+       "Reconstruct the node path source->target from a DijkstraResult; empty if unreachable.");
+
     // --- Fragility types ---
 
     py::class_<EdgeFragility>(m, "EdgeFragility")
@@ -1078,23 +1100,19 @@ PYBIND11_MODULE(_gravel, m) {
           "Feed floodplain / hazard-derived probabilities in as the array.",
           py::call_guard<py::gil_scoped_release>());
 
-    // --- Cascading failure (Motter-Lai, experimental) ---
-    py::enum_<CascadeCapacity>(m, "CascadeCapacity")
-        .value("BETWEENNESS_TOLERANCE", CascadeCapacity::BETWEENNESS_TOLERANCE)
-        .value("PCE_WEIGHTED", CascadeCapacity::PCE_WEIGHTED);
-
+    // --- Cascading failure (Motter-Lai, experimental topological stress test) ---
     py::class_<CascadeFragilityConfig>(m, "CascadeFragilityConfig")
         .def(py::init<>())
         .def_readwrite("alpha", &CascadeFragilityConfig::alpha)
         .def_readwrite("trigger_edges", &CascadeFragilityConfig::trigger_edges)
-        .def_readwrite("capacity_source", &CascadeFragilityConfig::capacity_source)
-        .def_readwrite("edge_pce", &CascadeFragilityConfig::edge_pce)
         .def_readwrite("betweenness_config", &CascadeFragilityConfig::betweenness_config)
         .def_readwrite("max_iterations", &CascadeFragilityConfig::max_iterations);
 
     py::class_<CascadeFragilityResult>(m, "CascadeFragilityResult")
         .def_readonly("cascade_size", &CascadeFragilityResult::cascade_size)
         .def_readonly("cascade_fraction", &CascadeFragilityResult::cascade_fraction)
+        .def_readonly("largest_component_fraction",
+                      &CascadeFragilityResult::largest_component_fraction)
         .def_readonly("iterations", &CascadeFragilityResult::iterations)
         .def_readonly("trigger_size", &CascadeFragilityResult::trigger_size)
         .def_readonly("failed_edges", &CascadeFragilityResult::failed_edges);
@@ -1106,8 +1124,9 @@ PYBIND11_MODULE(_gravel, m) {
 
     m.def("cascade_fragility", &cascade_fragility,
           py::arg("graph"), py::arg("config") = CascadeFragilityConfig{},
-          "Motter-Lai cascading edge failure (experimental). Load = betweenness, "
-          "capacity = (1+alpha)*initial_load (or PCE-weighted); iterate to a fixed point.",
+          "Motter-Lai cascading edge failure (experimental, topological). Load = betweenness, "
+          "capacity = (1+alpha)*initial_load; iterate to a fixed point. Reports cascade "
+          "fraction and largest_component_fraction. NOT a physical/flow model (see DD-6).",
           py::call_guard<py::gil_scoped_release>());
 
     m.def("cascade_vs_alpha", &cascade_vs_alpha,
