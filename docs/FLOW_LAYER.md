@@ -112,12 +112,34 @@ pure-Python layer needs is a **binding for the existing one-to-many `dijkstra()`
 for Dial; predecessors enable all-or-nothing UE and path recovery). That is a purely additive binding
 in `gravel-core`; it violates nothing and touches no DAG boundary.
 
-**Honest performance framing.** This is Dijkstra-fast, not CH-fast — the CH's build-once advantage
-doesn't survive per-iteration reweighting. But Gravel's edge stands: most traffic-assignment tools are
-slow precisely *because* their shortest-path core is slow, and Gravel's structure-of-arrays Dijkstra is
-already best-in-class. Cost per MSA iteration ≈ `(|origins| + |destinations|)` one-to-many SSSP + an
-O(E) rebuild; a few dozen iterations to convergence. County-scale is comfortable; CONUS would want the
-zone aggregation standard in the field (assign at the traffic-analysis-zone level, not per node).
+**Honest performance framing — Dijkstra-fast is the right target, not a shortfall.** It is tempting to
+frame this as "we'd use CH if only the weights held still." That is wrong twice over, and worth being
+precise about:
+
+1. **CH's speedup is a point-to-point pruning trick.** A CH query is fast because bidirectional search
+   up the hierarchy visits a tiny corridor of the graph and prunes everything else. SUE loading is not
+   point-to-point — it assigns flow *across the whole network* (one-to-many / one-to-all from each
+   origin). When you need distances to many or all nodes, there is nothing to prune: you visit
+   essentially every node regardless, and Dijkstra visits each exactly once, which is optimal. So even
+   with weights frozen, CH's query advantage would largely evaporate here. Dijkstra is the *right* tool
+   for the many-targets regime, not a fallback from CH.
+2. **Changing weights would need CCH anyway.** Re-querying CH under BPR-updated weights requires either a
+   full rebuild (defeats the point) or Customizable CH — which stores extra metric-independent structure
+   (the "redundant CH data") and re-customizes each iteration. Stacked on point (1), that is a lot of
+   machinery to accelerate a regime where the query wasn't the bottleneck.
+
+The one thing that genuinely beats plain Dijkstra for one-to-all is **PHAST** (Delling et al.): sweep
+the CH DAG in rank order with good memory locality and SIMD/parallelism — a **constant-factor** win
+(~an order of magnitude), not asymptotic, and it needs the CH/CCH structure built and re-customized per
+reweight. Noted as a possible future constant-factor optimization; almost certainly not worth the
+redundant-structure cost for a first cut.
+
+So the realistic ceiling is **well-implemented Dijkstra, parallel over origins** — which is exactly
+Gravel's strength: most traffic-assignment tools are slow because their shortest-path core is slow, and
+Gravel's structure-of-arrays Dijkstra is already best-in-class. Cost per MSA iteration ≈
+`(|origins| + |destinations|)` one-to-many SSSP + an O(E) rebuild; a few dozen iterations to
+convergence. County-scale is comfortable; CONUS wants the zone aggregation standard in the field
+(assign at the traffic-analysis-zone level, not per node) — which also shrinks `|origins|`.
 
 ---
 
@@ -171,11 +193,48 @@ time does losing this cost everyone." It composes with Gravel's existing scenari
 
 ## Validation plan
 
-Before any scenario number is trusted, reproduce a **known** equilibrium: the layer must recover the
-published User-Equilibrium solution on a standard benchmark (Sioux Falls, or another TNTP network with a
-distributed reference solution) to within the usual gap tolerance. Only once the solver is shown correct
-on a network with a known answer do ΔTSTT scenario results mean anything — the same discipline the 2.9
-study applied to the cascade. Correctness is a solved-benchmark match, not a plausible-looking map.
+Two tiers, in order. Tier 2 is what makes 3.0.0 a *validated* release rather than a correct-solver one,
+and it mirrors the 2.9 cascade discipline exactly: don't assume the model, measure it against ground
+truth.
+
+**Tier 1 — solver correctness (does the math converge to the right answer?).** Reproduce a *known*
+equilibrium: recover the published User-Equilibrium solution on a standard benchmark (Sioux Falls, or
+another TNTP network with a distributed reference solution) to within the usual gap tolerance. Only once
+the solver is correct on a network with a known answer do any downstream numbers mean anything.
+Correctness is a solved-benchmark match, not a plausible-looking map.
+
+**Tier 2 — behavioral validation from realtime diversion (does reality reroute the way the model
+says?).** The solver can be perfectly correct and still mispredict real behavior if θ — how sharply
+travelers prefer the shortest path — is wrong. So *measure* it. When a real road closes, traffic
+redistributes to alternates at some observed **diversion rate**; the model predicts a diversion rate for
+that same closure. Fit θ to reproduce observed diversions on a training set of closures, hold out others
+to test it, and report the calibrated θ with an **out-of-sample error band**. This is a
+revealed-preference / discrete-choice estimation (Ben-Akiva & Lerman) — a well-established method —
+applied to real closure events.
+
+The tractable first cut uses **planned closures as natural experiments** (a construction closure with a
+known start/end is far cleaner than a random incident) on **instrumented corridors**:
+
+- **Closure event** (the perturbation): 511 / state-DOT event feeds (open), or Waze for Cities /
+  Connected Citizens (agency access, anonymized) — when and where a road went down.
+- **Observed diversion** (the response): **Caltrans PeMS** loop-detector *volumes* (open; CA) are the
+  gold standard — you can literally measure how much traffic left the closed link and where it went.
+  **NPMRDS** probe *speeds* (FHWA, agency access; national) are the speed-based fallback where volumes
+  aren't instrumented.
+- **Transit** (harder): GTFS-Realtime gives the closure event, but measuring rider redistribution needs
+  automated-passenger-count data, rarely public — so transit diversion is a stretch goal, not the
+  Tier-2 gate.
+
+Data-source stance (per project values): use **open / public-agency** sources — PeMS, NPMRDS, 511, Waze
+for Cities — and avoid commercial extractive traffic APIs (Google / TomTom / HERE) whose licenses forbid
+the derived-data publication research needs. The measurement is only as reproducible as its inputs are
+open.
+
+**Graduation gate (the 2.9 pattern).** 3.0.0 graduates the flow layer to *supported* only if Tier 1
+passes and Tier 2 validates within a disclosed error band. If diversion does not validate, 3.0.0 still
+ships — the solver, the harness, and an honest verdict naming the gap — exactly as 2.9 shipped the
+cascade study and a non-graduation. A validated model and a well-characterized failure are both real
+results; a plausible-looking map is neither.
 
 ---
 
@@ -190,10 +249,14 @@ dynamics are a possible later tier, not the foundation. Stated so nobody mistake
 shockwave simulator.
 
 ### DD-F2: Rebuild + Dijkstra, not CH re-query
-The MSA inner loop rebuilds the graph from COO with BPR-updated weights and runs one-to-many Dijkstra,
-because the CH cannot be re-queried under changed weights without a rebuild (`PRD.md` static-topology
-CH Non-Goal). The one additive primitive required is a Python binding for the existing C++ one-to-many
-`dijkstra()`. CCH would change this calculus, but it is unbuilt and out of scope here.
+The MSA inner loop rebuilds the graph from COO with BPR-updated weights and runs one-to-many Dijkstra.
+Two reasons, not one: the CH can't be re-queried under changed weights without a rebuild (`PRD.md`
+static-topology CH Non-Goal), *and* — more fundamentally — CH's speedup is point-to-point pruning that
+does not help the one-to-many/one-to-all loading SUE actually does, where Dijkstra (each node visited
+once) is already optimal. So Dijkstra-fast is the target, not a compromise. The one additive primitive
+required is a Python binding for the existing C++ one-to-many `dijkstra()`. CCH + PHAST could add a
+constant-factor one-to-all speedup at the cost of redundant structure re-customized per reweight; out of
+scope for a first cut (see the performance discussion above).
 
 ### DD-F3: Consumer layer, not core (outside DD-6)
 Lives in `gravel.flow` behind a `[sue]` extra, importing Gravel one-directionally. It does not modify
@@ -205,6 +268,14 @@ Ship with a gravity-model demand adapter (off `node_weights`) and a synthetic ge
 tutorials; treat LODES/LEHD commute flows as the real-data upgrade via a future `gravel.datasets`
 loader. Demand quality bounds result quality, so make the demand source explicit and swappable rather
 than hard-coding one assumption.
+
+### DD-F5: θ is measured from realtime diversion, not assumed
+θ (logit dispersion) is the one parameter that encodes *behavior* — how much traffic spreads vs.
+concentrates on the shortest path — and literature values are a starting point, not an answer for a
+fragility readout. 3.0.0 calibrates θ against observed diversion rates from real road closures (Tier 2
+of the validation plan) rather than hard-coding it: ship a literature default, expose θ, and report a
+data-calibrated θ with its error band. This is what earns the flow layer the right to be called
+validated, and it is the part of 3.0.0 that must be built as experiment-and-measurement, not just code.
 
 ---
 
@@ -220,11 +291,23 @@ UE benchmark within tolerance.
 re-equilibration; compose with the existing scenario / hazard-footprint machinery so a flood or a
 failure set maps to a region-wide delay cost.
 
-### Phase F3 — Transit (multi-modal, genuinely novel)
+### Phase F3 — Realtime diversion calibration & validation (the phase that validates 3.0.0)
+Build the measurement, not just the model. Ingest closure events (511 / Waze for Cities) and observed
+volumes/speeds (PeMS / NPMRDS) via new `gravel.datasets` adapters; for each closure, measure the
+observed diversion rate; run `flow_fragility` for the same closure to get the predicted diversion; fit θ
+to minimize predicted-vs-observed error on a training set and report out-of-sample error on a held-out
+set (a `flow.calibrate_theta(closures, observations)` harness). **Exit criterion / graduation gate:**
+diversion validates within a disclosed band (→ 3.0.0 *supported*), or the gap is characterized and
+documented (→ 3.0.0 ships *experimental*, 2.9-style). This is the phase that makes 3.0.0 a validated
+release rather than a correct-solver one.
+
+### Phase F4 — Transit (multi-modal, genuinely novel)
 The same logit machinery on the GTFS transit graph, with **GTFS-Realtime** closures reweighting live: a
 segment drops, riders redistribute probabilistically to alternate transit paths. Same solver, different
 substrate. Wiring GTFS-RT into an equilibrium model is something almost nobody does; it is the natural
-third act, once road SUE is trustworthy.
+act once road SUE is trustworthy. Note: measuring transit *diversion* for Tier-2-style validation needs
+automated-passenger-count ridership, rarely public — so transit calibration is a stretch goal, and the
+GTFS-RT closure feed is used for live re-assignment even before diversion can be measured.
 
 ---
 
@@ -238,8 +321,13 @@ third act, once road SUE is trustworthy.
   should be reconsidered.
 
 ## Open questions
-- **θ calibration** — literature ranges exist, but the right dispersion for a *fragility* readout (vs. a
-  planning forecast) may differ; sensitivity-sweep it, as with cascade α.
+- **θ from realtime, and its confounders** — DD-F5 calibrates θ from observed diversion, but real
+  closures carry confounders (time-of-day, weather, day-of-week, total demand also shifting). Planned
+  closures as natural experiments and matched before/after windows reduce this; residual confounding
+  must be reported, not hidden. A wrong-but-precise θ is worse than an honest error band.
+- **PeMS is CA-only** — the cleanest volume data is California's. A national Tier-2 needs NPMRDS
+  speed-based inference (weaker signal) or more instrumented corridors. Decide how far to generalize
+  before claiming a *national* diversion validation vs. a CA-corridor one.
 - **Zone aggregation for CONUS** — node-level assignment is county-scale; national runs likely need
   traffic-analysis-zone aggregation. Decide the zone scheme before promising national ΔTSTT.
 - **Demand realism vs. availability** — LODES is commute-only and residence-to-work; non-commute trips

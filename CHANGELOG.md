@@ -41,7 +41,10 @@ thing: a betweenness-tolerance overload stress test.
   layer (Stochastic User Equilibrium: BPR congestion delay + logit rerouting, solved by MSA), living on
   top of Gravel and explicitly outside DD-6. This is the honest home for the "congestion cascade"
   questions the topological cascade cannot answer — congestion as slow-down, not blockage; some drivers
-  taking a longer path to avoid a jam. **Spec only; no implementation in this release.**
+  taking a longer path to avoid a jam. Scoped for **3.0.0**, with a two-tier validation plan: solver
+  correctness on Sioux Falls, then behavioral validation by **measuring real diversion rates from
+  realtime data** (PeMS / NPMRDS / 511) to calibrate the logit dispersion θ — the 2.9 "measure it, don't
+  assume it" discipline applied to route choice. **Spec only; no implementation in this release.**
 
 ## [2.9.0] — 2026-07-09
 
