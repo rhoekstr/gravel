@@ -10,10 +10,11 @@
 namespace gravel {
 
 /// Options for edge_fragility(). Both measures are on by default; turning one off skips its cost
-/// (``compute_stranded=false`` avoids the bridge tree; ``compute_ratio=false`` avoids all CH queries).
+/// (``compute_stranded=false`` drops the cut sizes; ``compute_ratio=false`` avoids all CH queries).
+/// Bridge classification is always computed — it is what tells ratios and cut sizes apart.
 struct EdgeFragilityConfig {
     bool compute_ratio = true;     ///< path-inflation ratio per non-bridge edge (blocked CH queries)
-    bool compute_stranded = true;  ///< nodes stranded per bridge (bridge tree over 2-edge-connected comps)
+    bool compute_stranded = true;  ///< nodes stranded per bridge (cut size from bridge_edge_info)
 };
 
 /// Whole-graph per-edge fragility, aligned with CSR edge order (matches ``Graph::to_coo()``).

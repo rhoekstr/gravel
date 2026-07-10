@@ -4,6 +4,38 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] — 2026-07-09
+
+**Whole-graph edge fragility.** A standard caller that ranks *every* edge in a network by criticality,
+not just the edges along one route — the piece needed to color a whole transmission grid (or road
+network) by how much its failure would hurt. Additive on top of 2.7 — no existing symbol or signature
+changes.
+
+### Added
+- **`edge_fragility(ch, shortcut_index, graph, config)` (`gravel-fragility`,
+  `gravel/fragility/edge_fragility.h`).** Generalizes `route_fragility` from a single s-t path to
+  every edge: for each edge, the **path-inflation ratio** (shortest endpoint distance with the edge
+  removed ÷ its normal distance; ∞ for a bridge) and, for bridges, the **stranded count** (nodes
+  disconnected). Returns `EdgeFragilityResult { fragility_ratio, replacement_distance, stranded_count,
+  is_bridge }` — four arrays in CSR edge order aligned with `Graph.to_coo()`. `EdgeFragilityConfig`
+  toggles the two measures (`compute_ratio` skips all CH queries; `compute_stranded` drops cut sizes;
+  bridge classification is always computed). OpenMP-parallelized over edges; one `BlockedCHQuery` per
+  thread. Bound to Python as `gravel.edge_fragility`, `gravel.EdgeFragilityConfig`,
+  `gravel.EdgeFragilityResult` with zero-copy NumPy views.
+- **`bridge_edge_info(graph)` (`gravel-simplify`, `gravel/simplify/bridges.h`).** Per-CSR-edge bridge
+  flags **plus cut sizes** (how many nodes fall to the smaller side when a bridge is removed) in one
+  iterative-Tarjan pass carrying DFS subtree sizes. Returns `EdgeBridgeInfo { is_bridge, cut_size }`
+  in CSR edge order. Vector-indexed throughout (sort-grouped edges + counting-sort adjacency — no hash
+  maps, no per-node vectors): ~10s on a 28M-edge OSM road network, ~8× faster than a hash-map design
+  and bit-identical. Bound to Python as `gravel.bridge_edge_info` / `gravel.EdgeBridgeInfo`. Parallel
+  edges (a double-circuit line) are redundancy, never bridges.
+
+### Changed
+- **Example `examples/python/09_power_grid_multihazard.py`** now colors each transmission branch by its
+  `edge_fragility` path-inflation ratio (with genuine bridges as the top tier) over a faint FEMA NRI
+  multi-hazard county tint, replacing the earlier betweenness-centrality coloring. Default region
+  widened from North Carolina to the Eastern US (Atlantic seaboard + PA/VT/WV/DC).
+
 ## [2.7.0] — 2026-07-08
 
 **Phase 4 — alternative network substrates.** `gravel.datasets` grows past roads: five

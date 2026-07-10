@@ -246,7 +246,7 @@ from . import (  # noqa: E402
     viz,
 )
 
-__version__ = "2.7.0"
+__version__ = "2.8.0"
 
 __all__ = [
     # Feature flags

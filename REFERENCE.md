@@ -440,6 +440,40 @@ std::vector<FragilityResult> batch_fragility(
 
 **Parallelism:** OpenMP-parallelized over O-D pairs.
 
+### Whole-Graph Edge Fragility
+
+Defined in `gravel/fragility/edge_fragility.h`. Generalizes `route_fragility` from a single s-t path to **every edge in the graph**: for each edge, how much the shortest path between its endpoints inflates when the edge is removed (the path-inflation ratio), and — for genuine single points of failure (bridges) — how many nodes it strands. This is the caller to reach for when coloring or ranking a whole network by edge criticality (e.g. every branch of a transmission grid), not just the edges along one route.
+
+```cpp
+struct EdgeFragilityConfig {
+    bool compute_ratio = true;     // path-inflation ratio per non-bridge edge (blocked CH queries)
+    bool compute_stranded = true;  // nodes stranded per bridge (cut size)
+};
+
+struct EdgeFragilityResult {
+    std::vector<double>   fragility_ratio;       // replacement / primary (>= 1; INF if bridge)
+    std::vector<Weight>   replacement_distance;  // endpoint distance with the edge removed (INF if bridge)
+    std::vector<uint32_t> stranded_count;        // nodes disconnected if the edge fails (0 if not a bridge)
+    std::vector<uint8_t>  is_bridge;             // 1 if removing the edge disconnects its endpoints
+};
+
+EdgeFragilityResult edge_fragility(
+    const ContractionResult& ch,
+    const ShortcutIndex& shortcut_idx,
+    const ArrayGraph& graph,
+    EdgeFragilityConfig config = {});
+```
+
+All four arrays are in **CSR edge order**, aligned with `Graph::to_coo()` — one entry per directed edge, and the two directed halves of an undirected edge (plus any parallel circuits) carry the same value.
+
+**Algorithm:**
+1. Bridges and cut sizes come from a single `bridge_edge_info` pass (iterative Tarjan carrying DFS subtree sizes, O(V+E)). Parallel edges are redundancy, not bridges.
+2. For every non-bridge undirected edge, a `BlockedCHQuery` computes the primary endpoint distance and the replacement distance with the edge blocked; `fragility_ratio = replacement / primary`. Bridges keep an infinite ratio and replacement distance.
+
+**Parallelism:** OpenMP-parallelized over undirected edges (one `BlockedCHQuery` per thread).
+**Config:** `compute_ratio = false` skips all CH queries (bridge/stranded only, O(V+E)); `compute_stranded = false` drops cut sizes. Bridge classification is always computed.
+**Guidance:** On meshed networks the ratio is the informative signal; on near-radial networks (where most edges are bridges) the stranded count is.
+
 ### ShortcutIndex
 
 Defined in `gravel/fragility/shortcut_index.h`. Maps each original edge to all CH shortcuts that contain it.
@@ -478,7 +512,7 @@ When an original edge (u,v) is blocked:
 
 ### Bridge Detection
 
-Defined in `gravel/fragility/bridges.h`.
+Defined in `gravel/simplify/bridges.h`.
 
 ```cpp
 struct BridgeResult {
@@ -491,6 +525,25 @@ BridgeResult find_bridges(const ArrayGraph& graph);
 **Algorithm:** Iterative Tarjan's bridge-finding algorithm.
 **Complexity:** O(V + E) time and space.
 **Notes:** Treats directed graph as undirected. Parallel edges between the same pair are NOT bridges.
+
+#### Per-Edge Bridge Info + Cut Sizes
+
+`bridge_edge_info` answers the same question as `find_bridges` but per CSR edge, and additionally reports each bridge's **cut size** — how many nodes fall to the smaller side when it is removed — in one pass.
+
+```cpp
+struct EdgeBridgeInfo {
+    std::vector<uint8_t>  is_bridge;  // 1 if this edge is a bridge (per CSR edge)
+    std::vector<uint32_t> cut_size;   // nodes on the smaller side if removed (0 if not a bridge)
+};
+
+EdgeBridgeInfo bridge_edge_info(const ArrayGraph& graph);
+```
+
+Both arrays are in CSR edge order (aligned with `Graph::to_coo()`); the two directed halves of an undirected edge, and any parallel circuits, carry the same value.
+
+**Algorithm:** A single iterative Tarjan pass over a CSR-flattened undirected adjacency (sort-grouped edges + a counting-sort adjacency — no hash maps, no per-node vectors), carrying DFS subtree sizes so cut sizes finalize per connected component without a separate bridge tree.
+**Complexity:** O(V + E). On a 28M-edge OSM road network this runs in ~10s, ~8× faster than the earlier hash-map design and bit-identical.
+**Notes:** Cut sizes are per connected component. Parallel edges (a double-circuit line) are redundancy, never bridges. This is the core `edge_fragility` uses for its bridge/stranded columns.
 
 ### Hershberger-Suri Exact Replacement Paths
 

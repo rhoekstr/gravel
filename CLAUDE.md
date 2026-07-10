@@ -4,7 +4,7 @@ The single reference for working in this repository — what Gravel is, its arch
 invariants, and how to build/test it. **Canonical, version-controlled copy.** Keep it in sync with
 the code (and with `REFERENCE.md` / `CHANGELOG.md` / `docs/PRD.md`).
 
-> Gravel is **published** on PyPI (`gravel-fragility`; current **2.7.0**). Changes here ship to real
+> Gravel is **published** on PyPI (`gravel-fragility`; current **2.8.0**). Changes here ship to real
 > users — preserve the public API and the wheel build, or bump versions deliberately. (conda-forge is
 > stale/unmaintained — PyPI is the only live channel.)
 
