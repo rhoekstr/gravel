@@ -279,6 +279,25 @@ def test_query_layer_forwards_geometry_simplification(monkeypatch):
     assert "geometryPrecision=5" in seen["url"]
 
 
+@requires_geopandas
+def test_query_layer_pages_full_pages_without_transfer_flag(monkeypatch):
+    """A full page keeps paging even when exceededTransferLimit is absent/False —
+    servers set that flag only when THEIR transfer limit (not our resultRecordCount)
+    capped the page, so relying on it truncates large results to one page."""
+    import urllib.parse as up
+
+    def fake_urlopen(req, timeout=None):
+        q = dict(up.parse_qsl(req.full_url.split("?", 1)[1]))
+        offset, page = int(q["resultOffset"]), int(q["resultRecordCount"])
+        remaining = 5 - offset  # 5 total features, no exceededTransferLimit ever
+        n = max(0, min(page, remaining))
+        return _FakeResp(_json.dumps({"features": [_feature("AE")] * n}).encode())
+
+    monkeypatch.setattr(_arcgis, "urlopen", fake_urlopen)
+    gdf = _arcgis.query_layer("https://x/FeatureServer", 0, page_size=2)
+    assert len(gdf) == 5  # 2 + 2 + 1, not truncated at the first page of 2
+
+
 # --- ShakeMap / USDM / NRI edge_probabilities (severity mapping) -------------
 
 

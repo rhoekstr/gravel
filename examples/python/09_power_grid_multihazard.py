@@ -155,7 +155,7 @@ def main(states, out_path, region_label) -> None:
     # instead of timing out on ~2 MB-per-county boundaries.
     gdf, nprov = nri.fetch(
         geography="county", where=where, out_fields=fields,
-        max_allowable_offset=0.006, geometry_precision=5, page_size=40,
+        max_allowable_offset=0.006, geometry_precision=5, page_size=200,
     )
     gdf = gdf.to_crs("EPSG:4326").reset_index(drop=True)
     print(f"  NRI: {len(gdf)} counties, release {nprov.resolved_version}", flush=True)
