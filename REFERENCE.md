@@ -3535,6 +3535,15 @@ like (§33.5 turns a FEMA floodplain into one).
 - **Experimental & costly** (betweenness per round): use sampled betweenness on large graphs, set
   `BetweennessConfig.deterministic` for reproducibility, and report `cascade_vs_alpha` (which can be
   non-monotone near the transition — a genuine property of the model), not a single α.
+- **Validation (2.9) — this is a topological model, not a physical one.** Validated against solved
+  AC-OPF power flows ([`scripts/validate_cascade_powerflow.py`](scripts/validate_cascade_powerflow.py),
+  [`docs/PRD.md`](docs/PRD.md) Phase 5), edge betweenness — the model's "load" — tracks real per-line
+  power flow only weakly (Spearman ρ ≲ 0.35, often ≈ 0; critical-line overlap at/below chance),
+  reproducing Hines et al. (*Chaos* 2010). It therefore does **not** predict real grid contingencies
+  and stays experimental. You can feed real per-edge robustness (e.g. thermal headroom
+  `(rate_a−|S|)/|S|`) as the `PCE_WEIGHTED` `edge_pce` weight, but that reweights the *tolerance*, not
+  the *load*, so it cannot make a topological cascade physical — a faithful grid model needs a
+  power-flow solve, which is out of scope by design (DD-6).
 
 ### 33.5 Floodplain / hazard ingestion (`gravel.hazards`, Python)
 

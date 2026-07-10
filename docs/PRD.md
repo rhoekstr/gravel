@@ -1,6 +1,6 @@
 # Gravel — Product Requirements Document
 
-**PRD revision 2.7 — reflects Gravel 2.7.0 (shipped); roadmap through 3.0 | Last updated: 2026-07-07**
+**PRD revision 2.9 — reflects Gravel 2.8.0 (shipped) + the 2.9 cascade-validation study; cascade verdict: stays experimental (Phase 5) | Last updated: 2026-07-09**
 
 ## Executive Summary
 
@@ -96,7 +96,8 @@ core. This is a deliberate, defensible position (see DD-6 and the Roadmap), not 
 **Analytical depth** (2.4.0; disclosed, sweepable inputs — DD-6)
 - `estimate_capacity` — per-edge PCE from `highway`/`lanes`; capacity-weighted betweenness (criticality)
 - `stochastic_fragility` — Monte Carlo over per-edge failure probabilities → a fragility *distribution*
-- `cascade_fragility` — Motter–Lai load-redistribution cascade (experimental; matures in 3.0)
+- `cascade_fragility` — Motter–Lai load-redistribution cascade (experimental; validated in 2.9 against
+  solved power flow — stays topological, does not graduate; see Phase 5)
 
 **Visualization** (2.5.0; `gravel[viz]`, pure Python, downstream of `to_geodataframe`)
 - `plot_fragility` — static quantitative choropleth (colorblind-safe) for research artifacts
@@ -317,7 +318,8 @@ SemVer) — this PRD does not duplicate it. The arc in brief:
 → **2.2** published wheels / Windows / inter-region → **2.3** interop keystone + real parallelism →
 **2.4** research depth (capacity → stochastic → cascade seed) → **2.5** visualization → **2.6** dataset
 onboarding & catalog + hazard fetchers → **2.7** alternative network substrates + capacity overlays →
-**3.0** cascade maturation (the committed next milestone; see Roadmap Phase 5).
+**2.8** whole-graph edge fragility → **2.9** cascade validation against solved power flow (verdict:
+stays experimental — see Roadmap Phase 5).
 
 ## Roadmap
 
@@ -518,34 +520,61 @@ capacity overlay; the catalog grows to 12.
   capacity-weighted analyses run on the new substrates through the same interfaces, capacity feeding
   the existing stochastic/cascade input array (consistent with DD-6).
 
-### Phase 5 — Cascade maturation (3.0) — the committed next milestone
+### Phase 5 — Cascade validation (conducted; verdict: does **not** graduate)
 
-With Phase 4 shipped (2.7.0), the real-capacity substrates the cascade was gated behind now exist, so
-this is Gravel's committed next step rather than a someday item. **Premise: the cascade model exists;
-3.0 makes it defensible.** `cascade_fragility` shipped
-experimental in 2.4.0 (Motter–Lai — load = betweenness, capacity = (1+α)×initial load,
-redistribute-and-iterate to a fixed point, reported as cascade-size-vs-α). It is this document's
-sanctioned alternative to traffic-assignment flow modeling (see Non-Goals). What keeps it
-*experimental* is that its capacity is a topological proxy and its predictions are validated against no
-ground truth. 3.0 closes both gaps.
+The plan for 3.0 was to mature `cascade_fragility` (Motter–Lai — load = betweenness, capacity =
+(1+α)×initial load, redistribute-and-iterate to a fixed point) from *experimental* to *supported* by
+wiring real per-edge capacity and validating predictions against ground-truth contingencies. **We ran
+that validation. The honest outcome is that the cascade does not graduate — it stays experimental —
+and the gap is now quantified rather than assumed.**
 
-- **Requires (and is therefore gated behind Phase 4):**
-  - **Real capacity inputs** replacing/augmenting the (1+α)×load proxy — threaded through the existing
-    capacity input-array interface, now sourced from real data: HCM road capacity (shipped), airline
-    segment capacity (T-100), grid thermal limits (GridSFM, native). No new DAG surface; derivation
-    stays in geo/Python.
-  - **Ground-truth failure states** — GridSFM's solved AC-OPF N-1 outcomes and OPFData's pre-applied
-    N-1 perturbations give known cascade results to score predictions against — the validation
-    substrate the 2.5 model never had.
-- **Boundary (stays inside DD-6 and the flow non-goal):** matures the *complex-networks* cascade (load
-  redistribution against a capacity threshold), **not** traffic-assignment/user-equilibrium, which
-  remains a non-goal. Capacity enters as disclosed, sensitivity-swept inputs; results report
-  capacity-source and α sensitivity, never a single hidden value. Domain-specific flow physics (DC/AC
-  power flow, transit headway dynamics) stay out of the 3.0 core; if wanted they attach upstream as
-  pluggable capacity derivations feeding the same input array.
-- **Graduation criteria (experimental → supported):** predictions validated against GridSFM N-1 /
-  OPFData contingencies within a disclosed error band; capacity-source sensitivity documented (proxy
-  vs. real-capacity divergence quantified); reproducible per the covariate-defensibility bar.
+**The units wall (audit).** "Wiring real capacity" turns out to be dimensionally incoherent, not a
+plumbing task. The model's load is edge **betweenness** (unitless path-counts, ~10⁴); real capacity is
+a **thermal limit** (MVA, ~10²). Making them comparable requires load in MVA — a power-flow solve
+governed by Kirchhoff's laws — which is exactly the flow modeling DD-6 excludes. And any topological
+redistribution rule (betweenness recompute, proportional spread) is not Kirchhoff: real power splits
+across all paths by admittance, and can *rise* on a line when a parallel line is added (Braess). So
+capacity cannot be dropped into a betweenness cascade and yield physics.
+
+**What we measured (the necessary condition).** For the cascade to be a physical model, its "load"
+must at least track real load. Tested directly on DeepMind **OPFData** solved AC-OPF states, which ship
+per branch both the thermal limit (`rate_a`, MVA) and the solved flow |S| = √(pf²+qf²). Per solved
+state: Spearman rank correlation of Gravel edge betweenness vs real |S|, and the overlap of the 30%
+most-between lines with the 30% most-loaded (random ≈ 0.30). Reproduce with
+[`scripts/validate_cascade_powerflow.py`](../scripts/validate_cascade_powerflow.py):
+
+| case | branches | ρ(unit, \|S\|) | ρ(br_x, \|S\|) | ρ(br_x, util) | top-30% overlap |
+|---|---:|---:|---:|---:|---:|
+| IEEE-14  |  20 | −0.17 | +0.07 | −0.18 | 0.17 |
+| IEEE-118 | 186 | +0.22 | +0.35 | +0.17 | 0.40 |
+| GOC-500  | 728 | −0.01 | +0.03 | −0.08 | ≈0.30 |
+
+Best case ρ ≈ 0.35 (r² ≤ 0.12); typically ≈ 0, sometimes negative; the critical-line overlap is at or
+below chance. This reproduces Hines, Cotilla-Sanchez & Blumsack (*Chaos* 2010, "Do topological models
+provide good information about electricity infrastructure vulnerability?") on modern solved data.
+Impedance-weighting helps marginally but nowhere near usable. Tellingly, the proxy that *would* track
+the physics is current-flow / Laplacian betweenness — essentially the DC power-flow solve DD-6
+excludes.
+
+**Verdict.** `cascade_fragility` remains **experimental**. The necessary condition fails across three
+standard systems, so the sufficient condition (predicting real contingency propagation) cannot hold.
+Kept honest in the API and docs: the cascade is a topological covariate, clearly labeled; real per-edge
+robustness (e.g. thermal headroom `(rate_a−|S|)/|S|`) can be fed as a `PCE_WEIGHTED` per-edge tolerance
+weight, but that reweights the *tolerance*, not the *load*, so it cannot rescue a load proxy this weak.
+A true graduation would require adding a power-flow (DC/Laplacian) model — a deliberate DD-6 reversal
+and a scope decision for the maintainer, not a default.
+
+**Recommended next step for a real N-1 harness.** OPFData's "N-1" re-solves a full AC-OPF with
+generators *re-dispatched* (and drops a generator half the time), and GridSFM's "N-1" is
+load/gen/derate perturbation, not line outage — so neither is a clean fixed-dispatch line-outage table.
+The purpose-built dataset is **PFΔ** (`pfdelta/pfdelta`, arXiv 2510.22048): 859,800 solved flows in
+explicit n / n-1 / n-2 folders with per-branch `edge_limits` + solved flows, so "which lines overload
+after line k is removed" is directly computable as ground truth. Left as the next validation, and only
+worth doing once a physical redistribution model exists to test against it.
+
+- **Boundary (unchanged; stays inside DD-6):** the cascade is the *complex-networks* load-redistribution
+  model, **not** traffic-assignment/user-equilibrium or power-flow physics. Domain-specific flow physics
+  (DC/AC power flow, transit headway dynamics) stay out of the core by design.
 
 ### Hardening & operational (surfaced during the 2.3.0 release)
 
