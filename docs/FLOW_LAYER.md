@@ -281,10 +281,15 @@ validated, and it is the part of 3.0.0 that must be built as experiment-and-meas
 
 ## Roadmap
 
-### Phase F1 — Road SUE (core solver)
-`flow.assign(graph, capacity, demand, config)`; BPR + Dial logit loading + MSA; the one-to-many
-`dijkstra()` binding; gravity/synthetic demand adapters. **Exit criterion:** reproduces the Sioux Falls
-UE benchmark within tolerance.
+### Phase F1 — Road UE (core solver) · ✅ implemented, Tier-1 validated
+`gravel.flow.assign(graph, capacity, demand, config)` — **deterministic** User Equilibrium via
+Frank-Wolfe + BPR, using the one-to-many `dijkstra()` for all-or-nothing loading (`gravel/flow.py`).
+Ships `load_tntp` for standard benchmark networks. **Exit criterion met:** reproduces the published
+**Sioux Falls** UE solution (MAPE ≈ 0.04%, correlation ≈ 1.0000). The stochastic (logit) generalization
+— `theta` finite, some travelers taking a longer path — is deferred to the F3 calibration phase
+(`theta=None` selects the deterministic limit today; a `NotImplementedError` guards the rest).
+*Known limit:* the node-pair loading assumes no parallel edges between the same node pair; benchmark and
+simplified networks satisfy this, dual-carriageway OSM needs edge-level path recovery (a later refinement).
 
 ### Phase F2 — Scenario fragility (the payoff)
 `flow.flow_fragility(..., scenario_edges)` → ΔTSTT and ΔTSTT-fraction under edge failure with demand

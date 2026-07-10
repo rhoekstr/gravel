@@ -243,6 +243,7 @@ if HAS_ARROW:
 #   viz      — fragility results -> plot-ready GeoDataFrames (visualization data bridge)
 from . import (  # noqa: E402
     datasets,
+    flow,
     hazards,
     interop,
     viz,
