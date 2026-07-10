@@ -70,8 +70,11 @@ from ._gravel import (  # noqa: E402
     DatasetInfo,
     DatasetKind,
     Domain,
+    EdgeBridgeInfo,
     # --- Fragility ---
     EdgeFragility,
+    EdgeFragilityConfig,
+    EdgeFragilityResult,
     # --- Edge geometry (2B) ---
     EdgeGeometry,
     EdgeSampler,
@@ -142,6 +145,8 @@ from ._gravel import (  # noqa: E402
     batch_fragility,
     bernstein_approx,
     boundary_nodes,
+    # --- Routing ---
+    bridge_edge_info,
     # --- CH construction ---
     build_ch,
     build_ch_with_config,
@@ -153,9 +158,9 @@ from ._gravel import (  # noqa: E402
     coarsen_graph,
     county_fragility_index,
     dataset_catalog,
-    # --- Routing ---
     dijkstra_pair,
     edge_betweenness,
+    edge_fragility,
     edges_in_polygon,
     elevation_from_array,
     extract_subgraph,
@@ -254,7 +259,9 @@ __all__ = [
     # Validation
     "ValidationReport", "validate",
     # Fragility
-    "EdgeFragility", "FragilityResult", "AlternateRouteResult",
+    "EdgeFragility", "EdgeFragilityConfig", "EdgeFragilityResult", "edge_fragility",
+    "EdgeBridgeInfo", "bridge_edge_info",
+    "FragilityResult", "AlternateRouteResult",
     "ShortcutIndex", "route_fragility", "batch_fragility",
     "find_alternative_routes", "hershberger_suri", "bernstein_approx",
     "ViaPathConfig", "BernsteinConfig",

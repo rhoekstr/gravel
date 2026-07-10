@@ -14,6 +14,7 @@
 #include "gravel/fragility/fragility_result.h"
 #include "gravel/ch/shortcut_index.h"
 #include "gravel/fragility/route_fragility.h"
+#include "gravel/fragility/edge_fragility.h"
 #include "gravel/ch/blocked_ch_query.h"
 #include "gravel/fragility/via_path.h"
 #include "gravel/fragility/hershberger_suri.h"
@@ -417,6 +418,35 @@ PYBIND11_MODULE(_gravel, m) {
        "Compute edge fragility for every edge on the shortest s-t path",
        py::call_guard<py::gil_scoped_release>());
 
+    // --- edge_fragility: whole-graph per-edge fragility (path inflation + stranded cut size) ---
+    py::class_<EdgeFragilityConfig>(m, "EdgeFragilityConfig")
+        .def(py::init<>())
+        .def_readwrite("compute_ratio", &EdgeFragilityConfig::compute_ratio)
+        .def_readwrite("compute_stranded", &EdgeFragilityConfig::compute_stranded);
+
+    py::class_<EdgeFragilityResult>(m, "EdgeFragilityResult")
+        .def_property_readonly("fragility_ratio", [](const EdgeFragilityResult& r) {
+            return py::array_t<double>(r.fragility_ratio.size(), r.fragility_ratio.data());
+        })
+        .def_property_readonly("replacement_distance", [](const EdgeFragilityResult& r) {
+            return py::array_t<double>(r.replacement_distance.size(), r.replacement_distance.data());
+        })
+        .def_property_readonly("stranded_count", [](const EdgeFragilityResult& r) {
+            return py::array_t<uint32_t>(r.stranded_count.size(), r.stranded_count.data());
+        })
+        .def_property_readonly("is_bridge", [](const EdgeFragilityResult& r) {
+            return py::array_t<uint8_t>(r.is_bridge.size(), r.is_bridge.data());
+        });
+
+    m.def("edge_fragility", [](const ContractionResult& ch, const ShortcutIndex& idx,
+                                const ArrayGraph& graph, EdgeFragilityConfig config) {
+        return edge_fragility(ch, idx, graph, config);
+    }, py::arg("ch"), py::arg("shortcut_index"), py::arg("graph"),
+       py::arg("config") = EdgeFragilityConfig{},
+       "Per-edge fragility over the whole graph: path-inflation ratio (INF for bridges) plus "
+       "stranded cut size, one entry per edge in CSR order (aligned with Graph.to_coo()).",
+       py::call_guard<py::gil_scoped_release>());
+
     m.def("batch_fragility", [](const ContractionResult& ch, const ShortcutIndex& idx,
                                  const ArrayGraph& graph,
                                  const std::vector<std::pair<NodeID, NodeID>>& pairs) {
@@ -668,6 +698,20 @@ PYBIND11_MODULE(_gravel, m) {
     // BridgeResult (already used in county fragility)
     py::class_<BridgeResult>(m, "BridgeResult")
         .def_readonly("bridges", &BridgeResult::bridges);
+
+    // Per-edge bridge analysis (CH-free): is_bridge + stranded cut size per CSR edge.
+    py::class_<EdgeBridgeInfo>(m, "EdgeBridgeInfo")
+        .def_property_readonly("is_bridge", [](const EdgeBridgeInfo& r) {
+            return py::array_t<uint8_t>(r.is_bridge.size(), r.is_bridge.data());
+        })
+        .def_property_readonly("cut_size", [](const EdgeBridgeInfo& r) {
+            return py::array_t<uint32_t>(r.cut_size.size(), r.cut_size.data());
+        });
+    m.def("bridge_edge_info", [](const ArrayGraph& graph) { return bridge_edge_info(graph); },
+          py::arg("graph"),
+          "Per-edge bridge analysis in one Tarjan pass (no CH needed): for each CSR edge, "
+          "whether it is a bridge and how many nodes it strands (the smaller side of its cut).",
+          py::call_guard<py::gil_scoped_release>());
 
     // Landmarks
     py::class_<LandmarkData>(m, "LandmarkData")
