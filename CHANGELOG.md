@@ -27,7 +27,14 @@ thing: a betweenness-tolerance overload stress test.
 - **`CascadeFragilityResult.largest_component_fraction`** — nodes in the largest surviving connected
   component ÷ node_count, on the undirected graph of non-failed edges (1.0 = still fully connected,
   small = shattered). A purely topological severity signal, more meaningful than the raw failed-edge
-  count.
+  count. Covered on real data: a gated OSM test confirms Swain County NC is majority-bridge and that
+  removing its single worst road fragments the network (lcf well below 1.0), where a bridge-free grid
+  stays pinned at 1.0.
+- **One-to-many Dijkstra bound to Python** — `gravel.dijkstra(graph, source) → DijkstraResult` with
+  numpy `distances` and `predecessors`, plus `gravel.reconstruct_path(result, s, t)`. The C++
+  `dijkstra()` was previously unbound (only single-pair `dijkstra_pair` was exposed). This is the
+  shortest-path-*tree* primitive the future flow layer relies on (`docs/FLOW_LAYER.md`), and it is
+  useful on its own for one-origin-to-many-destinations queries under changing weights.
 
 ### Documented
 - **`docs/FLOW_LAYER.md`** — a design spec for a separate, demand-driven flow/assignment *consumer*

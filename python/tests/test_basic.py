@@ -1,6 +1,7 @@
 """Basic smoke tests for the gravel Python package."""
 
 import gravel
+import numpy as np
 import pytest
 
 
@@ -71,6 +72,28 @@ def test_coarsening_config_defaults():
     cfg = gravel.CoarseningConfig()
     assert cfg.compute_centroids is True
     assert cfg.min_border_edges == 1
+
+
+def test_dijkstra_one_to_many():
+    # One-to-many SSSP (the primitive the future SUE flow layer needs): distances +
+    # shortest-path tree, agreeing with single-pair, path-reconstructible.
+    g = gravel.make_grid_graph(8, 8)  # 64 nodes
+    r = gravel.dijkstra(g, 0)
+    d = np.asarray(r.distances)
+    p = np.asarray(r.predecessors)
+    assert d.shape == (g.node_count,) and d.dtype == np.float64 and p.dtype == np.uint32
+    assert d[0] == 0.0
+    assert int(p[0]) == np.iinfo(np.uint32).max  # source has no predecessor (INVALID_NODE)
+    # one-to-many distances match the single-pair query
+    for t in (1, 7, 63, 56):
+        assert abs(float(d[t]) - gravel.dijkstra_pair(g, 0, t)) < 1e-9
+    # reconstruct_path returns a real path whose traversed cost equals the distance
+    path = gravel.reconstruct_path(r, 0, 63)
+    assert path[0] == 0 and path[-1] == 63
+    src, tgt, w = (np.asarray(x) for x in g.to_coo())
+    wmap = {(int(a), int(b)): float(c) for a, b, c in zip(src, tgt, w, strict=True)}
+    cost = sum(wmap[(int(a), int(b))] for a, b in zip(path, path[1:], strict=False))
+    assert abs(cost - float(d[63])) < 1e-9
 
 
 @pytest.mark.skipif(

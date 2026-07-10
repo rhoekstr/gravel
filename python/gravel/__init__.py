@@ -68,6 +68,7 @@ from ._gravel import (  # noqa: E402
     Coverage,
     DatasetInfo,
     DatasetKind,
+    DijkstraResult,
     Domain,
     EdgeBridgeInfo,
     # --- Fragility ---
@@ -157,6 +158,7 @@ from ._gravel import (  # noqa: E402
     coarsen_graph,
     county_fragility_index,
     dataset_catalog,
+    dijkstra,
     dijkstra_pair,
     edge_betweenness,
     edge_fragility,
@@ -183,6 +185,7 @@ from ._gravel import (  # noqa: E402
     outgoing_edges,
     precompute_landmarks,
     progressive_fragility,
+    reconstruct_path,
     route_fragility,
     route_to_geojson,
     save_elevation,
@@ -254,7 +257,7 @@ __all__ = [
     "Graph", "CH", "CHQuery", "RouteResult", "Coord", "Polygon",
     "build_ch", "build_ch_with_config", "CHBuildConfig",
     "make_grid_graph", "make_random_graph", "make_tree_with_bridges",
-    "dijkstra_pair",
+    "dijkstra_pair", "dijkstra", "DijkstraResult", "reconstruct_path",
     # Validation
     "ValidationReport", "validate",
     # Fragility

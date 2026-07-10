@@ -335,6 +335,28 @@ PYBIND11_MODULE(_gravel, m) {
         return dijkstra_pair(g, src, tgt);
     }, py::arg("graph"), py::arg("source"), py::arg("target"));
 
+    // One-to-many single-source shortest paths (distances + shortest-path tree). The primitive
+    // for whole-graph flow loading (e.g. the future SUE flow layer, docs/FLOW_LAYER.md) and any
+    // one-origin-to-many-destinations query. Heap-based; O((V+E) log V).
+    py::class_<DijkstraResult>(m, "DijkstraResult")
+        .def_property_readonly("distances", [](const DijkstraResult& r) {
+            return py::array_t<Weight>(r.distances.size(), r.distances.data());
+        })
+        .def_property_readonly("predecessors", [](const DijkstraResult& r) {
+            return py::array_t<NodeID>(r.predecessors.size(), r.predecessors.data());
+        });
+    m.def("dijkstra", [](const ArrayGraph& g, NodeID src) {
+        return dijkstra(g, src);
+    }, py::arg("graph"), py::arg("source"),
+       "One-to-many Dijkstra from source. Returns a DijkstraResult with per-node distances "
+       "(INF if unreachable) and predecessors (shortest-path tree; INVALID_NODE at the source "
+       "and at unreachable nodes), both indexed by node id.",
+       py::call_guard<py::gil_scoped_release>());
+    m.def("reconstruct_path", [](const DijkstraResult& r, NodeID src, NodeID tgt) {
+        return reconstruct_path(r, src, tgt);
+    }, py::arg("result"), py::arg("source"), py::arg("target"),
+       "Reconstruct the node path source->target from a DijkstraResult; empty if unreachable.");
+
     // --- Fragility types ---
 
     py::class_<EdgeFragility>(m, "EdgeFragility")
