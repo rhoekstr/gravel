@@ -120,8 +120,35 @@ def test_calibrate_recovers_known_theta():
     observed = np.array([pred[(0, 2)], pred[(0, 4)]])
     assert observed.min() > 0  # both alternates carry flow (theta is identifiable)
 
-    obs = flow.ClosureObservation(closure_edges=[(0, 1)], monitored=monitored, observed_flow=observed)
+    obs = flow.ClosureObservation(closure_edges=[(0, 1)], monitored=monitored,
+                                  observed=observed, observable="flow")
     result = flow.calibrate_theta(g, cap, demand, [obs], theta_bounds=(0.05, 5.0), n_grid=15,
                                   config=flow.FlowConfig(max_iterations=200))
+    assert result.observable == "flow"
     assert abs(np.log(result.theta / theta_true)) < np.log(1.7)  # recovered within grid resolution
     assert result.error < 1.0  # near-perfect fit at the recovered theta (self-consistent data)
+
+
+def test_calibrate_recovers_theta_from_speed():
+    # The PRIMARY path: fit theta to closure-induced *slowdown*, no volume used. Finite capacities so the
+    # overflow onto alternates B and C actually congests them; the pair of slowdown ratios encodes theta.
+    src = np.array([0, 1, 0, 2, 0, 4], dtype=np.uint32)  # A:(0,1)(1,3)  B:(0,2)(2,3)  C:(0,4)(4,3)
+    tgt = np.array([1, 3, 2, 3, 4, 3], dtype=np.uint32)
+    t0 = np.array([8.0, 4.0, 10.0, 3.0, 11.0, 3.0])
+    cap = np.full(6, 3000.0)  # finite -> overflow slows the alternates
+    g = gravel.Graph.from_coo(5, src, tgt, t0)
+    demand = {0: {3: 5000.0}}
+    theta_true = 0.4
+    mon = [(0, 2), (0, 4)]
+
+    pred = flow._diversion_predict(g, cap, demand, [(0, 1)],
+                                   flow.FlowConfig(max_iterations=400, theta=theta_true))
+    observed = np.array([pred[m]["congestion"] for m in mon])  # slowdown ratios t/t0 on B, C
+    assert observed.max() > 1.02  # the alternates genuinely slow (there is a signal to fit)
+
+    obs = flow.ClosureObservation(closure_edges=[(0, 1)], monitored=mon,
+                                  observed=observed, observable="congestion")
+    result = flow.calibrate_theta(g, cap, demand, [obs], theta_bounds=(0.05, 3.0), n_grid=15,
+                                  config=flow.FlowConfig(max_iterations=400))
+    assert result.observable == "congestion"
+    assert abs(np.log(result.theta / theta_true)) < np.log(1.7)  # recovered from speed within grid res

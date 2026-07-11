@@ -24,11 +24,15 @@ traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
 - **Stochastic (logit) UE + the θ-calibration harness (F3, synthetic)** — `FlowConfig(theta=...)` now
   solves stochastic UE by Dial STOCH loading + MSA (sharpens to the deterministic UE as θ→∞; spreads flow
   as θ→0). `flow.diversion_flows(...)` gives model-predicted post-closure flows, and
-  `flow.calibrate_theta(graph, capacity, demand, observations, ...)` fits θ to observed diversion (RMSE
-  over monitored links), returning the best-fit θ and the full error-vs-θ curve (`ClosureObservation`,
-  `CalibrationResult`). This is the 3.0.0 graduation gate (DD-F5: measure θ, don't assume it). Validated
-  on synthetic data — recovers a known θ from model-generated observations; the real-PeMS ingestion
-  adapter lands next. No version bump — 3.0.0 is tagged only once it validates on real diversion.
+  `flow.calibrate_theta(graph, capacity, demand, observations, ...)` fits θ to observed data, returning
+  the best-fit θ and the full error-vs-θ curve (`ClosureObservation`, `CalibrationResult`). The **primary
+  observable is speed** — the closure-induced slowdown ratio `t/t0 = v_freeflow/v_observed`
+  (`observable="congestion"`), which matches Gravel's travel-time output directly, needs only broad speed
+  data, and avoids the ill-posed speed→volume inversion; volume (`observable="flow"`) is the secondary
+  count-based cross-check. Validated on synthetic data both ways (recovers a known θ from model-generated
+  speed *and* volume observations). This is the 3.0.0 graduation gate (DD-F5). Framed per **DD-F6**: the
+  layer is a *general* statistical-redistribution model (default for any network), with domain-specific
+  calibrators on top — roads first. No version bump — 3.0.0 tags only once it validates on real data.
 
 ## [2.10.0] — 2026-07-10
 

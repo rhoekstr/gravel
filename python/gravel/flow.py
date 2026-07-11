@@ -320,11 +320,16 @@ def flow_fragility(graph, capacity, demand, scenario_edges, config=None):
     )
 
 
-# --- Realtime diversion calibration (F3): measure θ, don't assume it --------------------------
-# This is the 3.0.0 graduation gate. When a real road closes, traffic diverts to alternates at some
-# observed rate; the model predicts a rate that depends on θ. Fit θ so predicted matches observed
-# (DD-F5). Validated here on synthetic data (recover a known θ); wired to real PeMS volumes when access
-# lands. Data-source stance: open/public-agency (PeMS/NPMRDS/511), never commercial extractive APIs.
+# --- Realtime diversion calibration (F3): measure θ from closure-induced speed --------------------
+# The 3.0.0 graduation gate. A real closure forces overflow onto its alternates; how much each alternate
+# SLOWS depends on θ (the route-split dispersion). We fit θ so the model's predicted slowdown matches the
+# observed slowdown (DD-F5). PRIMARY observable = the congestion ratio t/t0 = v_freeflow / v_observed, a
+# dimensionless slowdown that broad speed data (NPMRDS, probe/agency speeds) reports directly and that BPR
+# predicts directly (t/t0 = 1 + α(x/c)^β) — so we never invert the ill-posed speed→volume map, and we
+# need no link length. Volume (PeMS / ATSPM counts) is the secondary observable. This matches Gravel's
+# output: fragility is a travel-time (speed) impact, so we validate the thing we report, in its own units.
+# Speed identifies θ more softly than counts, and cannot see stranded demand (a conservation question →
+# validated topologically, not here). Data stance: open / public-agency, never commercial extractive APIs.
 
 
 def _remove_edges(graph, capacity, remove):
@@ -345,59 +350,88 @@ def _remove_edges(graph, capacity, remove):
 
 @dataclass
 class ClosureObservation:
-    """One measured closure event: which edges closed, which links were monitored, and the flow
-    observed on them afterward (from PeMS volumes, or synthetic for validation)."""
+    """One measured closure event: which edges closed, which links were monitored, the values observed
+    there afterward, and what kind of value.
+
+    ``observable="congestion"`` (the primary/default) is the dimensionless slowdown ratio
+    t/t0 = v_freeflow / v_observed on each monitored link — what NPMRDS / probe / agency speed data gives
+    (observed = reference_speed / observed_speed), matched against the model's BPR ratio with no link
+    length and no speed→volume inversion. ``observable="flow"`` compares vehicle volumes instead
+    (PeMS / ATSPM counts)."""
 
     closure_edges: list          # (u, v) directed node pairs removed by the closure
-    monitored: list              # (u, v) links where post-closure flow was observed
-    observed_flow: np.ndarray    # observed flow on each monitored link (same order as `monitored`)
+    monitored: list              # (u, v) links where the post-closure value was observed
+    observed: np.ndarray         # observed value on each monitored link (same order as `monitored`)
+    observable: str = "congestion"  # "congestion" (speed-ratio slowdown) | "flow" (volume)
 
 
 @dataclass
 class CalibrationResult:
     theta: float                 # best-fit logit dispersion
-    error: float                 # RMSE (veh) on monitored links at the best-fit θ
+    error: float                 # RMSE on monitored links at the best-fit θ (in the observable's units)
+    observable: str              # which observable was fit ("congestion" or "flow")
     theta_grid: np.ndarray       # θ values evaluated
     error_grid: np.ndarray       # RMSE at each θ (the identifiability curve — report it, don't hide it)
 
 
-def diversion_flows(graph, capacity, demand, closure_edges, config=None):
-    """Model-predicted post-closure equilibrium flows, keyed by ``(u, v)`` — the predicted diversion."""
-    config = config or FlowConfig()
+def _diversion_predict(graph, capacity, demand, closure_edges, config):
+    """Post-closure equilibrium per ``(u, v)``: ``{'flow': veh, 'congestion': t/t0 slowdown ratio}``.
+
+    The congestion ratio is the congested time over free-flow time (= v_freeflow / v_observed), which is
+    exactly what a speed observation reports and what BPR yields directly — no link length needed.
+    """
     sub, subcap = _remove_edges(graph, capacity, closure_edges)
     res = assign(sub, subcap, demand, config)
-    s, t, _ = (np.asarray(a) for a in sub.to_coo())
-    return {(int(s[k]), int(t[k])): float(res.edge_flows[k]) for k in range(s.size)}
+    s, t, t0 = (np.asarray(a) for a in sub.to_coo())
+    out = {}
+    for k in range(s.size):
+        ratio = float(res.edge_times[k] / t0[k]) if t0[k] > 0 else 1.0
+        out[(int(s[k]), int(t[k]))] = {"flow": float(res.edge_flows[k]), "congestion": ratio}
+    return out
+
+
+def diversion_flows(graph, capacity, demand, closure_edges, config=None):
+    """Model-predicted post-closure equilibrium flows, keyed by ``(u, v)`` — the predicted diversion."""
+    pred = _diversion_predict(graph, capacity, demand, closure_edges, config or FlowConfig())
+    return {k: v["flow"] for k, v in pred.items()}
 
 
 def calibrate_theta(graph, capacity, demand, observations, theta_bounds=(0.02, 10.0), n_grid=15,
                     config=None):
-    """Fit the logit dispersion θ to observed post-closure link flows (DD-F5).
+    """Fit the logit dispersion θ to observed closure-induced slowdown (or volume) (DD-F5).
 
     For each candidate θ (log-spaced over ``theta_bounds``), solve stochastic UE on each observation's
-    closed network and compare predicted flow on the monitored links to the observed flow; return the θ
-    minimizing RMSE, plus the full error-vs-θ curve so identifiability is visible. This is the harness
-    that, fed real PeMS diversion, decides the 3.0.0 graduation gate. Validated on synthetic data by
-    recovering a known θ from model-generated observations.
+    closed network and compare the model's predicted value on the monitored links — the congestion ratio
+    (default) or the volume — to the observed value; return the θ minimizing RMSE, plus the full
+    error-vs-θ curve so identifiability is visible. Each observation carries its own ``observable``, but a
+    single call fits one kind (the first observation's) so the RMSE is in consistent units. Speed-space
+    (congestion) is the primary mode: it validates Gravel's travel-time output directly and needs only
+    broad speed data. This harness, fed real closure data, decides the 3.0.0 graduation gate; validated on
+    synthetic data by recovering a known θ from model-generated observations.
     """
     config = config or FlowConfig()
     thetas = np.geomspace(theta_bounds[0], theta_bounds[1], n_grid)
+    observable = observations[0].observable if observations else "congestion"
 
     def rmse(theta):
         se, cnt = 0.0, 0
         for obs in observations:
-            pred_by_pair = diversion_flows(
+            pred_by_pair = _diversion_predict(
                 graph, capacity, demand, obs.closure_edges, replace(config, theta=float(theta))
             )
-            pred = np.array([pred_by_pair.get((int(u), int(v)), 0.0) for u, v in obs.monitored])
-            se += float(np.sum((pred - np.asarray(obs.observed_flow, dtype=float)) ** 2))
-            cnt += len(obs.observed_flow)
+            pred = np.array([
+                pred_by_pair.get((int(u), int(v)), {}).get(obs.observable, 0.0)
+                for u, v in obs.monitored
+            ])
+            se += float(np.sum((pred - np.asarray(obs.observed, dtype=float)) ** 2))
+            cnt += len(obs.observed)
         return (se / cnt) ** 0.5 if cnt else 0.0
 
     errs = np.array([rmse(t) for t in thetas])
     best = int(np.argmin(errs))
     return CalibrationResult(
-        theta=float(thetas[best]), error=float(errs[best]), theta_grid=thetas, error_grid=errs
+        theta=float(thetas[best]), error=float(errs[best]), observable=observable,
+        theta_grid=thetas, error_grid=errs,
     )
 
 
