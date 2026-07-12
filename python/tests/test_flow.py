@@ -3,7 +3,6 @@ from pathlib import Path
 
 import gravel
 import numpy as np
-import pytest
 from gravel import flow
 
 DATA = Path(__file__).resolve().parent / "data" / "siouxfalls"
@@ -16,10 +15,18 @@ def test_bpr_formula():
     assert float(flow.bpr(10.0, 0.0, 5000.0)) == 10.0
 
 
-def test_stochastic_ue_not_yet_implemented():
-    g = gravel.make_grid_graph(3, 3)
-    with pytest.raises(NotImplementedError):
-        flow.assign(g, [], {0: {8: 100.0}}, flow.FlowConfig(theta=1.0))
+def test_stochastic_ue_sharpens_to_deterministic():
+    # Dial SUE: large theta sharpens toward the deterministic UE; small theta spreads flow.
+    graph, capacity, demand = flow.load_tntp(
+        DATA / "SiouxFalls_net.tntp", DATA / "SiouxFalls_trips.tntp"
+    )
+    det = flow.assign(graph, capacity, demand, flow.FlowConfig(gap_tol=1e-4, max_iterations=1500))
+    sharp = flow.assign(graph, capacity, demand, flow.FlowConfig(theta=5.0, max_iterations=200))
+    spread = flow.assign(graph, capacity, demand, flow.FlowConfig(theta=0.05, max_iterations=200))
+    corr_sharp = float(np.corrcoef(sharp.edge_flows, det.edge_flows)[0, 1])
+    corr_spread = float(np.corrcoef(spread.edge_flows, det.edge_flows)[0, 1])
+    assert corr_sharp > 0.99            # large theta ≈ deterministic UE
+    assert corr_spread < corr_sharp     # smaller theta diverges (flow spreads to alternates)
 
 
 def test_ue_equalizes_used_routes():
@@ -93,3 +100,55 @@ def test_flow_fragility_counts_stranded_demand():
     r = flow.flow_fragility(g, cap, {0: {2: 100.0}}, [(1, 2)], flow.FlowConfig())
     assert r.stranded_demand == 100.0
     assert r.scenario_tstt == 0.0      # the only demand is now unservable
+
+
+def test_calibrate_recovers_known_theta():
+    # Primary route A plus two alternates B, C of different cost. Close A; the diversion split between
+    # B and C depends on theta. Generate "observed" flows at a known theta, then recover it -- the F3
+    # calibration machinery validated on synthetic data (real PeMS volumes plug in the same way).
+    src = np.array([0, 1, 0, 2, 0, 4], dtype=np.uint32)  # A:(0,1)(1,3)  B:(0,2)(2,3)  C:(0,4)(4,3)
+    tgt = np.array([1, 3, 2, 3, 4, 3], dtype=np.uint32)
+    t0 = np.array([8.0, 4.0, 10.0, 3.0, 11.0, 3.0])
+    cap = np.full(6, 1e9)  # uncongested: route choice dominates, so theta is cleanly identified
+    g = gravel.Graph.from_coo(5, src, tgt, t0)
+    demand = {0: {3: 6000.0}}
+    theta_true = 0.5
+
+    pred = flow.diversion_flows(g, cap, demand, [(0, 1)],
+                                flow.FlowConfig(max_iterations=200, theta=theta_true))
+    monitored = [(0, 2), (0, 4)]
+    observed = np.array([pred[(0, 2)], pred[(0, 4)]])
+    assert observed.min() > 0  # both alternates carry flow (theta is identifiable)
+
+    obs = flow.ClosureObservation(closure_edges=[(0, 1)], monitored=monitored,
+                                  observed=observed, observable="flow")
+    result = flow.calibrate_theta(g, cap, demand, [obs], theta_bounds=(0.05, 5.0), n_grid=15,
+                                  config=flow.FlowConfig(max_iterations=200))
+    assert result.observable == "flow"
+    assert abs(np.log(result.theta / theta_true)) < np.log(1.7)  # recovered within grid resolution
+    assert result.error < 1.0  # near-perfect fit at the recovered theta (self-consistent data)
+
+
+def test_calibrate_recovers_theta_from_speed():
+    # The PRIMARY path: fit theta to closure-induced *slowdown*, no volume used. Finite capacities so the
+    # overflow onto alternates B and C actually congests them; the pair of slowdown ratios encodes theta.
+    src = np.array([0, 1, 0, 2, 0, 4], dtype=np.uint32)  # A:(0,1)(1,3)  B:(0,2)(2,3)  C:(0,4)(4,3)
+    tgt = np.array([1, 3, 2, 3, 4, 3], dtype=np.uint32)
+    t0 = np.array([8.0, 4.0, 10.0, 3.0, 11.0, 3.0])
+    cap = np.full(6, 3000.0)  # finite -> overflow slows the alternates
+    g = gravel.Graph.from_coo(5, src, tgt, t0)
+    demand = {0: {3: 5000.0}}
+    theta_true = 0.4
+    mon = [(0, 2), (0, 4)]
+
+    pred = flow._diversion_predict(g, cap, demand, [(0, 1)],
+                                   flow.FlowConfig(max_iterations=400, theta=theta_true))
+    observed = np.array([pred[m]["congestion"] for m in mon])  # slowdown ratios t/t0 on B, C
+    assert observed.max() > 1.02  # the alternates genuinely slow (there is a signal to fit)
+
+    obs = flow.ClosureObservation(closure_edges=[(0, 1)], monitored=mon,
+                                  observed=observed, observable="congestion")
+    result = flow.calibrate_theta(g, cap, demand, [obs], theta_bounds=(0.05, 3.0), n_grid=15,
+                                  config=flow.FlowConfig(max_iterations=400))
+    assert result.observable == "congestion"
+    assert abs(np.log(result.theta / theta_true)) < np.log(1.7)  # recovered from speed within grid res

@@ -203,32 +203,60 @@ another TNTP network with a distributed reference solution) to within the usual 
 the solver is correct on a network with a known answer do any downstream numbers mean anything.
 Correctness is a solved-benchmark match, not a plausible-looking map.
 
-**Tier 2 — behavioral validation from realtime diversion (does reality reroute the way the model
+**Tier 2 — behavioral validation from closure-induced speed (does reality *slow down* the way the model
 says?).** The solver can be perfectly correct and still mispredict real behavior if θ — how sharply
-travelers prefer the shortest path — is wrong. So *measure* it. When a real road closes, traffic
-redistributes to alternates at some observed **diversion rate**; the model predicts a diversion rate for
-that same closure. Fit θ to reproduce observed diversions on a training set of closures, hold out others
-to test it, and report the calibrated θ with an **out-of-sample error band**. This is a
-revealed-preference / discrete-choice estimation (Ben-Akiva & Lerman) — a well-established method —
-applied to real closure events.
+travelers prefer the shortest path — is wrong. So *measure* it, in the units Gravel actually reports.
+Gravel's fragility output is a **travel-time impact** (ΔTSTT — how much slower the region gets), so the
+natural observable is **speed, not volume**: when a road closes, its traffic overflows onto the
+alternates and *slows them down*, and how much each alternate slows depends on θ. Fit θ so the model's
+predicted slowdown reproduces the observed slowdown, on a training set of closures; hold out others and
+report the calibrated θ with an **out-of-sample error band** (a revealed-preference estimation,
+Ben-Akiva & Lerman, applied to real closure events).
+
+**The observable is the congestion ratio** `t/t0 = v_freeflow / v_observed` — a dimensionless slowdown
+that speed data reports directly (`reference_speed / observed_speed`) and that BPR predicts directly
+(`1 + α(x/c)^β`). Fitting this ratio (a) validates the travel-time quantity we ship, in its own units,
+and (b) sidesteps the **ill-posed speed→volume inversion**: a given speed maps to two flows (free-flow
+vs congested branch of the fundamental diagram), so you cannot back out volume from speed — but you *can*
+run the model forward from volume to speed, which is well-posed. `flow.calibrate_theta(...,
+observable="congestion")` is the primary path; `observable="flow"` (volumes) is the secondary, count-based
+cross-check.
+
+**Two honest limits of the speed signal, stated up front:**
+- **θ is identifiable from speed, but softer than from counts.** The *pattern* of slowdowns across
+  several alternates encodes the route split, so speed carries θ — but speed is a lossy, compressed
+  function of flow (the fundamental diagram), so θ comes out with a wider band than counts would give.
+  Pin α, β, and capacity at instrumented count+speed sites (PeMS / ATSPM) so θ is the *only* free knob;
+  otherwise a multi-parameter speed fit matches anything and means nothing.
+- **Speed cannot see stranded demand.** It can't distinguish "traffic rerouted somewhere I'm not
+  monitoring" from "those trips didn't happen" — a conservation question. So `flow_fragility`'s two
+  outputs validate two different ways: **ΔTSTT (reroute delay) → speed** (Tier 2 here); **stranded_demand
+  (disconnection) → connectivity** (topological — Gravel's existing strength — not a speed question).
+  Both are trustworthy only through *moderate* congestion (BPR is single-valued, can't represent
+  gridlock), which is exactly the band where θ moves the fragility answer anyway (deep oversaturation at
+  a real bottleneck means "stranded", which is θ-independent).
 
 The tractable first cut uses **planned closures as natural experiments** (a construction closure with a
-known start/end is far cleaner than a random incident) on **instrumented corridors**:
+known start/end beats a random incident) on **instrumented corridors**:
 
-- **Closure event** (the perturbation): 511 / state-DOT event feeds (open), or Waze for Cities /
-  Connected Citizens (agency access, anonymized) — when and where a road went down.
-- **Observed diversion** (the response): **Caltrans PeMS** loop-detector *volumes* (open; CA) are the
-  gold standard — you can literally measure how much traffic left the closed link and where it went.
-  **NPMRDS** probe *speeds* (FHWA, agency access; national) are the speed-based fallback where volumes
-  aren't instrumented.
-- **Transit** (harder): GTFS-Realtime gives the closure event, but measuring rider redistribution needs
-  automated-passenger-count data, rarely public — so transit diversion is a stretch goal, not the
-  Tier-2 gate.
+- **Closure event** (the perturbation): 511 / state-DOT event feeds (open) or Waze for Cities (agency,
+  anonymized) — when and where a road went down.
+- **Observed slowdown** (the response): broad **speed** on the alternates, before vs after.
+  - **NPMRDS** (FHWA probe speeds; national; covers major arterials, not just freeways) is the target
+    national source — but it is **DSA-gated**: access needs an agency-executed INRIX data-sharing
+    agreement via RITIS, and that agreement forbids redistributing the raw data, so only a *derived* θ
+    (never the data itself) can ship in this open repo.
+  - **Chicago Traffic Tracker** (open Socrata API; arterial bus-probe speeds) and per-state open speed
+    feeds are the openly-pullable sources to build and prove the pipeline against *now*.
+  - **Caltrans PeMS** (free account; CA freeways) gives both speed *and* volume, so it is where BPR's
+    α / β / capacity get calibrated and the count-based (`observable="flow"`) cross-check is run.
+- **Transit** (harder): GTFS-Realtime gives the closure, but rider redistribution needs
+  automated-passenger-count data (rarely public), so transit diversion stays a stretch goal.
 
-Data-source stance (per project values): use **open / public-agency** sources — PeMS, NPMRDS, 511, Waze
-for Cities — and avoid commercial extractive traffic APIs (Google / TomTom / HERE) whose licenses forbid
-the derived-data publication research needs. The measurement is only as reproducible as its inputs are
-open.
+Data-source stance (project values): **open / public-agency** sources only — NPMRDS, PeMS, 511, Chicago's
+open portal — never commercial extractive traffic APIs (Google / Apple / TomTom / HERE), whose licenses
+forbid the derived-data publication research needs and whose probe data is speed-only anyway. The
+measurement is only as reproducible as its inputs are open.
 
 **Graduation gate (the 2.9 pattern).** 3.0.0 graduates the flow layer to *supported* only if Tier 1
 passes and Tier 2 validates within a disclosed error band. If diversion does not validate, 3.0.0 still
@@ -269,13 +297,34 @@ tutorials; treat LODES/LEHD commute flows as the real-data upgrade via a future 
 loader. Demand quality bounds result quality, so make the demand source explicit and swappable rather
 than hard-coding one assumption.
 
-### DD-F5: θ is measured from realtime diversion, not assumed
+### DD-F5: θ is measured from closure-induced speed, not assumed
 θ (logit dispersion) is the one parameter that encodes *behavior* — how much traffic spreads vs.
 concentrates on the shortest path — and literature values are a starting point, not an answer for a
-fragility readout. 3.0.0 calibrates θ against observed diversion rates from real road closures (Tier 2
-of the validation plan) rather than hard-coding it: ship a literature default, expose θ, and report a
-data-calibrated θ with its error band. This is what earns the flow layer the right to be called
-validated, and it is the part of 3.0.0 that must be built as experiment-and-measurement, not just code.
+fragility readout. 3.0.0 calibrates θ against real closures rather than hard-coding it, and calibrates it
+in **speed space**: because Gravel reports a travel-time impact, the observable is the closure-induced
+*slowdown* on the alternates (the congestion ratio `t/t0`), matched forward from the model — not a
+speed→volume inversion (ill-posed), and not an arterial volume we mostly can't measure. Ship a literature
+default, expose θ, report a data-calibrated θ with its out-of-sample band; keep volume calibration
+(`observable="flow"`, PeMS / ATSPM counts) as a secondary cross-check. This is what earns the flow layer
+the right to be called validated, and it must be built as experiment-and-measurement, not just code.
+
+### DD-F6: A general redistribution model, with domain-specific calibrators
+The core abstraction is not "road traffic" — it is **statistical redistribution on a capacitated
+network**: when a component fails, load reroutes to alternates by a maximum-entropy / logit rule over
+path costs, governed by a dispersion parameter. This is the least-committal, domain-agnostic default (it
+assumes only that cheaper alternates absorb more, at a tunable sharpness), and it applies to any Gravel
+substrate — road, transit, power, air, internet. On top of that general model sit **domain-specific
+calibrators**, each doing one of three things: (a) *tune* the cost function and dispersion against domain
+data — roads: BPR cost, θ fit to closure-induced speed (F3); (b) *validate whether the statistical
+default even holds* and, if not, fall back to the topological default with a documented gap — power: the
+2.9 cascade study measured betweenness ⊥ real power flow (Kirchhoff, not logit) and did exactly this; or
+(c) *supply domain physics* where the default fails and data warrants it. This unifies the flow layer and
+the cascade work as instances of one architecture — general statistical redistribution plus a domain
+calibrator that tunes, validates, or replaces it — and it keeps us honest: the general model ships as the
+default everywhere, and a domain graduates to *calibrated* only where its calibrator earns it.
+*Engineering note:* build calibrators concretely (roads first) and factor the shared redistribution
+kernel out when the **second** one lands — principle now, abstraction on the rule of two, not a
+speculative framework ahead of need.
 
 ---
 
@@ -299,15 +348,22 @@ delay — and because unservable trips leave TSTT, ΔTSTT alone would understate
 existing scenario / hazard-footprint machinery so a flood footprint maps straight to a region-wide delay
 cost.
 
-### Phase F3 — Realtime diversion calibration & validation (the phase that validates 3.0.0)
-Build the measurement, not just the model. Ingest closure events (511 / Waze for Cities) and observed
-volumes/speeds (PeMS / NPMRDS) via new `gravel.datasets` adapters; for each closure, measure the
-observed diversion rate; run `flow_fragility` for the same closure to get the predicted diversion; fit θ
-to minimize predicted-vs-observed error on a training set and report out-of-sample error on a held-out
-set (a `flow.calibrate_theta(closures, observations)` harness). **Exit criterion / graduation gate:**
-diversion validates within a disclosed band (→ 3.0.0 *supported*), or the gap is characterized and
-documented (→ 3.0.0 ships *experimental*, 2.9-style). This is the phase that makes 3.0.0 a validated
-release rather than a correct-solver one.
+### Phase F3 — Closure-induced-speed calibration & validation (the phase that validates 3.0.0) · ◐ harness built (synthetic-validated, speed + volume); real-data ingestion pending
+Build the measurement, not just the model. **Done:** the stochastic (logit) UE model — `flow.assign`
+with finite `theta`, Dial STOCH loading + MSA, which sharpens to the deterministic UE as `theta`→∞ — and
+the calibration harness: `flow.calibrate_theta(graph, capacity, demand, observations, ...)` → best-fit θ
+with the full error-vs-θ curve, over `ClosureObservation`s whose `observable` is **`"congestion"`** (the
+primary speed-ratio slowdown `t/t0`) or `"flow"` (volume). **Synthetic-validated both ways:** recovers a
+known θ from model-generated observations in speed mode (`test_calibrate_recovers_theta_from_speed`) and
+volume mode (`test_calibrate_recovers_known_theta`). **Pending real-data ingestion:** a `gravel.datasets`
+adapter turning a closure event (511 / Waze) + before/after **speed** on the alternates into
+`ClosureObservation`s (`observable="congestion"`), then the train/test split + out-of-sample band.
+Source reality: **NPMRDS** is the national target but **DSA-gated** (agency INRIX agreement via RITIS; no
+raw-data redistribution → only a derived θ ships here); **Chicago Traffic Tracker** (open Socrata API,
+arterial speeds) is the openly-pullable source to build and prove the pipeline now; **PeMS** (free
+account) calibrates BPR and runs the volume cross-check. **Exit criterion / graduation gate:** the
+observed slowdown validates within a disclosed band (→ 3.0.0 *supported*), or the gap is characterized
+and documented (→ 3.0.0 ships *experimental*, 2.9-style).
 
 ### Phase F4 — Transit (multi-modal, genuinely novel)
 The same logit machinery on the GTFS transit graph, with **GTFS-Realtime** closures reweighting live: a
@@ -333,9 +389,10 @@ GTFS-RT closure feed is used for live re-assignment even before diversion can be
   closures carry confounders (time-of-day, weather, day-of-week, total demand also shifting). Planned
   closures as natural experiments and matched before/after windows reduce this; residual confounding
   must be reported, not hidden. A wrong-but-precise θ is worse than an honest error band.
-- **PeMS is CA-only** — the cleanest volume data is California's. A national Tier-2 needs NPMRDS
-  speed-based inference (weaker signal) or more instrumented corridors. Decide how far to generalize
-  before claiming a *national* diversion validation vs. a CA-corridor one.
+- **Which open speed source, and how national** — NPMRDS covers arterials nationally but is DSA-gated
+  (no raw redistribution); Chicago's open portal is pullable but city-scale and bus-probe-noisy; PeMS is
+  CA freeways only. Decide whether the first validated claim is a single-corridor natural experiment
+  (honest, small) or a multi-corridor national one (needs the DSA), and never overclaim scope.
 - **Zone aggregation for CONUS** — node-level assignment is county-scale; national runs likely need
   traffic-analysis-zone aggregation. Decide the zone scheme before promising national ΔTSTT.
 - **Demand realism vs. availability** — LODES is commute-only and residence-to-work; non-commute trips

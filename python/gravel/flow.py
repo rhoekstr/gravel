@@ -28,7 +28,7 @@ Example::
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 
@@ -45,8 +45,10 @@ class FlowConfig:
     """Assignment parameters.
 
     ``alpha`` / ``beta`` are the BPR volume-delay coefficients (standard 0.15 / 4). ``theta`` is the
-    logit route-choice dispersion for stochastic UE; ``None`` selects deterministic UE (Frank-Wolfe),
-    the only mode implemented in phase F1.
+    logit route-choice dispersion: ``None`` selects deterministic UE (Frank-Wolfe); a finite value
+    selects stochastic UE (Dial STOCH logit loading + MSA). Larger ``theta`` sharpens choice toward the
+    shortest path (``theta`` → ∞ recovers the deterministic limit); smaller spreads flow over alternates.
+    ``theta`` is the parameter calibrated against real diversion data in Phase F3 (DD-F5).
     """
 
     alpha: float = 0.15
@@ -80,6 +82,81 @@ def bpr(free_flow_time, capacity, flow, alpha=0.15, beta=4.0):
     return t0 * (1.0 + alpha * ratio**beta)
 
 
+def _stochastic_ue(src, tgt, t0, cap, n, m, demand, config):
+    """Stochastic UE by Dial STOCH logit loading + MSA. Returns (flows, gap, iterations).
+
+    Dial (1971): a link a=(i,j) is *efficient* from origin r when it moves away from r
+    (``d_r[i] < d_r[j]``, using one-to-many Dijkstra distances). Its likelihood is
+    ``L_a = exp(θ·(d_r[j] − d_r[i] − t_a))`` (the bracket is ≤ 0 by the triangle inequality, so no
+    overflow). A forward pass in increasing-distance order accumulates link weights; a backward pass in
+    decreasing order distributes each destination's demand back through those weights — loading all
+    destinations of one origin in a single sweep, no path enumeration. MSA averages toward the fixed
+    point. The reported gap is the MSA relative flow change (SUE has no clean duality gap).
+    """
+    theta = config.theta
+    src32, tgt32 = src.astype(np.uint32), tgt.astype(np.uint32)
+    out_links = [[] for _ in range(n)]
+    in_links = [[] for _ in range(n)]
+    for k in range(m):
+        out_links[int(src[k])].append(k)
+        in_links[int(tgt[k])].append(k)
+
+    def dial_load(cost):
+        g = Graph.from_coo(n, src32, tgt32, cost)
+        y = np.zeros(m)
+        for o, dests in demand.items():
+            o = int(o)
+            d = np.asarray(dijkstra(g, o).distances)
+            order = np.argsort(d, kind="stable")  # increasing distance; unreachable (inf) sorts last
+            eff = (d[src] < d[tgt]) & np.isfinite(d[tgt])
+            delta = np.where(eff, d[tgt] - d[src] - cost, -np.inf)  # ≤ 0 on efficient links
+            likelihood = np.where(eff, np.exp(theta * delta), 0.0)
+            # forward: link weights W in increasing-distance order
+            s_in = np.zeros(n)
+            s_in[o] = 1.0
+            w = np.zeros(m)
+            for i in order:
+                i = int(i)
+                if s_in[i] == 0.0 or not np.isfinite(d[i]):
+                    continue
+                for a in out_links[i]:
+                    if likelihood[a] > 0.0:
+                        w[a] = likelihood[a] * s_in[i]
+                        s_in[int(tgt[a])] += w[a]
+            # backward: distribute demand through the weights, decreasing-distance order
+            arriving = np.zeros(n)
+            for dst, vol in dests.items():
+                arriving[int(dst)] += vol
+            for j in order[::-1]:
+                j = int(j)
+                denom = 0.0
+                for a in in_links[j]:
+                    denom += w[a]
+                if denom <= 0.0:
+                    continue
+                share = arriving[j] / denom
+                for a in in_links[j]:
+                    if w[a] > 0.0:
+                        f = share * w[a]
+                        y[a] += f
+                        arriving[int(src[a])] += f
+        return y
+
+    x = dial_load(t0)
+    rgap = float("inf")
+    it = 0
+    while it < config.max_iterations:
+        it += 1
+        cost = bpr(t0, cap, x, config.alpha, config.beta)
+        aux = dial_load(cost)
+        x_new = x + (aux - x) / (it + 1)  # Method of Successive Averages
+        rgap = float(np.sum(np.abs(x_new - x)) / max(float(np.sum(x)), 1.0))
+        x = x_new
+        if rgap < config.gap_tol:
+            break
+    return x, rgap, it
+
+
 def assign(graph, capacity, demand, config=None):
     """Solve for the User-Equilibrium flow pattern.
 
@@ -107,10 +184,6 @@ def assign(graph, capacity, demand, config=None):
     loading visits the whole graph anyway, where plain Dijkstra is already optimal (DD-F2).
     """
     config = config or FlowConfig()
-    if config.theta is not None:
-        raise NotImplementedError(
-            "stochastic UE (finite theta) is a later phase; use theta=None for deterministic UE"
-        )
 
     src, tgt, t0 = (np.asarray(a) for a in graph.to_coo())
     m = int(src.size)
@@ -123,6 +196,17 @@ def assign(graph, capacity, demand, config=None):
 
     src32 = src.astype(np.uint32)
     tgt32 = tgt.astype(np.uint32)
+
+    # Stochastic UE (finite theta): Dial STOCH logit loading + MSA. Deterministic UE (theta=None)
+    # falls through to Frank-Wolfe below.
+    if config.theta is not None:
+        x, rgap, it = _stochastic_ue(src, tgt, t0, cap, n, m, demand, config)
+        cost = bpr(t0, cap, x, config.alpha, config.beta)
+        return FlowResult(
+            edge_flows=x, edge_times=cost, total_travel_time=float(cost @ x),
+            relative_gap=float(rgap), iterations=it,
+        )
+
     lidx = {(int(src[k]), int(tgt[k])): k for k in range(m)}
 
     def all_or_nothing(cost):
@@ -213,19 +297,8 @@ def flow_fragility(graph, capacity, demand, scenario_edges, config=None):
     config = config or FlowConfig()
     intact = assign(graph, capacity, demand, config)
 
-    src, tgt, t0 = (np.asarray(a) for a in graph.to_coo())
-    cap = np.asarray(capacity, dtype=float)
-    if cap.size == 0:
-        cap = np.full(src.size, np.inf)
-    remove = {(int(u), int(v)) for u, v in scenario_edges}
-    keep = np.fromiter(
-        ((int(src[k]), int(tgt[k])) not in remove for k in range(src.size)),
-        dtype=bool,
-        count=src.size,
-    )
-    n = int(graph.node_count)
-    sub = Graph.from_coo(n, src[keep].astype(np.uint32), tgt[keep].astype(np.uint32), t0[keep])
-    scenario = assign(sub, cap[keep], demand, config)
+    sub, subcap = _remove_edges(graph, capacity, scenario_edges)
+    scenario = assign(sub, subcap, demand, config)
 
     # Demand whose O-D pair is disconnected once the scenario edges are gone.
     stranded = 0.0
@@ -244,6 +317,121 @@ def flow_fragility(graph, capacity, demand, scenario_edges, config=None):
         stranded_demand=stranded,
         intact=intact,
         scenario=scenario,
+    )
+
+
+# --- Realtime diversion calibration (F3): measure θ from closure-induced speed --------------------
+# The 3.0.0 graduation gate. A real closure forces overflow onto its alternates; how much each alternate
+# SLOWS depends on θ (the route-split dispersion). We fit θ so the model's predicted slowdown matches the
+# observed slowdown (DD-F5). PRIMARY observable = the congestion ratio t/t0 = v_freeflow / v_observed, a
+# dimensionless slowdown that broad speed data (NPMRDS, probe/agency speeds) reports directly and that BPR
+# predicts directly (t/t0 = 1 + α(x/c)^β) — so we never invert the ill-posed speed→volume map, and we
+# need no link length. Volume (PeMS / ATSPM counts) is the secondary observable. This matches Gravel's
+# output: fragility is a travel-time (speed) impact, so we validate the thing we report, in its own units.
+# Speed identifies θ more softly than counts, and cannot see stranded demand (a conservation question →
+# validated topologically, not here). Data stance: open / public-agency, never commercial extractive APIs.
+
+
+def _remove_edges(graph, capacity, remove):
+    """Return ``(sub_graph, sub_capacity)`` with the given ``(u, v)`` node-pair edges deleted."""
+    src, tgt, t0 = (np.asarray(a) for a in graph.to_coo())
+    cap = np.asarray(capacity, dtype=float)
+    if cap.size == 0:
+        cap = np.full(src.size, np.inf)
+    rem = {(int(u), int(v)) for u, v in remove}
+    keep = np.fromiter(
+        ((int(src[k]), int(tgt[k])) not in rem for k in range(src.size)), dtype=bool, count=src.size
+    )
+    sub = Graph.from_coo(
+        int(graph.node_count), src[keep].astype(np.uint32), tgt[keep].astype(np.uint32), t0[keep]
+    )
+    return sub, cap[keep]
+
+
+@dataclass
+class ClosureObservation:
+    """One measured closure event: which edges closed, which links were monitored, the values observed
+    there afterward, and what kind of value.
+
+    ``observable="congestion"`` (the primary/default) is the dimensionless slowdown ratio
+    t/t0 = v_freeflow / v_observed on each monitored link — what NPMRDS / probe / agency speed data gives
+    (observed = reference_speed / observed_speed), matched against the model's BPR ratio with no link
+    length and no speed→volume inversion. ``observable="flow"`` compares vehicle volumes instead
+    (PeMS / ATSPM counts)."""
+
+    closure_edges: list          # (u, v) directed node pairs removed by the closure
+    monitored: list              # (u, v) links where the post-closure value was observed
+    observed: np.ndarray         # observed value on each monitored link (same order as `monitored`)
+    observable: str = "congestion"  # "congestion" (speed-ratio slowdown) | "flow" (volume)
+
+
+@dataclass
+class CalibrationResult:
+    theta: float                 # best-fit logit dispersion
+    error: float                 # RMSE on monitored links at the best-fit θ (in the observable's units)
+    observable: str              # which observable was fit ("congestion" or "flow")
+    theta_grid: np.ndarray       # θ values evaluated
+    error_grid: np.ndarray       # RMSE at each θ (the identifiability curve — report it, don't hide it)
+
+
+def _diversion_predict(graph, capacity, demand, closure_edges, config):
+    """Post-closure equilibrium per ``(u, v)``: ``{'flow': veh, 'congestion': t/t0 slowdown ratio}``.
+
+    The congestion ratio is the congested time over free-flow time (= v_freeflow / v_observed), which is
+    exactly what a speed observation reports and what BPR yields directly — no link length needed.
+    """
+    sub, subcap = _remove_edges(graph, capacity, closure_edges)
+    res = assign(sub, subcap, demand, config)
+    s, t, t0 = (np.asarray(a) for a in sub.to_coo())
+    out = {}
+    for k in range(s.size):
+        ratio = float(res.edge_times[k] / t0[k]) if t0[k] > 0 else 1.0
+        out[(int(s[k]), int(t[k]))] = {"flow": float(res.edge_flows[k]), "congestion": ratio}
+    return out
+
+
+def diversion_flows(graph, capacity, demand, closure_edges, config=None):
+    """Model-predicted post-closure equilibrium flows, keyed by ``(u, v)`` — the predicted diversion."""
+    pred = _diversion_predict(graph, capacity, demand, closure_edges, config or FlowConfig())
+    return {k: v["flow"] for k, v in pred.items()}
+
+
+def calibrate_theta(graph, capacity, demand, observations, theta_bounds=(0.02, 10.0), n_grid=15,
+                    config=None):
+    """Fit the logit dispersion θ to observed closure-induced slowdown (or volume) (DD-F5).
+
+    For each candidate θ (log-spaced over ``theta_bounds``), solve stochastic UE on each observation's
+    closed network and compare the model's predicted value on the monitored links — the congestion ratio
+    (default) or the volume — to the observed value; return the θ minimizing RMSE, plus the full
+    error-vs-θ curve so identifiability is visible. Each observation carries its own ``observable``, but a
+    single call fits one kind (the first observation's) so the RMSE is in consistent units. Speed-space
+    (congestion) is the primary mode: it validates Gravel's travel-time output directly and needs only
+    broad speed data. This harness, fed real closure data, decides the 3.0.0 graduation gate; validated on
+    synthetic data by recovering a known θ from model-generated observations.
+    """
+    config = config or FlowConfig()
+    thetas = np.geomspace(theta_bounds[0], theta_bounds[1], n_grid)
+    observable = observations[0].observable if observations else "congestion"
+
+    def rmse(theta):
+        se, cnt = 0.0, 0
+        for obs in observations:
+            pred_by_pair = _diversion_predict(
+                graph, capacity, demand, obs.closure_edges, replace(config, theta=float(theta))
+            )
+            pred = np.array([
+                pred_by_pair.get((int(u), int(v)), {}).get(obs.observable, 0.0)
+                for u, v in obs.monitored
+            ])
+            se += float(np.sum((pred - np.asarray(obs.observed, dtype=float)) ** 2))
+            cnt += len(obs.observed)
+        return (se / cnt) ** 0.5 if cnt else 0.0
+
+    errs = np.array([rmse(t) for t in thetas])
+    best = int(np.argmin(errs))
+    return CalibrationResult(
+        theta=float(thetas[best]), error=float(errs[best]), observable=observable,
+        theta_grid=thetas, error_grid=errs,
     )
 
 
