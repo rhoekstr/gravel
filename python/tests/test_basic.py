@@ -105,3 +105,24 @@ def test_osm_imports_available():
     assert hasattr(gravel, "SpeedProfile")
     assert hasattr(gravel, "OSMConfig")
     assert hasattr(gravel, "load_osm_graph")
+
+
+def test_bindings_keep_alive_from_temporaries():
+    """Regression: EdgeSampler and BlockedCHQuery store the graph/CH by raw reference.
+    Constructing them from temporaries then collecting the temporaries must not
+    use-after-free (previously crashed: the bindings lacked py::keep_alive)."""
+    import gc
+
+    s = gravel.EdgeSampler(gravel.make_grid_graph(30, 30))  # temporary Graph
+    gc.collect()
+    assert len(s.sample(gravel.SamplerConfig())) > 0        # would segfault if freed
+
+    def make_q():
+        g = gravel.make_grid_graph(20, 20)
+        ch = gravel.build_ch(g)
+        return gravel.BlockedCHQuery(ch, gravel.ShortcutIndex(ch), g)  # ch/idx/g all temporary
+
+    q = make_q()
+    gc.collect()
+    d = q.distance_blocking(0, 399, [])                     # would segfault if ch/g freed
+    assert d > 0

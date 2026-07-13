@@ -131,24 +131,28 @@ def test_progressive_greedy_failure_round():
     rounds = viz.edge_failure_round(g, res)
 
     assert rounds.shape == (g.edge_count,)
+    emap = _edge_lookup(g)
+    # A removal severs the road BOTH ways: both directed twins share the round, so that the
+    # downstream connectivity curve (which unites the endpoints of any un-marked edge) actually
+    # disconnects. The distinct round VALUES are exactly 1..k.
     finite = np.where(~np.isnan(rounds))[0]
-    # one finite round per removed edge, and the rounds are exactly 1..k
-    assert len(finite) == len(res.removal_sequence)
-    assert sorted(rounds[finite].tolist()) == [float(i) for i in range(1, len(finite) + 1)]
-
-    # the first removed edge maps to round 1
-    if res.removal_sequence:
-        emap = _edge_lookup(g)
-        u, v = res.removal_sequence[0]
-        assert rounds[emap[(int(u), int(v))]] == 1.0
+    assert sorted(set(rounds[finite].tolist())) == [float(i) for i in range(1, len(res.removal_sequence) + 1)]
+    for step, (u, v) in enumerate(res.removal_sequence, start=1):
+        assert rounds[emap[(int(u), int(v))]] == float(step)
+        if (int(v), int(u)) in emap:          # bidirectional road -> reverse twin same round
+            assert rounds[emap[(int(v), int(u))]] == float(step)
 
 
 def test_progressive_survivors_are_nan():
     g = _coord_grid(6)
     res = _progressive_greedy(g)
     rounds = viz.edge_failure_round(g, res)
-    # far more edges survive than are removed
-    assert np.isnan(rounds).sum() == g.edge_count - len(res.removal_sequence)
+    # each removal marks its directed twins, so the marked count is per-road-times-directions;
+    # far more edges still survive than are removed, and marked == edge_count - survivors.
+    marked = int((~np.isnan(rounds)).sum())
+    assert marked >= len(res.removal_sequence)          # both twins on a bidirectional road
+    assert np.isnan(rounds).sum() == g.edge_count - marked
+    assert marked < g.edge_count                        # most edges survive
 
 
 # --- failure_geoframe dispatch ---

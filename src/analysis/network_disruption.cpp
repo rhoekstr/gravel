@@ -159,10 +159,18 @@ std::vector<double> edge_failure_round(
     }
     int step = 1;
     for (const auto& [u, v] : removal_sequence) {
-        auto it = buckets.find(key(u, v));
-        if (it != buckets.end() && !it->second.empty()) {
-            out[it->second.front()] = static_cast<double>(step);
-            it->second.pop_front();
+        // A removal severs the road BOTH ways: mark the front CSR edge of the (u,v) and
+        // (v,u) buckets so twin directed edges share the round. The analyses that produce
+        // removal_sequence block undirected roads (canonicalized keys), and network_disruption
+        // unites the endpoints of any still-NaN edge — so leaving the reverse twin unmarked
+        // keeps the road connected and flattens the connectivity curve. One-way roads have no
+        // reverse bucket, so this is a no-op there.
+        for (uint64_t k : {key(u, v), key(v, u)}) {
+            auto it = buckets.find(k);
+            if (it != buckets.end() && !it->second.empty()) {
+                out[it->second.front()] = static_cast<double>(step);
+                it->second.pop_front();
+            }
         }
         ++step;
     }

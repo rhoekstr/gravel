@@ -112,13 +112,15 @@ def query_layer(
         if got:
             frames.append(gpd.GeoDataFrame.from_features(features, crs="EPSG:4326"))
             offset += got
-        # Keep paging while the server hands back a FULL page — that means more rows
-        # may remain. `exceededTransferLimit` is only a hint: a server returns it False
-        # when the cap was our `resultRecordCount` (not its transfer/size limit), so a
-        # full page must continue even when the flag is unset (otherwise a small
-        # `page_size`, or simplified small-geometry responses, silently truncate the
-        # result). A short or empty page is the real end-of-data signal.
-        if got < page:
+        else:
+            break  # empty page = end of data (also prevents an infinite loop if a server
+            # keeps flagging exceededTransferLimit on an otherwise-empty response)
+        # Keep paging while more rows may remain. A FULL page (got == page) may have more.
+        # A SHORT page still has more when the SERVER capped it on its own transfer/byte
+        # limit (`exceededTransferLimit` true) — the failure mode a plain `got < page` break
+        # silently truncates. Only a short page with the flag unset is the true end of data.
+        # (A `resultRecordCount` cap yields a full page, already covered by the check above.)
+        if got < page and not payload.get("exceededTransferLimit"):
             break
 
     if not frames:

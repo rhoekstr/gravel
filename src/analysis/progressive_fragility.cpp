@@ -5,6 +5,7 @@
 #include <cmath>
 #include <functional>
 #include <stdexcept>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -198,6 +199,24 @@ ProgressiveFragilityResult progressive_fragility(
         }
     } else {
         candidate_edges = all_edges;
+    }
+
+    // Collapse directed twins to one undirected road. The strategies block/restore roads by a
+    // canonical (min,max) key, so keeping both (u,v) and (v,u) in the pool counts one road as
+    // two removals and lets the first twin's restore un-block the road while its twin is still
+    // nominally removed — understating degradation and mis-locating the critical k (worst in the
+    // greedy strategy, where symmetric twins have equal betweenness and both enter the top-k).
+    // Genuine one-way arcs (no reverse twin in the pool) are preserved.
+    {
+        std::vector<std::pair<NodeID, NodeID>> deduped;
+        deduped.reserve(candidate_edges.size());
+        std::unordered_set<uint64_t> seen;
+        seen.reserve(candidate_edges.size() * 2);
+        for (const auto& e : candidate_edges) {
+            const NodeID a = std::min(e.first, e.second), b = std::max(e.first, e.second);
+            if (seen.insert((static_cast<uint64_t>(a) << 32) | b).second) deduped.push_back(e);
+        }
+        candidate_edges.swap(deduped);
     }
 
     if (candidate_edges.size() < 2) return result;

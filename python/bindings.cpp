@@ -1290,7 +1290,8 @@ PYBIND11_MODULE(_gravel, m) {
         .def_readwrite("seed", &SamplerConfig::seed);
 
     py::class_<EdgeSampler>(m, "EdgeSampler")
-        .def(py::init<const ArrayGraph&>(), py::arg("graph"))
+        .def(py::init<const ArrayGraph&>(), py::arg("graph"),
+             py::keep_alive<1, 2>())  // EdgeSampler stores a Graph& — keep it alive
         .def("sample", &EdgeSampler::sample, py::arg("config"))
         .def("sample_pairs", &EdgeSampler::sample_pairs, py::arg("config"));
 
@@ -1391,7 +1392,9 @@ PYBIND11_MODULE(_gravel, m) {
 
     py::class_<BlockedCHQuery>(m, "BlockedCHQuery")
         .def(py::init<const ContractionResult&, const ShortcutIndex&, const ArrayGraph&>(),
-             py::arg("ch"), py::arg("idx"), py::arg("graph"))
+             py::arg("ch"), py::arg("idx"), py::arg("graph"),
+             py::keep_alive<1, 2>(), py::keep_alive<1, 3>(),
+             py::keep_alive<1, 4>())  // stores ch/idx/graph by ref — keep all three alive
         .def("distance_blocking", &BlockedCHQuery::distance_blocking,
              py::arg("source"), py::arg("target"), py::arg("blocked_edges"),
              "Distance query with blocked edges");
