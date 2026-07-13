@@ -63,16 +63,24 @@ TEST_CASE("Cascade: cascade_vs_alpha endpoints are ordered by tolerance", "[casc
     CHECK(pts.front().cascade_fraction >= pts.back().cascade_fraction - 1e-12);
 }
 
-TEST_CASE("Cascade: explicit trigger edge is honored", "[cascade]") {
+TEST_CASE("Cascade: explicit trigger fails the road both ways", "[cascade]") {
     auto g = make_grid_graph(5, 5);
     auto cfg = base_cfg();
     cfg.alpha = 0.1;
-    // Trigger a specific edge that exists in a grid (node 0 -> node 1).
     cfg.trigger_edges = {{0, 1}};
-
     auto r = cascade_fragility(*g, cfg);
-    CHECK(r.trigger_size == 1);
-    CHECK(r.cascade_size >= 1);
+
+    // The same road given in reverse orientation resolves to the SAME failed set: the trigger now
+    // fails the road both ways, so orientation no longer matters and a reverse-only pair is not
+    // silently dropped (regression: previously only the exact (u,v) direction was masked).
+    auto cfg2 = base_cfg();
+    cfg2.alpha = 0.1;
+    cfg2.trigger_edges = {{1, 0}};
+    auto r2 = cascade_fragility(*g, cfg2);
+
+    CHECK(r.trigger_size >= 1);
+    CHECK(r.trigger_size == r2.trigger_size);   // orientation-independent
+    CHECK(r.cascade_size >= r.trigger_size);
 }
 
 TEST_CASE("Cascade: largest_component_fraction tracks fragmentation", "[cascade]") {

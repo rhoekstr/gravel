@@ -149,9 +149,11 @@ def _stochastic_ue(src, tgt, t0, cap, n, m, demand, config):
         it += 1
         cost = bpr(t0, cap, x, config.alpha, config.beta)
         aux = dial_load(cost)
-        x_new = x + (aux - x) / (it + 1)  # Method of Successive Averages
-        rgap = float(np.sum(np.abs(x_new - x)) / max(float(np.sum(x)), 1.0))
-        x = x_new
+        # Convergence = the true loading mismatch |aux - x| (auxiliary vs current flows). NOT the MSA
+        # step |x_new - x|, which equals |aux - x| / (it+1) and shrinks with iterations regardless of
+        # convergence — that would stop the loop early on a still-unconverged solution.
+        rgap = float(np.sum(np.abs(aux - x)) / max(float(np.sum(x)), 1.0))
+        x = x + (aux - x) / (it + 1)  # Method of Successive Averages
         if rgap < config.gap_tol:
             break
     return x, rgap, it
@@ -419,8 +421,12 @@ def calibrate_theta(graph, capacity, demand, observations, theta_bounds=(0.02, 1
             pred_by_pair = _diversion_predict(
                 graph, capacity, demand, obs.closure_edges, replace(config, theta=float(theta))
             )
+            # A monitored link absent from the prediction (e.g. removed by the closure, or not in
+            # the subgraph) defaults to the observable's NEUTRAL value, not 0.0: t/t0 = 1.0 is
+            # free-flow for "congestion" (0.0 would fake a huge slowdown error and bias the fit).
+            neutral = 1.0 if obs.observable == "congestion" else 0.0
             pred = np.array([
-                pred_by_pair.get((int(u), int(v)), {}).get(obs.observable, 0.0)
+                pred_by_pair.get((int(u), int(v)), {}).get(obs.observable, neutral)
                 for u, v in obs.monitored
             ])
             se += float(np.sum((pred - np.asarray(obs.observed, dtype=float)) ** 2))

@@ -340,7 +340,13 @@ def _cmap_rgb(values: np.ndarray, cmap: str, missing_color) -> np.ndarray:
     else:
         scaled = np.zeros_like(values)
     rgb = apply_continuous_cmap(scaled, colormaps[cmap])
-    rgb[~finite] = list(missing_color)  # survivors / undefined → grey
+    # survivors / undefined → grey. Match missing_color to the colormap output width: lonboard may
+    # return RGBA (N,4); a 3-tuple missing_color would fail to broadcast, so pad with opaque alpha.
+    mc = list(missing_color)
+    width = rgb.shape[1] if rgb.ndim == 2 else len(mc)
+    if len(mc) < width:
+        mc = mc + [255] * (width - len(mc))
+    rgb[~finite] = mc[:width]
     return rgb
 
 

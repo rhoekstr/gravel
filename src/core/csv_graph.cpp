@@ -75,7 +75,12 @@ std::unique_ptr<ArrayGraph> load_csv_graph(const CSVConfig& config) {
 
         NodeID src = get_or_create(fields[src_idx]);
         NodeID tgt = get_or_create(fields[tgt_idx]);
-        Weight w = std::stod(fields[wgt_idx]);
+        Weight w;
+        try {
+            w = std::stod(fields[wgt_idx]);
+        } catch (const std::exception&) {
+            continue;  // skip a row with an empty/malformed weight (matches the too-few-fields skip)
+        }
 
         edges.push_back({src, tgt, w});
         if (config.bidirectional) {

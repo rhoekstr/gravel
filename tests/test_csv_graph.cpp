@@ -50,3 +50,24 @@ TEST_CASE("CSV graph with bidirectional flag", "[csv]") {
 
     std::remove(tmp.c_str());
 }
+
+TEST_CASE("CSV graph skips rows with a malformed weight", "[csv]") {
+    // A single empty/non-numeric weight cell must not abort the whole load: the bad row is skipped
+    // (matching the too-few-fields skip), and the well-formed rows still load.
+    std::string tmp = gravel::test::test_temp_path("gravel_test_badweight.csv");
+    {
+        std::ofstream out(tmp);
+        out << "src,dst,w\n";
+        out << "0,1,5.0\n";
+        out << "1,2,\n";        // empty weight -> skipped
+        out << "2,3,notanumber\n";  // non-numeric -> skipped
+        out << "3,4,2.5\n";
+    }
+    CSVConfig cfg;
+    cfg.path = tmp; cfg.source_col = "src"; cfg.target_col = "dst"; cfg.weight_col = "w";
+
+    auto g = load_csv_graph(cfg);
+    REQUIRE(g->edge_count() == 2);  // only the two valid rows
+    std::remove(tmp.c_str());
+}
+

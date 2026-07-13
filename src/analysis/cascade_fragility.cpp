@@ -58,8 +58,14 @@ CascadeFragilityResult cascade_fragility(const ArrayGraph& graph,
         failed.insert(best);
     } else {
         for (const auto& [u, v] : config.trigger_edges) {
-            EdgeID e = find_edge(graph, u, v);
-            if (e < m) failed.insert(e);
+            // Fail the road BOTH ways: masking only one direction leaves the reverse edge
+            // traversable (a half-failed road), and a pair supplied in the stored-reverse
+            // orientation would otherwise be silently dropped (find_edge is directed).
+            const std::pair<NodeID, NodeID> dirs[2] = {{u, v}, {v, u}};
+            for (const auto& [a, b] : dirs) {
+                EdgeID e = find_edge(graph, a, b);
+                if (e < m) failed.insert(e);
+            }
         }
     }
     result.trigger_size = static_cast<uint32_t>(failed.size());
