@@ -27,6 +27,24 @@ Confirmed findings from a multi-agent codebase review (each verified against the
   mis-locating the critical *k*, worst in the greedy strategy). The pool is now deduped to undirected
   roads before selection.
 
+A second review batch (verified individually; conventions/non-bugs deferred with rationale, not fixed):
+- **`cascade_fragility` trigger failed only one direction** — an explicit `trigger_edges` pair masked
+  only the exact `(u,v)` CSR edge, leaving the reverse twin traversable (a half-failed road) and
+  silently dropping a pair supplied in the stored-reverse orientation. Now fails the road both ways.
+- **Stochastic-UE convergence metric measured the MSA step, not the gap** (`flow.py`) — `rgap` used
+  `|x_new − x|`, which equals `|aux − x| / (it+1)` and shrinks with iterations regardless of
+  convergence, so the loop could stop early on an unconverged solution. Now measures the true loading
+  mismatch `|aux − x| / |x|`.
+- **`calibrate_theta` used the wrong neutral for a missing monitored link** — defaulted to `0.0`, but
+  the neutral for the `congestion` observable is `t/t0 = 1.0`; `0.0` fabricates a large slowdown error
+  and biases θ. Now defaults per-observable.
+- **`_arcgis` ignored HTTP-200 `{"error":…}` payloads** — a server-side query error yielded an empty
+  result set instead of raising. Now surfaced.
+- **`csv_graph` aborted on a single malformed weight cell** — unguarded `std::stod`; now skips the row
+  (matching the existing too-few-fields skip).
+- **`viz._cmap_rgb` could fail to broadcast `missing_color`** — a 3-tuple assigned into lonboard's
+  RGBA `(N,4)` output; now width-matched (padded with opaque alpha).
+
 **Flow layer (3.0.0, in progress) — Phases F1–F3 (synthetic).** First code for the demand-driven
 traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
 

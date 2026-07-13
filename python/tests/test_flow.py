@@ -152,3 +152,21 @@ def test_calibrate_recovers_theta_from_speed():
                                   config=flow.FlowConfig(max_iterations=400))
     assert result.observable == "congestion"
     assert abs(np.log(result.theta / theta_true)) < np.log(1.7)  # recovered from speed within grid res
+
+
+def test_calibrate_congestion_neutral_default():
+    # A monitored link absent from the prediction (here, not an edge in the graph) must default to
+    # the congestion NEUTRAL t/t0 = 1.0, not 0.0 -- otherwise it fabricates a huge slowdown error
+    # and biases theta. (Regression for the 0.0-default bug.)
+    src = np.array([0, 1], dtype=np.uint32)
+    tgt = np.array([1, 2], dtype=np.uint32)
+    t0 = np.array([5.0, 5.0])
+    cap = np.array([1000.0, 1000.0])
+    g = gravel.Graph.from_coo(3, src, tgt, t0)
+
+    obs = flow.ClosureObservation(closure_edges=[], monitored=[(7, 8)],
+                                  observed=np.array([1.0]), observable="congestion")
+    r = flow.calibrate_theta(g, cap, {0: {2: 100.0}}, [obs], theta_bounds=(0.1, 2.0), n_grid=4,
+                             config=flow.FlowConfig(max_iterations=50))
+    assert r.observable == "congestion"
+    assert r.error < 1e-6   # neutral 1.0 == observed 1.0 -> ~0 error (would be ~1.0 if it defaulted to 0.0)

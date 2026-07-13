@@ -107,6 +107,10 @@ def query_layer(
                 page = max(_MIN_PAGE, page // 2)
                 continue
             raise
+        # ArcGIS reports query failures in-band with HTTP 200 and an {"error": {...}} body (no
+        # "features"). Surface it instead of silently returning an empty result set.
+        if isinstance(payload, dict) and "error" in payload:
+            raise RuntimeError(f"ArcGIS query returned an error payload: {payload['error']}")
         features = payload.get("features", [])
         got = len(features)
         if got:
