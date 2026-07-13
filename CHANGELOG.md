@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Fixed
+Confirmed findings from a multi-agent codebase review (each verified against the code before fixing):
+- **Use-after-free in `EdgeSampler` and `BlockedCHQuery` bindings** — both store the graph (and CH /
+  shortcut index) by raw C++ reference, but their pybind11 constructors lacked `py::keep_alive`, so
+  building them from temporaries (`gravel.EdgeSampler(gravel.make_grid_graph(...))`, or a `BlockedCHQuery`
+  returned from a helper) and then using them read freed memory — garbage results or a segfault. Added
+  the missing `keep_alive` policies (matching the existing `CHQuery` pattern) + a regression test.
+- **Silent truncation in the ArcGIS pager** (`datasets/_arcgis.py`) — paging stopped on any short page
+  and never consulted `exceededTransferLimit`, so a server that capped a page on its own transfer/byte
+  limit dropped all remaining features without error (under-marking hazard edges). Now continues on a
+  short page when the server flags its limit, and breaks on an empty page (no infinite loop).
+- **`edge_failure_round` left the reverse twin unmarked** (`analysis/network_disruption.cpp`) — a removal
+  marked only the exact-direction CSR edge, so on a bidirectional graph the un-marked twin kept the
+  endpoints connected and the viz connectivity curve stayed flat / stranded set stayed empty. A removal
+  now severs the road both ways (no-op for genuine one-way roads).
+- **Directed-twin double-count in progressive fragility** (`analysis/progressive_fragility.cpp`) — the
+  candidate pool held both `(u,v)` and `(v,u)` while blocking/restoring used the undirected key, so one
+  road counted as two removals and the first twin's restore un-blocked it early (understating degradation,
+  mis-locating the critical *k*, worst in the greedy strategy). The pool is now deduped to undirected
+  roads before selection.
+
 **Flow layer (3.0.0, in progress) — Phases F1–F3 (synthetic).** First code for the demand-driven
 traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
 
