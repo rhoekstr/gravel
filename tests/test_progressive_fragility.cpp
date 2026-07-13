@@ -38,7 +38,10 @@ TEST_CASE("Progressive MC on grid produces valid curve", "[progressive]") {
     ProgressiveFragilityConfig cfg;
     cfg.base_config.boundary.vertices = {
         {34.99, -83.01}, {34.99, -82.93}, {35.07, -82.93}, {35.07, -83.01}, {34.99, -83.01}};
-    cfg.base_config.od_sample_count = 10;
+    // Dense O-D sampling so that any 3-road removal degrades at least one shortest path, making
+    // auc_raw > 0 robust to the platform-divergent std::shuffle / uniform_int_distribution the MC
+    // uses (libc++ and MSVC STL pick different edges from the same seed+engine).
+    cfg.base_config.od_sample_count = 60;
     cfg.selection_strategy = SelectionStrategy::MONTE_CARLO;
     cfg.k_max = 3;
     cfg.monte_carlo_runs = 5;
