@@ -3974,11 +3974,10 @@ Deliberately **not** full lineage: just enough to cite the pull in a methods sec
 | `to_json(**kwargs)` | `str` | Record as JSON (`**kwargs` forwarded to `json.dumps`). |
 | `summary()` | `str` | One-line human-readable citation (`"{id}: {version} from {endpoint} @ {pulled_at}"`; also `str(prov)`). |
 
-### 36.8 Deprecated (removed in 3.0)
+### 36.8 Removed in 3.0 (migration map)
 
-The 2.6 relocation left back-compat shims: every old name below still works, emits a
-`DeprecationWarning`, and forwards to its `gravel.datasets` replacement. They are **removed in Gravel
-3.0**. A bare `import gravel` does not warn — only actual access to a deprecated name does (PEP 562).
+The 2.6 relocation left back-compat shims (deprecated since 2.6). They were **removed in Gravel 3.0** —
+the old names below no longer exist. Migrate to their `gravel.datasets` replacements:
 
 | Deprecated | Replacement |
 |------------|-------------|
@@ -4108,3 +4107,42 @@ g, cap, iata = ds.openflights.load(*ds.openflights.fetch("data/"), with_codes=Tr
 t100 = ds.t100.load("T_T100_SEGMENT.csv", value_field="SEATS")   # {(origin, dest): seats}
 seat_cap = ds.t100.edge_capacity(g, iata, t100)                  # float64[edge_count], CSR order
 ```
+
+### 36.10 Chicago Traffic Tracker (`gravel.datasets.chicago_traffic`, 3.0)
+
+Open bus-probe arterial congestion for Chicago (City of Chicago Traffic Tracker). Speed is of vehicles
+*moving through* a segment, not a volume; the no-data sentinel is **`-1`** (no probe that interval),
+distinct from `0` (stopped). A road **closure reads as a sustained run of `-1`** (the segment goes
+dark), not speed 0. Coverage is bus-served arterials only. Stdlib `urllib`; no key for light use.
+
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `load_segments(bbox=None)` | `(Graph, list[Segment], Provenance)` | Segments → routable graph (edge weight = free-flow seconds); `Segment` metadata is re-aligned to CSR edge order. `bbox=(min_lat,min_lon,max_lat,max_lon)` restricts to a corridor. |
+| `free_flow_speeds(ids, hours=(1..5))` | `dict[str, float]` | Per-segment free-flow mph = mean overnight speed. |
+| `congestion_profile(ids, start, end, weekdays_only=True)` | `dict[str, dict[int, float]]` | Mean speed by hour over `[start, end)` (ISO dates; bounded so the multi-year history doesn't time out). |
+| `detect_closures(start, end, min_days=3, ...)` | `list[ClosureEvent]` | Closures as natural experiments: a segment goes dark **while a neighbor slows** (the go-dark alone is ambiguous — coverage gaps also read `-1`). |
+
+`ATTRIBUTION` names the required City-of-Chicago credit. `GRAVEL_CHICAGO_ENDPOINT` overrides the host.
+See `examples/python/10_flow_calibration_chicago.py` for the end-to-end calibration study.
+
+## 37. Flow layer — traffic assignment (`gravel.flow`, 3.0, **experimental**)
+
+A demand-driven traffic-assignment layer *on top of* the topological core (outside DD-6): it consumes
+any `(Graph, capacity)` — road, transit (`gtfs.load`), or synthetic — plus an O-D `demand` dict and
+solves for equilibrium flows. **Experimental:** the solver is exact (reproduces the Sioux Falls
+User-Equilibrium benchmark) and recovers a known θ on synthetic data, but real θ does **not** identify
+from open corridor data (see the verdict and the regional-ODME path in
+[`docs/FLOW_LAYER.md`](docs/FLOW_LAYER.md)). Solver needs only numpy; the `[sue]` extra reserves the
+calibration tooling.
+
+| Function / type | Returns | Description |
+|-----------------|---------|-------------|
+| `assign(graph, capacity, demand, config=FlowConfig())` | `FlowResult` | User Equilibrium (`theta=None`, Frank-Wolfe) or stochastic UE (finite `theta`, Dial STOCH logit + MSA). `FlowResult` carries `edge_flows`, `edge_times`, `total_travel_time`, `relative_gap`, `iterations`. |
+| `flow_fragility(graph, capacity, demand, scenario_edges, config=None)` | `FlowFragilityResult` | Region-wide cost of failing `scenario_edges` after demand re-equilibrates: **ΔTSTT** (+ fraction) and **stranded demand** (trips whose O-D the closure disconnects). |
+| `calibrate_theta(graph, capacity, demand, observations, ...)` | `CalibrationResult` | Fit the logit dispersion θ to observed diversion (`observable="congestion"` speed slowdown, primary; `"flow"` volume, secondary). Returns best-fit θ + the full error-vs-θ curve. |
+| `diversion_flows(...)`, `bpr(...)`, `load_tntp(...)` | — | Predicted post-closure flows; the BPR volume-delay function; TNTP benchmark loader. |
+| `FlowConfig`, `FlowResult`, `FlowFragilityResult`, `ClosureObservation`, `CalibrationResult` | — | `FlowConfig(alpha=0.15, beta=4.0, theta=None, max_iterations=..., gap_tol=...)`. |
+
+Transit (F4, scaffold): `gtfs.load` returns `(Graph, capacity)`, so `assign` / `flow_fragility` apply to
+GTFS transit graphs unchanged (rider-reroute ΔTSTT + stranded riders). Live GTFS-Realtime integration is
+deferred (research-track).

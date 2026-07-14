@@ -1,6 +1,6 @@
 # Gravel — Product Requirements Document
 
-**PRD revision 2.9 — reflects Gravel 2.8.0 (shipped) + the 2.9 cascade-validation study; cascade verdict: stays experimental (Phase 5) | Last updated: 2026-07-09**
+**PRD revision 3.0 — reflects Gravel 3.0.0: the `gravel.flow` traffic-assignment layer ships public but experimental (real θ under-identified at corridor scale; see [`FLOW_LAYER.md`](FLOW_LAYER.md)); the 2.6 deprecation shims are removed (breaking). Cascade stays experimental (Phase 5). | Last updated: 2026-07-13**
 
 ## Executive Summary
 
@@ -617,7 +617,10 @@ cross-arch libomp — exposed that build-time dependency clones are a release li
   Equilibrium (BPR slow-down delay + logit rerouting, solved by MSA) as a `gravel.flow` layer *on top
   of* the core, importing it one-directionally and leaving DD-6 intact. The honest home for "how much
   slower does the region get when this fails" (ΔTSTT), which the topological cascade cannot answer.
-  Fully specified in [`FLOW_LAYER.md`](FLOW_LAYER.md) — design only, not yet built.
+  **Shipped in 3.0.0 as `gravel.flow`, public but experimental:** the solver is exact (Sioux Falls) and
+  recovers a known θ synthetically, but real θ does not identify from open corridor data (boundary /
+  around-corridor rerouting is invisible at corridor scale). See [`FLOW_LAYER.md`](FLOW_LAYER.md) for the
+  full calibration study and the regional-ODME path to graduation.
 - Temporal fragility (degradation over construction schedules)
 - International road-network support (non-TIGER boundaries)
 - ML-assisted edge-importance ranking

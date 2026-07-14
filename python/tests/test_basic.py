@@ -104,7 +104,7 @@ def test_osm_imports_available():
     """If OSM is built, all expected names should be importable."""
     assert hasattr(gravel, "SpeedProfile")
     assert hasattr(gravel, "OSMConfig")
-    assert hasattr(gravel, "load_osm_graph")
+    assert hasattr(gravel.datasets.osm, "load")  # OSM loader lives under gravel.datasets since 2.6
 
 
 def test_bindings_keep_alive_from_temporaries():
