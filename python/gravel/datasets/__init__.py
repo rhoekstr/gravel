@@ -34,6 +34,7 @@ from .._gravel import (
 )
 from . import (
     caida,
+    chicago_traffic,
     gridsfm,
     gtfs,
     nfhl,
@@ -53,6 +54,7 @@ __all__ = [
     "info",
     "summary",
     "caida",
+    "chicago_traffic",
     "gridsfm",
     "gtfs",
     "nfhl",
