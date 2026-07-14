@@ -365,13 +365,17 @@ account) calibrates BPR and runs the volume cross-check. **Exit criterion / grad
 observed slowdown validates within a disclosed band (→ 3.0.0 *supported*), or the gap is characterized
 and documented (→ 3.0.0 ships *experimental*, 2.9-style).
 
-### Phase F4 — Transit (multi-modal, genuinely novel)
-The same logit machinery on the GTFS transit graph, with **GTFS-Realtime** closures reweighting live: a
-segment drops, riders redistribute probabilistically to alternate transit paths. Same solver, different
-substrate. Wiring GTFS-RT into an equilibrium model is something almost nobody does; it is the natural
-act once road SUE is trustworthy. Note: measuring transit *diversion* for Tier-2-style validation needs
-automated-passenger-count ridership, rarely public — so transit calibration is a stretch goal, and the
-GTFS-RT closure feed is used for live re-assignment even before diversion can be measured.
+### Phase F4 — Transit (multi-modal) · ◐ scaffolded (mechanism validated); real GTFS-RT deferred
+The same logit machinery on the GTFS transit graph. **The mechanism already exists and needs no new
+solver code:** `gravel.datasets.gtfs.load` returns `(Graph, capacity)` — exactly `flow.assign`'s inputs
+— so rider assignment is `flow.assign` on the transit graph, and a **service disruption** is
+`flow.flow_fragility` with the closed transit edges, giving rider-reroute delay (ΔTSTT in rider-minutes)
+plus stranded riders. Validated synthetically in `python/tests/test_transit_flow.py` (SUE spreads riders
+across parallel lines; a closed boarding leg reroutes them onto the slower line; closing both strands
+them). **Deferred:** wiring **GTFS-Realtime** closures in for *live* re-assignment, and Tier-2 diversion
+*validation* — the latter needs automated-passenger-count ridership (rarely public) and hits the same
+demand-identification wall the road calibration did (Phase F3), so real transit calibration is a
+research-track stretch goal, not part of the experimental 3.0 release.
 
 ---
 
