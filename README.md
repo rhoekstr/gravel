@@ -176,6 +176,7 @@ Seven independent libraries with a strict dependency DAG — link only what you 
 - **Visualization (2.5.0)** — real per-edge road geometry plus static (`plot_fragility`), interactive (`interactive_map`), and animated (`animate_failure`, self-contained deck.gl HTML) maps via `gravel-fragility[viz]`
 - **Dataset onboarding (2.6.0)** — a unified `gravel.datasets` layer: a queryable catalog (`list()`/`info()`/`summary()`) plus per-dataset submodules with a consistent interface — `osm` and `tiger` loaders, and `nfhl`/`shakemap`/`usdm`/`nri` hazard overlays whose `fetch(...)` returns `(GeoDataFrame, Provenance)` and whose `edge_probabilities(...)` feeds `stochastic_fragility`. Hazard fetchers need the `gravel[datasets]` extra (geopandas + shapely + pyproj)
 - **Network substrates (2.7.0)** — five non-road infrastructure networks in `gravel.datasets`, each `load(...)` returning `(Graph, capacity)`: `gridsfm` and `opfdata` (power grids, capacity in MVA), `caida` (internet router topology), `openflights` (air routes), and `gtfs` (transit, persons/hour capacity), plus the `t100` BTS seat-capacity overlay for air graphs. Fragility analyses run on these graphs and their per-edge capacity, and the topological cascade on the graph structure, exactly like a road graph. The catalog now spans 12 datasets; loaders need only numpy
+- **Flow layer (3.0.0, experimental)** — `gravel.flow`, a demand-driven traffic-assignment layer *on top of* the topological core: stochastic User Equilibrium (BPR congestion + logit route choice), `flow_fragility` for the region-wide delay cost of a failure (ΔTSTT + stranded demand), and a θ-calibration harness against real closure-induced slowdowns. The solver is exact (Sioux Falls) and recovers a known θ synthetically, but **real θ does not identify at corridor scale** — it ships experimental, with the gap and the regional-ODME path documented in [`docs/FLOW_LAYER.md`](docs/FLOW_LAYER.md). The `gravel.datasets.chicago_traffic` adapter and example 10 walk the real-data study. **Breaking:** the 2.6 deprecation shims (`gravel.hazards`, top-level `load_osm_graph`/`load_tiger_*`) are removed — use `gravel.datasets.*`
 
 ### Performance
 
@@ -274,7 +275,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {2.9.0}
+  version = {3.0.0}
 }
 ```
 

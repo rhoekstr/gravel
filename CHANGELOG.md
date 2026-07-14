@@ -4,7 +4,18 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.0.0] — 2026-07-13
+
+**Major release.** The demand-driven **flow layer** (`gravel.flow`, traffic assignment) ships — *public
+but experimental* — alongside a Chicago Traffic Tracker dataset adapter and a multi-agent-review bug
+sweep. Breaking: the deprecation shims scheduled for 3.0 are removed. The flow layer's real-data
+calibration verdict is documented honestly below (θ does not identify at corridor scale).
+
+### Removed (breaking)
+- **The `gravel.hazards` deprecation shim** (deprecated in 2.6) — use
+  `gravel.datasets.{nfhl,shakemap,usdm,nri}` instead.
+- **Top-level `gravel.load_osm_graph` / `load_osm_graph_with_metadata` / `load_tiger_*` aliases**
+  (deprecated in 2.6) — use `gravel.datasets.{osm,tiger}` instead.
 
 ### Fixed
 Confirmed findings from a multi-agent codebase review (each verified against the code before fixing):
@@ -45,10 +56,21 @@ A second review batch (verified individually; conventions/non-bugs deferred with
 - **`viz._cmap_rgb` could fail to broadcast `missing_color`** — a 3-tuple assigned into lonboard's
   RGBA `(N,4)` output; now width-matched (padded with opaque alpha).
 
-**Flow layer (3.0.0, in progress) — Phases F1–F3 (synthetic).** First code for the demand-driven
-traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
+**Flow layer (`gravel.flow`) — ships public but EXPERIMENTAL.** The demand-driven traffic-assignment
+consumer layer specified in `docs/FLOW_LAYER.md`. The solver is exact (reproduces the published Sioux
+Falls equilibrium) and recovers a known θ on synthetic data in both observables, but **real θ does not
+identify from open corridor data**: the model reproduces *average* congestion but not *which* alternates
+absorb the diverted traffic, at any θ (Halsted train / Cermak test, pattern correlation ≈ 0), because
+around-the-corridor rerouting is invisible at corridor scale. It therefore ships experimental; real θ
+identification needs regional-scale ODME (city network + CMAP TAZ demand + Spiess adjustment against
+camera counts). Full study in `docs/FLOW_LAYER.md`.
 
 ### Added
+- **`gravel.datasets.chicago_traffic`** — Chicago Traffic Tracker adapter (open bus-probe arterial
+  speeds): `load_segments(bbox)` → routable `Graph` + CSR-aligned `Segment` metadata, `free_flow_speeds`,
+  `congestion_profile(start, end)`, and `detect_closures` (finds closures as natural experiments from the
+  speed data alone — a segment goes *dark*, the `-1` no-data sentinel, not to speed 0, while a neighbor
+  slows). Example 10 walks the full real-data calibration and its honest verdict.
 - **`gravel.flow` (F1)** — deterministic User Equilibrium via Frank-Wolfe + BPR volume-delay:
   `flow.assign(graph, capacity, demand, FlowConfig()) → FlowResult` (per-edge equilibrium flows/times,
   TSTT, relative gap), the `bpr(...)` cost function, and `load_tntp(...)` for standard benchmark
@@ -71,7 +93,8 @@ traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
   count-based cross-check. Validated on synthetic data both ways (recovers a known θ from model-generated
   speed *and* volume observations). This is the 3.0.0 graduation gate (DD-F5). Framed per **DD-F6**: the
   layer is a *general* statistical-redistribution model (default for any network), with domain-specific
-  calibrators on top — roads first. No version bump — 3.0.0 tags only once it validates on real data.
+  calibrators on top — roads first. Ships **experimental** in 3.0.0: real θ did not identify at corridor
+  scale (see the flow-layer verdict above); the harness and synthetic validation are what graduate here.
 - **Transit disruption via the flow layer (F4, scaffold)** — because `gravel.datasets.gtfs.load` returns
   `(Graph, capacity)`, the flow layer applies to GTFS transit graphs with no new solver code: rider
   assignment is `flow.assign` on the transit graph, and a service disruption is `flow.flow_fragility`

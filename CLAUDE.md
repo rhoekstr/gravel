@@ -4,7 +4,7 @@ The single reference for working in this repository — what Gravel is, its arch
 invariants, and how to build/test it. **Canonical, version-controlled copy.** Keep it in sync with
 the code (and with `REFERENCE.md` / `CHANGELOG.md` / `docs/PRD.md`).
 
-> Gravel is **published** on PyPI (`gravel-fragility`; current **2.9.0**). Changes here ship to real
+> Gravel is **published** on PyPI (`gravel-fragility`; current **3.0.0**). Changes here ship to real
 > users — preserve the public API and the wheel build, or bump versions deliberately. (conda-forge is
 > stale/unmaintained — PyPI is the only live channel.)
 
@@ -53,7 +53,7 @@ Modules map onto the seven linkable libraries above:
 | `include/gravel/gravel.h` | umbrella header |
 | `python/bindings.cpp` | pybind11 bindings → the `gravel` module (`python/gravel/__init__.py`) |
 | `python/gravel/interop.py` | pure-Python NetworkX / GeoPandas adapters (`gravel[interop]` extra); `from_geodataframe` snaps nodes via the C++ `graph_from_endpoints` |
-| `python/gravel/hazards.py` | hazard footprints → per-edge failure probabilities (`hazard_edge_probabilities` is a thin wrapper over the C++ multi-zone PIP kernel); FEMA NFHL fetch (`fetch_nfhl_flood_zones`, `GRAVEL_NFHL_ENDPOINT`) → `flood_edge_probabilities` → `stochastic_fragility` |
+| `python/gravel/flow.py` | **flow layer (3.0, experimental)** — demand-driven traffic assignment *on top of* the topological core: deterministic UE (Frank-Wolfe) and stochastic UE (Dial STOCH logit + MSA) with BPR congestion (`assign`), region-wide failure cost (`flow_fragility` → ΔTSTT + stranded demand), and θ-calibration against real closure slowdowns (`calibrate_theta`, speed-primary). Applies to any `(Graph, capacity)` incl. GTFS transit. Real θ under-identified at corridor scale — see [`docs/FLOW_LAYER.md`](docs/FLOW_LAYER.md). Hazard footprints → failure probabilities now live in `gravel.datasets` (the `hazards.py` shim was removed in 3.0) |
 | `python/gravel/viz.py` | fragility results → plot-ready traces + renderers: static (`plot_fragility`), interactive (`interactive_map`), animated (`animate_failure`/`animate_failure_html`), 2-panel `dashboard_html`; hazard-ordered `failure_sequence_from_probabilities`, `connectivity_curve`; `gravel[viz]` extra |
 | `cli/cmd_*.cpp` | command-line tools (`build_graph`, `build_ch`, `batch_fragility`, …) |
 | `tests/test_*.cpp` | Catch2 unit tests (+ `python/tests/` pytest) |
