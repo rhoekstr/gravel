@@ -212,7 +212,7 @@ from ._gravel import (  # noqa: E402
 #
 #     import gravel
 #     if gravel.HAS_OSM:
-#         g = gravel.load_osm_graph(cfg)
+#         g = gravel.datasets.osm.load(pbf_path)
 try:
     from ._gravel import (
         CapacityConfig,
@@ -239,17 +239,15 @@ if HAS_ARROW:
 # are lazy-imported inside the functions that need them (`pip install
 # gravel-fragility[interop]`):
 #   interop  — NetworkX / GeoPandas adapters
-#   hazards  — hazard footprints -> per-edge failure probabilities for stochastic_fragility
 #   viz      — fragility results -> plot-ready GeoDataFrames (visualization data bridge)
 from . import (  # noqa: E402
     datasets,
     flow,
-    hazards,
     interop,
     viz,
 )
 
-__version__ = "2.10.0"
+__version__ = "3.0.0"
 
 __all__ = [
     # Feature flags
@@ -307,8 +305,7 @@ __all__ = [
     "ReducedGraphConfig", "ReducedGraph", "build_reduced_geography_graph",
     "InterRegionFragilityConfig", "InterRegionLevel", "InterRegionPairResult",
     "InterRegionFragilityResult", "inter_region_fragility",
-    # (TIGER loaders + load_osm_graph* moved to gravel.datasets in 2.6; the deprecated
-    #  top-level aliases still work via __getattr__ below, and are removed in 3.0.)
+    # (TIGER loaders + load_osm_graph* live under gravel.datasets since 2.6.)
     # Landmarks + sampling
     "LandmarkData", "precompute_landmarks", "SamplingConfig", "stratified_sample",
     # Snap
@@ -319,43 +316,12 @@ __all__ = [
     # Closure risk
     "ClosureRiskTier", "ClosureRiskData", "classify_closure_risk",
     "seasonal_weight_multipliers",
-    # Export / interop / hazards / viz
+    # Export / interop / viz
     "HAS_ARROW", "route_to_geojson", "location_fragility_to_geojson",
-    "write_fragility_jsonl", "interop", "hazards", "viz", "datasets",
+    "write_fragility_jsonl", "interop", "viz", "datasets",
     # Dataset catalog / info-pull (2.6)
     "DatasetKind", "Domain", "Geometry", "Temporal", "Coverage", "Access", "Feature",
     "DatasetInfo", "dataset_catalog",
     # Parallelism
     "HAS_OPENMP", "max_threads", "set_max_threads",
 ]
-
-
-# --- Deprecated top-level loaders (2.6) ------------------------------------------
-# Relocated under gravel.datasets; kept working as warning-emitting aliases and
-# removed in 3.0. Resolved lazily (PEP 562) so a bare `import gravel` never warns —
-# only actual access to a deprecated name does.
-_DEPRECATED_LOADERS = {
-    "load_osm_graph": ("osm", "load"),
-    "load_osm_graph_with_metadata": ("osm", "load_with_metadata"),
-    "load_tiger_counties": ("tiger", "counties"),
-    "load_tiger_states": ("tiger", "states"),
-    "load_tiger_cbsas": ("tiger", "cbsas"),
-    "load_tiger_places": ("tiger", "places"),
-    "load_tiger_urban_areas": ("tiger", "urban_areas"),
-}
-
-
-def __getattr__(name):  # PEP 562 module-level attribute hook
-    target = _DEPRECATED_LOADERS.get(name)
-    if target is not None:
-        import warnings
-
-        submodule, func = target
-        warnings.warn(
-            f"gravel.{name} is deprecated; use gravel.datasets.{submodule}.{func} "
-            "(removed in Gravel 3.0).",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return getattr(getattr(datasets, submodule), func)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
