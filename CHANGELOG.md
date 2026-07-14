@@ -72,6 +72,12 @@ traffic-assignment consumer layer specified in `docs/FLOW_LAYER.md`.
   speed *and* volume observations). This is the 3.0.0 graduation gate (DD-F5). Framed per **DD-F6**: the
   layer is a *general* statistical-redistribution model (default for any network), with domain-specific
   calibrators on top — roads first. No version bump — 3.0.0 tags only once it validates on real data.
+- **Transit disruption via the flow layer (F4, scaffold)** — because `gravel.datasets.gtfs.load` returns
+  `(Graph, capacity)`, the flow layer applies to GTFS transit graphs with no new solver code: rider
+  assignment is `flow.assign` on the transit graph, and a service disruption is `flow.flow_fragility`
+  with the closed transit edges → rider-reroute delay (ΔTSTT in rider-minutes) + stranded riders.
+  Validated synthetically (`python/tests/test_transit_flow.py`). Live GTFS-Realtime closure integration
+  and transit-diversion validation are deferred (research-track; see `docs/FLOW_LAYER.md` Phase F4).
 
 ## [2.10.0] — 2026-07-10
 
