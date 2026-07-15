@@ -4,7 +4,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "gravel-fragility"
-version = "3.0.0"
+version = "3.1.0"
 description = "Fast road network fragility analysis with contraction hierarchies"
 readme = "README.md"
 requires-python = ">=3.10"

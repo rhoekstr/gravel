@@ -4,7 +4,7 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [3.1.0] — 2026-07-13
 
 ### Added
 - **`condense_parallel_edges(graph, policy=ParallelWeightPolicy.MIN)`** (in `gravel`, from the simplify
@@ -19,6 +19,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 ### Removed
 - Internal dead header `include/gravel/us/admin_levels.h` — orphaned (no includers, no implementation,
   its symbols referenced nowhere), a leftover from the 2.6 `us/` relocation. Not public API.
+
+### Fixed
+- **README Python quick-start** called `gravel.load_osm_graph(...)`, a shim removed in 3.0.0 — updated
+  to `gravel.datasets.osm.load("county.osm.pbf")` (the C++ example's `gravel::load_osm_graph` is a real
+  C++ function and stays).
 
 ## [3.0.0] — 2026-07-13
 
