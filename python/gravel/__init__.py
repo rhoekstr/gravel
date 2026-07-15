@@ -101,6 +101,7 @@ from ._gravel import (  # noqa: E402
     LocationFragilityConfig,
     LocationFragilityResult,
     LocationKLevel,
+    ParallelWeightPolicy,
     Polygon,
     # --- Progressive elimination fragility ---
     ProgressiveFragilityConfig,
@@ -156,6 +157,7 @@ from ._gravel import (  # noqa: E402
     cascade_vs_alpha,
     classify_closure_risk,
     coarsen_graph,
+    condense_parallel_edges,
     county_fragility_index,
     dataset_catalog,
     dijkstra,
@@ -270,6 +272,7 @@ __all__ = [
     "FragilityValidationReport", "validate_fragility", "validate_shortcut_interaction",
     # Graph simplification + edge geometry
     "SimplificationConfig", "SimplificationResult", "simplify_graph", "EdgeGeometry",
+    "condense_parallel_edges", "ParallelWeightPolicy",
     # Network analysis
     "SubgraphResult", "extract_subgraph",
     "algebraic_connectivity", "BetweennessConfig", "BetweennessResult", "edge_betweenness",

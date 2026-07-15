@@ -4,6 +4,22 @@ All notable changes to Gravel are documented here.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **`condense_parallel_edges(graph, policy=ParallelWeightPolicy.MIN)`** (in `gravel`, from the simplify
+  library) — an **opt-in** simplification that collapses parallel edges (several edges sharing the same
+  ordered `(source, target)` pair) into one, merging their weights by `MIN` (default — the fastest
+  parallel, what a router uses) / `MAX` / `MEAN`. Parallel edges stay meaningful **by default** (a
+  doubled road or double-circuit line is genuine redundancy, so `find_bridges` correctly treats a
+  duplicated span as *not* a bridge); condensing is the escape hatch for callers who want a simple
+  graph, after which a duplicated span becomes a single edge and *is* a bridge. Node count and
+  coordinates preserved; directed (a two-way road is not "parallel").
+
+### Removed
+- Internal dead header `include/gravel/us/admin_levels.h` — orphaned (no includers, no implementation,
+  its symbols referenced nowhere), a leftover from the 2.6 `us/` relocation. Not public API.
+
 ## [3.0.0] — 2026-07-13
 
 **Major release.** The demand-driven **flow layer** (`gravel.flow`, traffic assignment) ships — *public

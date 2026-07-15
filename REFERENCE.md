@@ -1032,6 +1032,25 @@ SimplificationResult simplify_graph(
     SimplificationConfig config = {});
 ```
 
+### condense_parallel_edges
+
+```cpp
+enum class ParallelWeightPolicy { MIN, MAX, MEAN };   // MIN = fastest parallel (default)
+
+ArrayGraph condense_parallel_edges(const ArrayGraph& graph,
+                                   ParallelWeightPolicy policy = ParallelWeightPolicy::MIN);
+```
+
+Python: `gravel.condense_parallel_edges(graph, policy=gravel.ParallelWeightPolicy.MIN) -> Graph`.
+
+Collapse every set of edges sharing the same **ordered** `(source, target)` pair into a single edge,
+merging their weights per `policy`. **Opt-in** — parallel edges are meaningful by default (a doubled
+road / double-circuit line is genuine redundancy, so `find_bridges` reports a duplicated span as *not* a
+bridge); after condensing, that span is a single edge and *is* a bridge. Node count and coordinates are
+preserved; the graph stays directed (a two-way road is two opposite edges, not a parallel pair), and
+self-loops pass through. Operates on topology + primary weight only — external per-edge overlays (e.g.
+`NetworkGraph` capacity) are not carried through and must be merged separately (typically summed).
+
 ### Edge Category Labels
 
 Defined in `gravel/simplify/edge_labels.h`.
