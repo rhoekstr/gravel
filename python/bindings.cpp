@@ -995,6 +995,17 @@ PYBIND11_MODULE(_gravel, m) {
           py::arg("config") = SimplificationConfig{},
           "Simplify graph with configurable pruning and degradation estimation");
 
+    py::enum_<ParallelWeightPolicy>(m, "ParallelWeightPolicy",
+        "How to merge parallel-edge weights when condensing (MIN = fastest parallel, the default).")
+        .value("MIN", ParallelWeightPolicy::MIN)
+        .value("MAX", ParallelWeightPolicy::MAX)
+        .value("MEAN", ParallelWeightPolicy::MEAN);
+
+    m.def("condense_parallel_edges", &condense_parallel_edges,
+          py::arg("graph"), py::arg("policy") = ParallelWeightPolicy::MIN,
+          "Collapse parallel edges (same ordered node pair) into one, merging weights per policy. "
+          "Opt-in: parallel edges are meaningful (redundancy) by default. Returns a new Graph.");
+
     // Edge labels for category filtering
     py::class_<EdgeCategoryLabels>(m, "EdgeCategoryLabels")
         .def(py::init<>())

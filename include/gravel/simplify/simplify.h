@@ -195,4 +195,29 @@ SimplificationResult filter_edges(
     const ArrayGraph& graph,
     const std::function<bool(uint32_t)>& predicate);
 
+/// How to merge the weights of parallel edges (several edges sharing the same ordered
+/// (source, target) pair) when condensing them into one.
+enum class ParallelWeightPolicy {
+    MIN,   ///< keep the smallest weight — the fastest of the parallels, what a router uses. Default.
+    MAX,   ///< keep the largest weight (the most conservative).
+    MEAN,  ///< keep the arithmetic mean of the parallels' weights.
+};
+
+/// Condense parallel edges: collapse every set of edges that share the same ordered
+/// (source, target) pair into a single edge, merging their weights per @p policy.
+///
+/// Parallel edges are **meaningful by default** across Gravel — a doubled road or double-circuit line
+/// is genuine redundancy, so `find_bridges` correctly reports a duplicated span as *not* a bridge. This
+/// is the **opt-in** operation for callers who instead want a simple graph: after condensing, a
+/// duplicated span becomes a single edge and therefore *is* a bridge. Node count and coordinates are
+/// preserved; self-loops pass through; the graph stays directed, so (u,v) and (v,u) are distinct pairs
+/// (a two-way road is not "parallel"). Operates on the topology + primary weight only — any external
+/// per-edge overlay (e.g. NetworkGraph capacity) is not carried through and must be merged separately.
+///
+/// @param graph  the graph to condense.
+/// @param policy how to merge parallel weights (default: MIN — the fastest parallel).
+/// @return a new graph with at most one edge per ordered node pair.
+ArrayGraph condense_parallel_edges(const ArrayGraph& graph,
+                                   ParallelWeightPolicy policy = ParallelWeightPolicy::MIN);
+
 }  // namespace gravel

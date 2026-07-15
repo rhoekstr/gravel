@@ -5,6 +5,7 @@
 #include <utility>
 #include <unordered_map>
 #include <vector>
+#include <algorithm>
 
 namespace gravel {
 
@@ -213,6 +214,59 @@ SimplificationResult simplify_graph(
     }
 
     return result;
+}
+
+ArrayGraph condense_parallel_edges(const ArrayGraph& graph, ParallelWeightPolicy policy) {
+    const NodeID n = graph.node_count();
+    const auto& off = graph.raw_offsets();
+    const auto& tgt = graph.raw_targets();
+    const auto& wt = graph.raw_weights();
+
+    std::vector<uint32_t> new_off(n + 1, 0);
+    std::vector<NodeID> new_tgt;
+    std::vector<Weight> new_wt;
+    new_tgt.reserve(tgt.size());
+    new_wt.reserve(wt.size());
+
+    // Per node, merge the outgoing edges by target. Keep first-seen target order (deterministic).
+    struct Acc { Weight value; Weight sum; uint32_t count; };
+    std::unordered_map<NodeID, uint32_t> slot;  // target -> index into `order`/`acc`
+    std::vector<NodeID> order;
+    std::vector<Acc> acc;
+
+    for (NodeID u = 0; u < n; ++u) {
+        slot.clear();
+        order.clear();
+        acc.clear();
+        for (uint32_t e = off[u]; e < off[u + 1]; ++e) {
+            const NodeID v = tgt[e];
+            const Weight w = wt[e];
+            auto it = slot.find(v);
+            if (it == slot.end()) {
+                slot.emplace(v, static_cast<uint32_t>(order.size()));
+                order.push_back(v);
+                acc.push_back({w, w, 1});
+            } else {
+                Acc& a = acc[it->second];
+                a.sum += w;
+                a.count += 1;
+                if (policy == ParallelWeightPolicy::MIN) {
+                    a.value = std::min(a.value, w);
+                } else if (policy == ParallelWeightPolicy::MAX) {
+                    a.value = std::max(a.value, w);
+                }
+            }
+        }
+        for (uint32_t i = 0; i < order.size(); ++i) {
+            new_tgt.push_back(order[i]);
+            const Acc& a = acc[i];
+            new_wt.push_back(policy == ParallelWeightPolicy::MEAN ? a.sum / a.count : a.value);
+        }
+        new_off[u + 1] = static_cast<uint32_t>(new_tgt.size());
+    }
+
+    std::vector<Coord> coords = graph.raw_coords();
+    return ArrayGraph(std::move(new_off), std::move(new_tgt), std::move(new_wt), std::move(coords));
 }
 
 }  // namespace gravel
