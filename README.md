@@ -22,7 +22,7 @@ The library is built around contraction hierarchies for fast shortest-path queri
 pip install gravel-fragility
 ```
 
-Binary wheels for Linux (x86_64, aarch64), macOS (x86_64, arm64), and Windows (AMD64) × Python 3.10–3.13. OSM loaders (`load_osm_graph`, `OSMConfig`, `SpeedProfile`) ship enabled on every wheel from v2.2.2 onward — no extra system dependencies required.
+Binary wheels for Linux (x86_64, aarch64), macOS (x86_64, arm64), and Windows (AMD64) × Python 3.10–3.13. OSM loading (`gravel.datasets.osm.load`, `OSMConfig`, `SpeedProfile`) ships enabled on every wheel from v2.2.2 onward — no extra system dependencies required.
 
 ### conda-forge
 
@@ -52,7 +52,7 @@ Install libosmium with:
 ```python
 import gravel
 if gravel.HAS_OSM:
-    graph = gravel.load_osm_graph("county.osm.pbf", gravel.SpeedProfile.car())
+    graph = gravel.datasets.osm.load("county.osm.pbf")
 else:
     # Running on a build without OSM support (e.g., source build without libosmium).
     raise RuntimeError("gravel was built without OSM support")
@@ -66,7 +66,7 @@ else:
 import gravel
 
 # Load a road network (from OSM PBF)
-graph = gravel.load_osm_graph("county.osm.pbf", gravel.SpeedProfile.car())
+graph = gravel.datasets.osm.load("county.osm.pbf")
 
 # Build contraction hierarchy (one-time cost)
 ch = gravel.build_ch(graph)
@@ -275,7 +275,7 @@ If you use Gravel in academic work, please cite:
   title = {Gravel: Fast Road Network Fragility Analysis},
   year = {2026},
   url = {https://github.com/rhoekstr/gravel},
-  version = {3.0.0}
+  version = {3.1.0}
 }
 ```
 
