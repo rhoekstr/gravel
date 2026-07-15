@@ -44,7 +44,7 @@ Modules map onto the seven linkable libraries above:
 |---|---|
 | `core/` | graph representation (structure-of-arrays), basic routing, OpenMP, optional per-edge polyline geometry (`edge_geometry.h` + `simplify_edge_geometry` Douglas–Peucker), endpoint→CSR node snapping (`graph_build.h`), dataset-catalog types (`dataset_info.h`) |
 | `ch/` | contraction hierarchy + blocked queries |
-| `simplify/` | graph simplification, bridges, degree-2 collapse |
+| `simplify/` | graph simplification, bridges, degree-2 collapse; `condense_parallel_edges` (3.1, opt-in — collapse parallel edges into one; parallel edges are meaningful/redundancy by default) |
 | `fragility/` | all fragility analysis (route / location / county / scenario / progressive / tiled); Eigen + Spectra |
 | `geo/` | regions, snapping, point-in-polygon (`osm_graph` moved to `datasets/`) |
 | `datasets/` | dataset loaders + catalog: `osm_graph` (from `geo/`), `tiger_loader` (from `us/`), the hazard-source catalog (`dataset_catalog`); five infrastructure-network parsers (`net_gridsfm`, `net_opfdata`, `net_caida`, `net_openflights`, `net_gtfs`) returning `NetworkGraph` (`network_graph.h` — an `ArrayGraph` plus optional CSR-aligned per-edge `capacity`), and the T-100 airline capacity overlay (`t100`) |
